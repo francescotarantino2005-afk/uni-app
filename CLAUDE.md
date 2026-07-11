@@ -65,4 +65,6 @@ Niente P.IVA/commercialista finché tutto è gratuito. Aprire il forfettario PRI
 ## Stato attuale
 [aggiorna qui a ogni sessione: cosa è fatto, cosa è in corso, prossimo passo]
 - 2026-07-08: progetto definito, si parte con lo Sprint 1 (scheletro + navigazione)
-- 2026-07-09: scheletro completato — Expo SDK 57 + TypeScript + expo-router, tab (Oggi/Orario/Scadenze/Libretto/Chat), onboarding 3 step con gate al primo avvio (flag in SecureStore), client Supabase in /lib/supabase.ts (env in .env, non committato), tema dark in /lib/theme.ts, store Zustand in /store. Prossimo passo: progetto Supabase + prima migration (FASE 3 guida tecnica), poi auth.
+- 2026-07-09: scheletro completato — Expo + TypeScript + expo-router, tab (Oggi/Orario/Scadenze/Libretto/Chat), onboarding 3 step con gate al primo avvio (flag in SecureStore), client Supabase in /lib/supabase.ts (env in .env, non committato), tema dark in /lib/theme.ts, store Zustand in /store.
+- 2026-07-10: downgrade a Expo SDK 54 — l'Expo Go degli store è fermo alla 54.0.2, npm "latest" (SDK 57) non ci gira. NON aggiornare l'SDK finché lo store non aggiorna Expo Go.
+- 2026-07-11: scheletro VERIFICATO su dispositivo reale via Expo Go (connessione --tunnel: la LAN diretta non passava). Sprint 1 scheletro chiuso. Prossimo passo: progetto Supabase (regione EU) + prima migration con RLS (FASE 3 guida tecnica), poi auth email/social.
