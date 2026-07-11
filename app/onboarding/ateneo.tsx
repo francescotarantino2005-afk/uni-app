@@ -1,19 +1,13 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Pressable, StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
 import { PassoOnboarding } from '@/components/PassoOnboarding';
+import { ATENEI } from '@/lib/atenei';
+import { useAppStore } from '@/store/useAppStore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
-// Lista segnaposto: nello Sprint 1 vero arriverà la lista completa con ricerca.
-const ATENEI_ESEMPIO = [
-  'Università di Bologna',
-  'Sapienza Università di Roma',
-  'Politecnico di Milano',
-  'Università di Napoli Federico II',
-];
-
 export default function PassoAteneo() {
-  const [selezionato, setSelezionato] = useState<string | null>(null);
+  const ateneoSelezionato = useAppStore((s) => s.ateneoSelezionato);
+  const impostaAteneo = useAppStore((s) => s.impostaAteneo);
 
   return (
     <PassoOnboarding
@@ -22,22 +16,24 @@ export default function PassoAteneo() {
       titolo="Dove studi?"
       descrizione="Scegli il tuo ateneo: ci serve per proporti le scadenze giuste e capire il tuo calendario."
       etichettaBottone="Continua"
+      bottoneDisabilitato={!ateneoSelezionato}
       onAvanti={() => router.push('/onboarding/foto-orario')}
     >
-      <View style={stili.lista}>
-        {ATENEI_ESEMPIO.map((nome) => (
+      <ScrollView style={stili.lista} contentContainerStyle={stili.contenutoLista}>
+        {ATENEI.map((nome) => (
           <Pressable
             key={nome}
-            onPress={() => setSelezionato(nome)}
-            style={[stili.voce, selezionato === nome && stili.voceSelezionata]}
+            onPress={() => impostaAteneo(nome)}
+            style={[stili.voce, ateneoSelezionato === nome && stili.voceSelezionata]}
           >
-            <Text style={[stili.testoVoce, selezionato === nome && stili.testoVoceSelezionata]}>
+            <Text
+              style={[stili.testoVoce, ateneoSelezionato === nome && stili.testoVoceSelezionata]}
+            >
               {nome}
             </Text>
           </Pressable>
         ))}
-        <Text style={stili.nota}>Lista completa con ricerca in arrivo</Text>
-      </View>
+      </ScrollView>
     </PassoOnboarding>
   );
 }
@@ -45,8 +41,11 @@ export default function PassoAteneo() {
 const stili = StyleSheet.create({
   lista: {
     alignSelf: 'stretch',
-    gap: spazi.sm,
+    maxHeight: 280,
     marginTop: spazi.sm,
+  },
+  contenutoLista: {
+    gap: spazi.sm,
   },
   voce: {
     backgroundColor: colori.superficie,
@@ -68,11 +67,5 @@ const stili = StyleSheet.create({
   testoVoceSelezionata: {
     color: colori.accento,
     fontWeight: '700',
-  },
-  nota: {
-    color: colori.testoSecondario,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: spazi.xs,
   },
 });

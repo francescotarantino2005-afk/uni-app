@@ -1,8 +1,9 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BottonePrimario } from '@/components/BottonePrimario';
+import { MessaggioErrore } from '@/components/MessaggioErrore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 const PASSI_TOTALI = 3;
@@ -14,10 +15,16 @@ type Props = {
   descrizione: string;
   etichettaBottone: string;
   onAvanti: () => void;
+  bottoneDisabilitato?: boolean;
+  caricamento?: boolean;
+  /** azione secondaria testuale, es. "Salto, lo farò dopo" */
+  etichettaSecondaria?: string;
+  onSecondaria?: () => void;
+  errore?: string | null;
   children?: ReactNode;
 };
 
-/** Cornice comune dei tre passi di onboarding: indicatore, icona, testi, contenuto, bottone. */
+/** Cornice comune dei tre passi di onboarding: indicatore, icona, testi, contenuto, bottoni. */
 export function PassoOnboarding({
   passo,
   icona,
@@ -25,6 +32,11 @@ export function PassoOnboarding({
   descrizione,
   etichettaBottone,
   onAvanti,
+  bottoneDisabilitato = false,
+  caricamento = false,
+  etichettaSecondaria,
+  onSecondaria,
+  errore = null,
   children,
 }: Props) {
   return (
@@ -45,7 +57,18 @@ export function PassoOnboarding({
       </View>
 
       <View style={stili.pie}>
-        <BottonePrimario etichetta={etichettaBottone} onPress={onAvanti} />
+        <MessaggioErrore messaggio={errore} />
+        <BottonePrimario
+          etichetta={etichettaBottone}
+          onPress={onAvanti}
+          disabilitato={bottoneDisabilitato}
+          caricamento={caricamento}
+        />
+        {etichettaSecondaria && onSecondaria ? (
+          <Pressable onPress={onSecondaria} disabled={caricamento}>
+            <Text style={stili.linkSecondario}>{etichettaSecondaria}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -102,5 +125,13 @@ const stili = StyleSheet.create({
   },
   pie: {
     paddingBottom: spazi.lg,
+    gap: spazi.md,
+  },
+  linkSecondario: {
+    color: colori.testoSecondario,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: spazi.xs,
   },
 });

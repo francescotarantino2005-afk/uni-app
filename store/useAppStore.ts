@@ -1,46 +1,105 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { Profilo } from '@/lib/tipi';
 
-const CHIAVE_ONBOARDING = 'onboarding_completato';
-
+/**
+ * Stato globale dell'app.
+ * La fonte di verità per "onboarding fatto" è l'esistenza della riga in profiles:
+ * - utente null            → schermata di accesso
+ * - utente senza profilo   → onboarding
+ * - utente con profilo     → home
+ */
 type StatoApp = {
-  /** false finché non abbiamo letto lo stato persistito dal dispositivo */
+  /** false finché non abbiamo ripristinato sessione e profilo all'avvio */
   pronto: boolean;
-  onboardingCompletato: boolean;
-  caricaStato: () => Promise<void>;
-  completaOnboarding: () => Promise<void>;
-  /** Solo per sviluppo: riporta l'app al primo avvio */
-  azzeraOnboarding: () => Promise<void>;
+  utente: User | null;
+  profilo: Profilo | null;
+
+  // dati raccolti durante l'onboarding (solo in memoria)
+  ateneoSelezionato: string | null;
+  fotoOrarioUri: string | null;
+
+  avvia: () => Promise<void>;
+  caricaProfilo: () => Promise<void>;
+  impostaAteneo: (ateneo: string) => void;
+  impostaFotoOrario: (uri: string | null) => void;
+  /** Crea la riga in profiles a fine onboarding. Ritorna un messaggio d'errore o null. */
+  completaOnboarding: () => Promise<string | null>;
+  esci: () => Promise<void>;
 };
 
-export const useAppStore = create<StatoApp>((set) => ({
+export const useAppStore = create<StatoApp>((set, get) => ({
   pronto: false,
-  onboardingCompletato: false,
+  utente: null,
+  profilo: null,
+  ateneoSelezionato: null,
+  fotoOrarioUri: null,
 
-  caricaStato: async () => {
+  avvia: async () => {
     try {
-      const valore = await SecureStore.getItemAsync(CHIAVE_ONBOARDING);
-      set({ onboardingCompletato: valore === 'true', pronto: true });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      set({ utente: session?.user ?? null });
+      if (session?.user) {
+        await get().caricaProfilo();
+      }
     } catch {
+      // offline all'avvio: si riparte dalla schermata di accesso
+    } finally {
       set({ pronto: true });
     }
+
+    // Solo aggiornamenti di stato qui dentro: chiamate a Supabase in questo
+    // callback possono bloccarsi (limite documentato di supabase-js).
+    supabase.auth.onAuthStateChange((_evento, sessione) => {
+      set({ utente: sessione?.user ?? null });
+      if (!sessione?.user) {
+        set({ profilo: null, ateneoSelezionato: null, fotoOrarioUri: null });
+      }
+    });
   },
+
+  caricaProfilo: async () => {
+    const utente = get().utente ?? (await supabase.auth.getUser()).data.user;
+    if (!utente) return;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', utente.id)
+      .maybeSingle();
+    if (!error) {
+      set({ profilo: (data as Profilo) ?? null });
+    }
+  },
+
+  impostaAteneo: (ateneo) => set({ ateneoSelezionato: ateneo }),
+  impostaFotoOrario: (uri) => set({ fotoOrarioUri: uri }),
 
   completaOnboarding: async () => {
-    set({ onboardingCompletato: true });
-    try {
-      await SecureStore.setItemAsync(CHIAVE_ONBOARDING, 'true');
-    } catch {
-      // Storage non disponibile (es. web): lo stato resta valido in memoria.
+    const { utente, ateneoSelezionato } = get();
+    if (!utente) return 'Sessione scaduta: accedi di nuovo.';
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: utente.id, ateneo: ateneoSelezionato })
+      .select()
+      .single();
+
+    if (error) {
+      if (/network request failed|fetch failed/i.test(error.message)) {
+        return 'Sembra che tu sia offline: controlla la connessione e riprova.';
+      }
+      return 'Non siamo riusciti a salvare il profilo. Riprova tra poco.';
     }
+
+    set({ profilo: data as Profilo });
+    return null;
   },
 
-  azzeraOnboarding: async () => {
-    set({ onboardingCompletato: false });
-    try {
-      await SecureStore.deleteItemAsync(CHIAVE_ONBOARDING);
-    } catch {
-      // Storage non disponibile (es. web): lo stato resta valido in memoria.
-    }
+  esci: async () => {
+    await supabase.auth.signOut();
+    // lo stato viene azzerato da onAuthStateChange
   },
 }));

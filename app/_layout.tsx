@@ -7,13 +7,13 @@ import { colori } from '@/lib/theme';
 
 export default function LayoutRadice() {
   const pronto = useAppStore((s) => s.pronto);
-  const caricaStato = useAppStore((s) => s.caricaStato);
+  const avvia = useAppStore((s) => s.avvia);
 
   useEffect(() => {
-    caricaStato();
-  }, [caricaStato]);
+    avvia();
+  }, [avvia]);
 
-  // Finché non sappiamo se l'onboarding è già stato fatto, niente flash di schermate sbagliate.
+  // Finché non abbiamo ripristinato sessione e profilo, niente flash di schermate sbagliate.
   if (!pronto) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colori.sfondo }}>
