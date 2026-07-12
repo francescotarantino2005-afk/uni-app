@@ -385,6 +385,14 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Le funzioni del briefing sono chiamate dal cron (con un nostro segreto) o
+# dall'app in modalità "prova": gestiamo l'auth internamente, non dal gateway.
+[functions.genera-briefing]
+verify_jwt = false
+
+[functions.invia-briefing]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

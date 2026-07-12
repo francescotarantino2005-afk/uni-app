@@ -13,6 +13,14 @@ export type EventoOrario = {
   colore: string | null;
 };
 
+export type Briefing = {
+  id: string;
+  user_id: string;
+  data: string;
+  contenuto: string | null;
+  inviato: boolean;
+};
+
 export type Scadenza = {
   id: string;
   user_id: string;

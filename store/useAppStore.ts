@@ -35,6 +35,8 @@ type StatoApp = {
   impostaLezioniEstratte: (lezioni: LezioneEstratta[] | null) => void;
   /** Crea la riga in profiles a fine onboarding. Ritorna un messaggio d'errore o null. */
   completaOnboarding: () => Promise<string | null>;
+  /** Aggiorna l'ora del briefing in profiles. Ritorna un messaggio d'errore o null. */
+  aggiornaOraBriefing: (oraHHMM: string) => Promise<string | null>;
   esci: () => Promise<void>;
 };
 
@@ -54,6 +56,13 @@ export const useAppStore = create<StatoApp>((set, get) => ({
       set({ utente: session?.user ?? null });
       if (session?.user) {
         await get().caricaProfilo();
+        // Segna l'attività (difesa costi: il cron salta chi è inattivo da 14+ giorni).
+        // Best effort, non blocca l'avvio.
+        supabase
+          .from('profiles')
+          .update({ ultimo_accesso: new Date().toISOString() })
+          .eq('id', session.user.id)
+          .then(() => {});
       }
     } catch {
       // offline all'avvio: si riparte dalla schermata di accesso
@@ -106,6 +115,27 @@ export const useAppStore = create<StatoApp>((set, get) => ({
     }
 
     set({ profilo: data as Profilo });
+    return null;
+  },
+
+  aggiornaOraBriefing: async (oraHHMM) => {
+    const { utente, profilo } = get();
+    if (!utente) return 'Sessione scaduta: accedi di nuovo.';
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ ora_briefing: `${oraHHMM}:00` })
+      .eq('id', utente.id)
+      .select()
+      .single();
+
+    if (error) {
+      if (/network request failed|fetch failed/i.test(error.message)) {
+        return 'Sembra che tu sia offline: controlla la connessione e riprova.';
+      }
+      return 'Non siamo riusciti a salvare l\'orario. Riprova tra poco.';
+    }
+    set({ profilo: (data as Profilo) ?? profilo });
     return null;
   },
 
