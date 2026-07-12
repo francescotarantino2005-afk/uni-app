@@ -80,13 +80,19 @@ export default function SchermataOrario() {
         />
       )}
 
-      <Pressable
-        style={stili.bottoneAggiungi}
-        onPress={() => router.push(`/lezione?giorno=${giorno}`)}
-      >
-        <Ionicons name="add" size={26} color="#0D0F14" />
-        <Text style={stili.testoAggiungi}>Lezione</Text>
-      </Pressable>
+      <View style={stili.barraAzioni}>
+        <Pressable style={stili.bottoneImporta} onPress={() => router.push('/importa-orario')}>
+          <Ionicons name="camera-outline" size={22} color={colori.accento} />
+          <Text style={stili.testoImporta}>Importa da foto</Text>
+        </Pressable>
+        <Pressable
+          style={stili.bottoneAggiungi}
+          onPress={() => router.push(`/lezione?giorno=${giorno}`)}
+        >
+          <Ionicons name="add" size={26} color="#0D0F14" />
+          <Text style={stili.testoAggiungi}>Lezione</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -127,10 +133,30 @@ const stili = StyleSheet.create({
     gap: spazi.sm,
     paddingBottom: 80,
   },
-  bottoneAggiungi: {
+  barraAzioni: {
     position: 'absolute',
     right: spazi.lg,
     bottom: spazi.lg,
+    flexDirection: 'row',
+    gap: spazi.sm,
+  },
+  bottoneImporta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.xs,
+    backgroundColor: colori.superficie,
+    borderColor: colori.accento,
+    borderWidth: 1,
+    borderRadius: raggi.pieno,
+    paddingVertical: spazi.sm,
+    paddingHorizontal: spazi.md,
+  },
+  testoImporta: {
+    color: colori.accento,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  bottoneAggiungi: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spazi.xs,

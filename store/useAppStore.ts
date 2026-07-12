@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Profilo } from '@/lib/tipi';
+import { LezioneEstratta } from '@/lib/estrazioneOrario';
+
+export type FotoOrario = {
+  uri: string;
+  base64: string;
+  tipo: string;
+};
 
 /**
  * Stato globale dell'app.
@@ -16,14 +23,16 @@ type StatoApp = {
   utente: User | null;
   profilo: Profilo | null;
 
-  // dati raccolti durante l'onboarding (solo in memoria)
+  // dati raccolti durante l'onboarding / import (solo in memoria)
   ateneoSelezionato: string | null;
-  fotoOrarioUri: string | null;
+  fotoOrario: FotoOrario | null;
+  lezioniEstratte: LezioneEstratta[] | null;
 
   avvia: () => Promise<void>;
   caricaProfilo: () => Promise<void>;
   impostaAteneo: (ateneo: string) => void;
-  impostaFotoOrario: (uri: string | null) => void;
+  impostaFotoOrario: (foto: FotoOrario | null) => void;
+  impostaLezioniEstratte: (lezioni: LezioneEstratta[] | null) => void;
   /** Crea la riga in profiles a fine onboarding. Ritorna un messaggio d'errore o null. */
   completaOnboarding: () => Promise<string | null>;
   esci: () => Promise<void>;
@@ -34,7 +43,8 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   utente: null,
   profilo: null,
   ateneoSelezionato: null,
-  fotoOrarioUri: null,
+  fotoOrario: null,
+  lezioniEstratte: null,
 
   avvia: async () => {
     try {
@@ -56,7 +66,7 @@ export const useAppStore = create<StatoApp>((set, get) => ({
     supabase.auth.onAuthStateChange((_evento, sessione) => {
       set({ utente: sessione?.user ?? null });
       if (!sessione?.user) {
-        set({ profilo: null, ateneoSelezionato: null, fotoOrarioUri: null });
+        set({ profilo: null, ateneoSelezionato: null, fotoOrario: null, lezioniEstratte: null });
       }
     });
   },
@@ -75,7 +85,8 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   },
 
   impostaAteneo: (ateneo) => set({ ateneoSelezionato: ateneo }),
-  impostaFotoOrario: (uri) => set({ fotoOrarioUri: uri }),
+  impostaFotoOrario: (foto) => set({ fotoOrario: foto }),
+  impostaLezioniEstratte: (lezioni) => set({ lezioniEstratte: lezioni }),
 
   completaOnboarding: async () => {
     const { utente, ateneoSelezionato } = get();

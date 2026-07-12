@@ -32,6 +32,8 @@ export default function LayoutRadice() {
         }}
       >
         <Stack.Screen name="lezione" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="importa-orario" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="anteprima-orario" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );
