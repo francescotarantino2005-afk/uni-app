@@ -21,6 +21,9 @@ export const spazi = {
   xl: 32,
 };
 
+/** Palette per le lezioni dell'orario (campo colore di schedule_events). */
+export const coloriLezione = ['#8B7CFF', '#4ADE80', '#F87171', '#FBBF24', '#38BDF8', '#F472B6'];
+
 export const raggi = {
   sm: 8,
   md: 12,

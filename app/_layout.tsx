@@ -30,7 +30,9 @@ export default function LayoutRadice() {
           headerShown: false,
           contentStyle: { backgroundColor: colori.sfondo },
         }}
-      />
+      >
+        <Stack.Screen name="lezione" options={{ presentation: 'modal' }} />
+      </Stack>
     </>
   );
 }
