@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -16,7 +16,10 @@ export default function LayoutRadice() {
   }, [avvia]);
 
   // La push del briefing (locale o remota) porta alla Home.
+  // Le notifiche non esistono su web: attiviamo il wiring solo su dispositivo.
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     const vaiAllaHome = (risposta: Notifications.NotificationResponse | null) => {
       const dati = risposta?.notification.request.content.data;
       if (dati?.tipo === 'briefing') {
@@ -59,6 +62,8 @@ export default function LayoutRadice() {
         <Stack.Screen name="importa-orario" options={{ presentation: 'modal' }} />
         <Stack.Screen name="anteprima-orario" options={{ presentation: 'modal' }} />
         <Stack.Screen name="preferenze" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="esame" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="simulatore" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );

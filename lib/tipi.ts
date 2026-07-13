@@ -13,6 +13,16 @@ export type EventoOrario = {
   colore: string | null;
 };
 
+export type Esame = {
+  id: string;
+  user_id: string;
+  materia: string;
+  cfu: number | null;
+  data_esame: string | null;
+  voto: number | null; // null = da sostenere
+  lode: boolean;
+};
+
 export type Briefing = {
   id: string;
   user_id: string;
