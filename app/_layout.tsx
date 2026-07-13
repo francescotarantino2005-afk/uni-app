@@ -64,6 +64,7 @@ export default function LayoutRadice() {
         <Stack.Screen name="preferenze" options={{ presentation: 'modal' }} />
         <Stack.Screen name="esame" options={{ presentation: 'modal' }} />
         <Stack.Screen name="simulatore" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="template-scadenze" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );

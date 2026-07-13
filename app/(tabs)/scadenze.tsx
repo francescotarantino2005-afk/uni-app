@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { aggiungiScadenza, caricaScadenze, impostaCompletata } from '@/lib/scadenzeDb';
 import { Scadenza } from '@/lib/tipi';
@@ -106,6 +106,17 @@ export default function SchermataScadenze() {
     <View style={stili.schermo}>
       <MessaggioErrore messaggio={errore} />
 
+      {!formAperto ? (
+        <Pressable style={stili.banner} onPress={() => router.push('/template-scadenze')}>
+          <Ionicons name="sparkles-outline" size={20} color={colori.accento} />
+          <View style={{ flex: 1 }}>
+            <Text style={stili.testoBanner}>Scadenze da non perdere</Text>
+            <Text style={stili.sottoBanner}>ISEE, tasse, borse: aggiungile in un tap</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colori.testoSecondario} />
+        </Pressable>
+      ) : null}
+
       {formAperto ? (
         <View style={stili.form}>
           <CampoTesto
@@ -185,6 +196,26 @@ const stili = StyleSheet.create({
     backgroundColor: colori.sfondo,
     padding: spazi.md,
     gap: spazi.md,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
+    backgroundColor: colori.accentoTenue,
+    borderColor: colori.accento,
+    borderWidth: 1,
+    borderRadius: raggi.md,
+    paddingVertical: spazi.md,
+    paddingHorizontal: spazi.md,
+  },
+  testoBanner: {
+    color: colori.testo,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sottoBanner: {
+    color: colori.testoSecondario,
+    fontSize: 12,
   },
   form: {
     backgroundColor: colori.superficie,
