@@ -13,6 +13,12 @@ export type EventoOrario = {
   colore: string | null;
 };
 
+export type MessaggioChat = {
+  id: string;
+  ruolo: 'user' | 'assistant';
+  contenuto: string;
+};
+
 export type Esame = {
   id: string;
   user_id: string;

@@ -393,6 +393,10 @@ verify_jwt = false
 [functions.invia-briefing]
 verify_jwt = false
 
+# La chat gestisce l'auth internamente (getUser sul JWT del chiamante).
+[functions.chat]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
