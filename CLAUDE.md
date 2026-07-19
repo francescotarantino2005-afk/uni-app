@@ -77,3 +77,78 @@ Niente P.IVA/commercialista finché tutto è gratuito. Aprire il forfettario PRI
 - 2026-07-16 (Sprint 4 — template scadenze): radar scadenze con template curati completato. Migration seed con 8 template NAZIONALI di partenza (ISEE, borsa, alloggio, iscrizione, prima/seconda rata tasse, esonero/no tax area, piano di studi) — date indicative A.A. 2026/27, spiegazioni oneste ("verifica sul sito dell'ateneo"). DA CURARE dal founder: date reali + template regionali/per ateneo (la guida dice "20-30 che carichi tu"). deadline_templates ha RLS sola-lettura per autenticati (seed via migration bypassa RLS). lib/templateDb.ts: filtro nazionali+regione utente+ateneo utente, solo scadenze future; aggiungiDaTemplate copia in deadlines con fonte='template'; dedup via chiave titolo|data. Schermata /template-scadenze (card con icona categoria, "tra N giorni", spiegazione, bottone Aggiungi→"Aggiunta ✓"). Banner "Scadenze da non perdere" in cima alla tab Scadenze. Verificato E2E su web: 8 template letti via RLS, aggiunta copia in deadlines, comparsa nella lista personale, dedup sul già-aggiunto. MVP Sprint 4 COMPLETO (libretto + radar scadenze). Prossimo passo: Sprint 5 (chat AI col contesto del profilo + cap free server-side + schermata upsell "cap raggiunto").
 - 2026-07-18 (Sprint 5 — chat AI): ultima feature MVP completata e verificata E2E. Edge Function `chat` (verify_jwt=false, auth via getUser): costruisce il contesto dal DB (profilo, orario settimanale, scadenze future, libretto con media ponderata calcolata inline), UNA chiamata Claude Haiku 4.5, storico breve riletto dal DB (non dal client). CAP GIORNALIERO 10 msg/utente verificato SERVER-SIDE su tabella usage_chat (nessuna policy RLS → il client non può leggerla né manipolarla); i premium (profiles.premium) non hanno cap; il cap si azzera a mezzanotte (data Roma). Degrado grazioso: timeout 30s → 504, AI giù → 503, mai crash. Tabelle nuove: chat_messages (RLS select own, scritta dal server), usage_chat (solo service role), analytics (insert+select own). App: tab Chat con storico, bolle, stato vuoto con 3 suggerimenti, invio ottimista; su 429 CAP_RAGGIUNTO naviga a /cap-raggiunto = UPSELL (Plus in arrivo + "Avvisami quando esce" + referral "+5 msg/giorno"), entrambi i bottoni tracciano eventi in analytics (plus_avvisami, referral_interesse) — verificato che le righe finiscono davvero nel DB. TRE BUG trovati e corretti in verifica: (1) FlatList virtualizzata non renderizzava gli ultimi messaggi → lista `inverted` (pattern chat standard, niente scrollToEnd); (2) domanda e risposta inserite in un unico insert avevano lo STESSO created_at → ordine di rilettura non deterministico → due insert sequenziali; (3) l'AI rispondeva in markdown e le bolle mostravano gli asterischi letterali → system prompt "testo semplice, niente markdown". MVP COMPLETO (tutti e 6 i punti di CLAUDE.md). Restano operativi: schedulare i cron del briefing (docs/cron-setup.md) e la dev build EAS per il push remoto. Prossimo passo: Sprint 6 (rifiniture, icona/nome, submission store) oppure curare i template scadenze reali.
 - 2026-07-18 (Sprint 6, rifiniture): prima prova E2E dell'INTERO flusso con un account vergine (matricola.nuova.18lug@mailinator.com) — finora ogni sprint era stato verificato in isolamento. Percorso: registrazione → onboarding (ateneo → salto foto → notifiche) → Home → Orario → Scadenze (+1 da template) → Libretto → Simulatore → Chat. Tutto funziona, stati vuoti curati, nessun NaN nel simulatore a freddo ("Sarebbe il tuo primo voto in media"). UNICO problema trovato: la chat a freddo era un VICOLO CIECO — rispondeva onestamente "non hai esami" ma mandava l'utente in segreteria invece di dirgli che i dati li inserisce lui nell'app. Corretto nel system prompt della funzione chat: ora l'assistente sa quali sezioni esistono (Oggi/Orario/Scadenze/Libretto) e sa che l'app NON è collegata ai portali d'ateneo, quindi quando un dato manca invita ad aggiungerlo nella tab giusta ("aggiungi i tuoi esami dalla tab Libretto e ti calcolo subito la media"). Verificato su libretto vuoto e orario vuoto. Prossimo passo: restano solo cose bloccate su di te — schedulare i cron (docs/cron-setup.md), dev build EAS/account Apple per il push, e curare i template scadenze con le date reali.
+
+---
+
+### SNAPSHOT 2026-07-18 — LEGGI QUESTO SE TORNI DOPO UNA PAUSA
+
+**Dove siamo:** l'MVP è **completo e funzionante end-to-end**. Tutti e 6 i punti
+della lista MVP sono fatti, committati e verificati contro il Supabase reale.
+Il codice non ha lavori a metà: il working tree è pulito.
+
+#### FATTO
+
+| Pezzo | Stato |
+|---|---|
+| Sprint 1 — auth email+password, onboarding 3 step (ateneo → foto orario → notifiche) | ✅ verificato E2E |
+| Sprint 2 — tab Oggi / Orario / Scadenze con dati veri | ✅ |
+| Sprint 3 — briefing mattutino (generazione + invio + preferenze ora) | ✅ codice pronto, **cron da schedulare** |
+| Sprint 4 — Libretto (media ponderata, lodi, proiezione laurea, simulatore) + radar scadenze con template | ✅ |
+| Sprint 5 — chat AI col contesto + cap free server-side + upsell "cap raggiunto" | ✅ |
+| Rifiniture — prova E2E con account vergine, chat che guida il primo avvio | ✅ |
+
+**Edge Functions deployate e testate in produzione:** `estrai-orario` (foto →
+lezioni, Haiku vision + tool use), `genera-briefing` (cron notturno),
+`invia-briefing` (invio push + modalità prova), `chat` (contesto + cap 10/giorno).
+**Secrets già su Supabase:** `ANTHROPIC_API_KEY`, `CRON_SECRET`. Mai nel repo.
+
+#### RESTA DA FARE (in ordine)
+
+1. **Cron del briefing** — le funzioni ci sono ma NON sono schedulate: senza
+   questo il briefing non parte da solo. Istruzioni pronte in `docs/cron-setup.md`.
+2. **Dev build + push remoto** — da fare a fine agosto insieme all'account
+   **Apple Developer (99$/anno, obbligatorio su iPhone** sia per la dev build sia
+   per le push). Con un Android si prova gratis prima.
+3. **Template scadenze con date reali** — i miei 8 sono segnaposto nazionali
+   (marcati nella migration): vanno sostituiti con i bandi veri del tuo ateneo
+   e della tua regione.
+4. **Nome definitivo + icona** — serve per la submission.
+5. **Ottimizzazione matricola** — vedi la sezione PRIORITÀ in `docs/backlog.md`:
+   al lancio la maggior parte degli utenti avrà il libretto vuoto.
+
+#### PROSSIMI 3 PASSI CONCRETI (in quest'ordine)
+
+**1. Schedula il cron del briefing (30 min, sbloccante, si fa da browser)**
+   Dashboard Supabase → Database → Extensions: abilita `pg_cron` e `pg_net`.
+   Poi SQL Editor → incolla lo script di `docs/cron-setup.md` mettendo il
+   CRON_SECRET (è nei secrets Supabase, non nel repo).
+   Verifica: `select * from cron.job;` deve mostrare 2 job.
+
+**2. Rileggi l'app sul telefono e fai il punto (15 min)**
+   ```
+   cd C:\Users\franc\assistente-studente
+   npx expo start --tunnel
+   ```
+   Scansiona il QR con Expo Go. Serve `--tunnel`: la LAN diretta non passa.
+   Guarda l'app da matricola: è il segmento del lancio.
+
+**3. Attacca l'ottimizzazione matricola (il punto 5 sopra)**
+   È la cosa che sposta di più il lancio di settembre. Il pezzo di prompt da
+   toccare è la costante `SYSTEM` in `supabase/functions/chat/index.ts`:
+   serve una regola di priorità ("se il libretto è vuoto, parla di lezioni,
+   ISEE e tasse"), non nuove informazioni.
+   Dopo averlo modificato:
+   ```
+   export SUPABASE_ACCESS_TOKEN=<il tuo personal access token sbp_...>
+   npx supabase functions deploy chat --project-ref onjlwvzewzhuprssyftt --use-api
+   ```
+
+#### TRAPPOLE DELL'AMBIENTE (te le sei già scontrate una volta)
+
+- **Node**: se `node` non si trova, usa un terminale nuovo (è in `C:\Program Files\nodejs`).
+- **Comandi supabase**: lanciali **dalla cartella del progetto**, altrimenti non
+  trova le migration ("Remote migration versions not found").
+- **Deploy funzioni**: sempre con `--use-api` (Docker non è installato).
+- **Expo SDK 54**: NON aggiornare — l'Expo Go degli store è fermo alla 54.
+- **Expo Go**: sempre `--tunnel`.
+
