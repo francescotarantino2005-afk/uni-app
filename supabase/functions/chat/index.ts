@@ -31,7 +31,10 @@ function oraBreve(o: string | null): string {
 }
 
 /** Costruisce il blocco di contesto con i dati reali dello studente. */
-async function costruisciContesto(admin: SupabaseClient, userId: string): Promise<string> {
+async function costruisciContesto(
+  admin: SupabaseClient,
+  userId: string
+): Promise<{ testo: string; senzaVoti: boolean }> {
   const oggi = dataOggiRoma();
   const [profiloR, lezioniR, scadenzeR, esamiR] = await Promise.all([
     admin.from('profiles').select('nome, ateneo, corso, anno, fuorisede, regione').eq('id', userId).maybeSingle(),
@@ -100,23 +103,28 @@ async function costruisciContesto(admin: SupabaseClient, userId: string): Promis
     righe.push(`Esami da sostenere: ${daSostenere.map((e: { materia: string }) => e.materia).join(', ')}.`);
   }
 
-  return righe.join('\n');
+  return { testo: righe.join('\n'), senzaVoti: sostenuti.length === 0 };
 }
 
-const SYSTEM = `Sei l'assistente personale di uno studente universitario italiano, dentro la sua app.
+const SYSTEM_BASE = `Sei l'assistente personale di uno studente universitario italiano, dentro la sua app.
 Conosci i suoi dati reali (profilo, orario, scadenze, libretto), riportati qui sotto: usali per rispondere in modo concreto e personale.
-Dai del tu, tono amichevole e sveglio, come un amico informato — mai burocratese. Risposte brevi e utili, non muri di testo.
-Se ti chiede qualcosa che non è nei dati (o che non puoi sapere, es. regolamenti specifici dell'ateneo), dillo con onestà e indica dove verificare (segreteria, sito del corso).
-Non inventare voti, date o scadenze che non sono nei dati.
-IMPORTANTE sul formato: scrivi in testo semplice, come in un messaggio WhatsApp. NIENTE markdown: niente **grassetto**, niente ##titoli, niente elenchi con - o *. Se devi elencare, usa frasi separate o vai a capo.
+Dai del tu, tono amichevole e sveglio, come un amico informato. Mai burocratese.
 
-Vivi dentro l'app dello studente, che ha queste sezioni:
-- Oggi: le lezioni di oggi e le prossime scadenze
-- Orario: l'orario settimanale; si aggiungono lezioni a mano o si importa una foto dell'orario ("Importa da foto")
-- Scadenze: le sue scadenze; c'è anche "Scadenze da non perdere" con i promemoria tipici (ISEE, tasse, borse) da aggiungere in un tap
-- Libretto: esami e voti, con media ponderata e un simulatore
-L'app NON è collegata ai portali dell'ateneo: orario, scadenze ed esami li inserisce lo studente a mano (o con la foto dell'orario). Quindi se un dato manca vuol dire che non l'ha ancora inserito lui, non che l'università non l'ha registrato.
-Quando mancano i dati che servono, non fermarti a dire che non ci sono e non mandarlo in segreteria: invitalo in una frase ad aggiungerli nella sezione giusta (es. "aggiungi i tuoi esami dalla tab Libretto e ti calcolo subito la media"). È spesso un utente appena iscritto che deve ancora riempire l'app.`;
+Regole di lunghezza e ordine (importanti):
+- Massimo 3-4 frasi. Asciutto ma umano, mai un muro di testo.
+- La PRIMA frase dà la risposta o la cosa più importante: è quella che si legge nell'anteprima della notifica. Niente premesse tipo "Allora," o "Certo!".
+- Italiano completo e corretto: parole intere, mai troncate o abbreviate.
+- Testo semplice come su WhatsApp: NIENTE markdown, niente **grassetto**, niente #titoli, niente elenchi con - o *. Se elenchi, usa frasi separate o vai a capo. Al massimo una emoji.
+Non inventare voti, date o scadenze che non sono nei dati.
+
+L'app ha queste sezioni: Oggi (lezioni di oggi e prossime scadenze), Orario (orario settimanale; lezioni a mano o "Importa da foto"), Scadenze (le sue scadenze, con "Scadenze da non perdere": ISEE, tasse, borse), Libretto (esami e voti, con media ponderata e simulatore).
+L'app NON è collegata ai portali dell'ateneo: orario, scadenze ed esami li inserisce lui. Se un dato manca è perché non l'ha ancora inserito, non perché l'università non l'ha registrato: non mandarlo in segreteria. Quando manca un dato che serve, in una frase invitalo ad aggiungerlo nella sezione giusta (es. le lezioni dalla tab Orario). Se ti chiede qualcosa che non puoi sapere (es. un regolamento specifico del corso), dillo con onestà.`;
+
+// Regola di priorità per le matricole: se non ci sono voti, NON insistere sul
+// libretto, sposta il discorso su lezioni, scadenze e metodo.
+const ISTRUZIONE_MATRICOLA = `
+
+CONTESTO IMPORTANTE: questo studente NON ha ancora nessun voto nel libretto — è una matricola o è proprio all'inizio. NON insistere sul libretto e NON dirgli "aggiungi i tuoi esami": non ne ha ancora da sostenere o registrare. Se ti chiede "come sto messo?" o qualcosa su libretto/media, non rispondere solo che è vuoto: pivota su ciò che è utile ADESSO — le lezioni della settimana, le scadenze in arrivo (ISEE, tasse, immatricolazione) e un consiglio pratico per partire bene. Regola: se mancano i voti, parla del resto.`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -172,6 +180,10 @@ Deno.serve(async (req) => {
         .limit(MAX_STORICO),
     ]);
     const storico = (storicoR.data ?? []).reverse();
+    const system =
+      SYSTEM_BASE +
+      (contesto.senzaVoti ? ISTRUZIONE_MATRICOLA : '') +
+      `\n\n### Dati dello studente\n${contesto.testo}`;
 
     // 5) Chiamata AI (Haiku, con degrado grazioso)
     const anthropic = new Anthropic({
@@ -185,7 +197,7 @@ Deno.serve(async (req) => {
       const out = await anthropic.messages.create({
         model: 'claude-haiku-4-5',
         max_tokens: 700,
-        system: `${SYSTEM}\n\n### Dati dello studente\n${contesto}`,
+        system,
         messages: [
           ...storico.map((m) => ({
             role: m.ruolo === 'assistant' ? ('assistant' as const) : ('user' as const),

@@ -26,6 +26,7 @@ export default function SchermataOggi() {
   const esci = useAppStore((s) => s.esci);
   const [briefing, setBriefing] = useState<string | null>(null);
   const [lezioniOggi, setLezioniOggi] = useState<EventoOrario[]>([]);
+  const [orarioVuoto, setOrarioVuoto] = useState(false);
   const [scadenze, setScadenze] = useState<Scadenza[]>([]);
   const [caricamento, setCaricamento] = useState(true);
   const [aggiornamento, setAggiornamento] = useState(false);
@@ -38,6 +39,7 @@ export default function SchermataOggi() {
       caricaBriefingOggi(),
     ]);
     setLezioniOggi(lezioni.dati.filter((l) => l.giorno === giornoOggi()));
+    setOrarioVuoto(lezioni.dati.length === 0);
     setScadenze(prossime.dati);
     setBriefing(brief?.contenuto ?? null);
     setErrore(lezioni.errore ?? prossime.errore);
@@ -99,11 +101,36 @@ export default function SchermataOggi() {
             </Pressable>
           )}
 
+          {orarioVuoto && scadenze.length === 0 ? (
+            <View style={stili.cardBenvenuto}>
+              <Text style={stili.titoloBenvenuto}>Benvenuto! Partiamo da qui 👋</Text>
+              <Text style={stili.testoBenvenuto}>
+                Bastano due minuti per far diventare l'app tua. Aggiungi l'orario e le prime
+                scadenze: poi ogni mattina trovi qui la tua giornata pronta.
+              </Text>
+              <Pressable style={stili.azioneBenvenuto} onPress={() => router.push('/importa-orario')}>
+                <Ionicons name="camera-outline" size={18} color={colori.accento} />
+                <Text style={stili.testoAzione}>Importa l'orario da una foto</Text>
+              </Pressable>
+              <Pressable
+                style={stili.azioneBenvenuto}
+                onPress={() => router.push('/template-scadenze')}
+              >
+                <Ionicons name="sparkles-outline" size={18} color={colori.accento} />
+                <Text style={stili.testoAzione}>Aggiungi le scadenze da non perdere</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <Text style={stili.titoloSezione}>Lezioni di oggi</Text>
           {lezioniOggi.length === 0 ? (
             <StatoVuoto
-              titolo="Nessuna lezione oggi 🎉"
-              suggerimento="Goditi la giornata, o recupera quella scadenza che rimandi da un po'…"
+              titolo={orarioVuoto ? 'Il tuo orario è ancora vuoto' : 'Nessuna lezione oggi 🎉'}
+              suggerimento={
+                orarioVuoto
+                  ? 'Aggiungilo dalla tab Orario, anche solo con una foto: ci penso io a leggerlo.'
+                  : 'Goditi la giornata, o recupera quella scadenza che rimandi da un po\'…'
+              }
             />
           ) : (
             <View style={stili.lista}>
@@ -117,7 +144,7 @@ export default function SchermataOggi() {
           {scadenze.length === 0 ? (
             <StatoVuoto
               titolo="Nessuna scadenza in vista ✨"
-              suggerimento="Aggiungi ISEE, tasse o esami dalla tab Scadenze: al resto pensiamo noi."
+              suggerimento="ISEE, tasse, borse: aggiungi le più comuni in un tap da “Scadenze da non perdere”."
             />
           ) : (
             <View style={stili.lista}>
@@ -163,6 +190,41 @@ const stili = StyleSheet.create({
     borderRadius: raggi.lg,
     padding: spazi.md,
     gap: spazi.sm,
+  },
+  cardBenvenuto: {
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
+    borderWidth: 1,
+    borderRadius: raggi.lg,
+    padding: spazi.lg,
+    gap: spazi.sm,
+  },
+  titoloBenvenuto: {
+    color: colori.testo,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  testoBenvenuto: {
+    color: colori.testoSecondario,
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: spazi.xs,
+  },
+  azioneBenvenuto: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
+    paddingVertical: spazi.sm,
+    paddingHorizontal: spazi.md,
+    borderRadius: raggi.md,
+    borderWidth: 1,
+    borderColor: colori.accento,
+    backgroundColor: colori.accentoTenue,
+  },
+  testoAzione: {
+    color: colori.accento,
+    fontSize: 14,
+    fontWeight: '700',
   },
   intestazioneBriefing: {
     flexDirection: 'row',

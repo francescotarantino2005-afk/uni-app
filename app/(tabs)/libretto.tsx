@@ -118,10 +118,17 @@ export default function SchermataLibretto() {
             <MessaggioErrore messaggio={errore} />
 
             {esami.length === 0 ? (
-              <StatoVuoto
-                titolo="Il tuo libretto è vuoto"
-                suggerimento="Aggiungi il primo esame col bottone qui sotto: la media si calcola da sola."
-              />
+              <View style={stili.cardVuoto}>
+                <Text style={stili.titoloVuoto}>Il tuo libretto parte da qui 🌱</Text>
+                <Text style={stili.testoVuoto}>
+                  Normale se sei all'inizio: ancora nessun esame. Man mano che li dai e li aggiungi,
+                  qui trovi la media ponderata aggiornata da sola, i CFU, le lodi e la proiezione del
+                  voto di laurea. E col simulatore puoi già vedere che media faresti col prossimo voto.
+                </Text>
+                <Text style={stili.suggerimentoVuoto}>
+                  Hai già dato qualche esame? Aggiungilo col bottone qui sotto.
+                </Text>
+              </View>
             ) : (
               <>
                 <Text style={stili.titoloSezione}>Sostenuti ({sostenuti.length})</Text>
@@ -160,6 +167,29 @@ const stili = StyleSheet.create({
     padding: spazi.md,
     gap: spazi.md,
     paddingBottom: 90,
+  },
+  cardVuoto: {
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
+    borderWidth: 1,
+    borderRadius: raggi.lg,
+    padding: spazi.lg,
+    gap: spazi.sm,
+  },
+  titoloVuoto: {
+    color: colori.testo,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  testoVuoto: {
+    color: colori.testoSecondario,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  suggerimentoVuoto: {
+    color: colori.testo,
+    fontSize: 14,
+    fontWeight: '600',
   },
   cardMedia: {
     backgroundColor: colori.superficie,
