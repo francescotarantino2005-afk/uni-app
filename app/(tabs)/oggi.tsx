@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { caricaLezioni } from '@/lib/orarioDb';
 import { caricaProssimeScadenze } from '@/lib/scadenzeDb';
 import { caricaBriefingOggi } from '@/lib/briefingDb';
+import { caricaPianoAttivo } from '@/lib/pianoDb';
+import { prossimaSessione } from '@/lib/pianoStudio';
 import { EventoOrario, Scadenza } from '@/lib/tipi';
 import { dataLungaItaliana, giornoOggi } from '@/lib/date';
 import { useAppStore } from '@/store/useAppStore';
@@ -25,6 +27,9 @@ import { colori, raggi, spazi } from '@/lib/theme';
 export default function SchermataOggi() {
   const esci = useAppStore((s) => s.esci);
   const [briefing, setBriefing] = useState<string | null>(null);
+  const [suggerimento, setSuggerimento] = useState<string | null>(null);
+  const [haSessione, setHaSessione] = useState(false);
+  const [haPiano, setHaPiano] = useState(false);
   const [lezioniOggi, setLezioniOggi] = useState<EventoOrario[]>([]);
   const [orarioVuoto, setOrarioVuoto] = useState(false);
   const [scadenze, setScadenze] = useState<Scadenza[]>([]);
@@ -33,15 +38,19 @@ export default function SchermataOggi() {
   const [errore, setErrore] = useState<string | null>(null);
 
   const carica = useCallback(async () => {
-    const [lezioni, prossime, brief] = await Promise.all([
+    const [lezioni, prossime, brief, piano] = await Promise.all([
       caricaLezioni(),
       caricaProssimeScadenze(5),
       caricaBriefingOggi(),
+      caricaPianoAttivo(),
     ]);
     setLezioniOggi(lezioni.dati.filter((l) => l.giorno === giornoOggi()));
     setOrarioVuoto(lezioni.dati.length === 0);
     setScadenze(prossime.dati);
     setBriefing(brief?.contenuto ?? null);
+    setSuggerimento(brief?.suggerimento ?? null);
+    setHaPiano(piano !== null);
+    setHaSessione(piano !== null && prossimaSessione(piano.piano) !== null);
     setErrore(lezioni.errore ?? prossime.errore);
     setCaricamento(false);
   }, []);
@@ -98,6 +107,38 @@ export default function SchermataOggi() {
               <Text style={stili.testoBriefingVuoto}>
                 Il briefing del mattino arriva ogni giorno all'ora che scegli. Impostala qui →
               </Text>
+            </Pressable>
+          )}
+
+          {haPiano ? (
+            <View style={stili.cardOggi}>
+              <View style={stili.intestazioneBriefing}>
+                <Ionicons name="flag" size={18} color={colori.accento} />
+                <Text style={stili.etichettaBriefing}>Oggi</Text>
+              </View>
+              <Text style={stili.testoBriefing}>
+                {suggerimento ?? 'Continua il tuo piano di studio: apri la prossima sessione.'}
+              </Text>
+              {haSessione ? (
+                <Pressable style={stili.bottoneSessione} onPress={() => router.push('/sessione')}>
+                  <Ionicons name="play" size={18} color="#0D0F14" />
+                  <Text style={stili.testoBottoneSessione}>Inizia sessione</Text>
+                </Pressable>
+              ) : (
+                <Pressable style={stili.linkPiano} onPress={() => router.push('/piano')}>
+                  <Text style={stili.testoLinkPiano}>Vedi il piano →</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : (
+            <Pressable style={stili.cardCreaPiano} onPress={() => router.push('/nuovo-piano')}>
+              <Ionicons name="rocket-outline" size={20} color={colori.accento} />
+              <View style={{ flex: 1 }}>
+                <Text style={stili.titoloCreaPiano}>Prepara un esame senza ansia</Text>
+                <Text style={stili.testoCreaPiano}>
+                  Ti costruisco un piano giorno per giorno, attorno al tuo orario. Crea il primo →
+                </Text>
+              </View>
             </Pressable>
           )}
 
@@ -190,6 +231,58 @@ const stili = StyleSheet.create({
     borderRadius: raggi.lg,
     padding: spazi.md,
     gap: spazi.sm,
+  },
+  cardOggi: {
+    backgroundColor: colori.superficie,
+    borderColor: colori.accento,
+    borderWidth: 1,
+    borderRadius: raggi.lg,
+    padding: spazi.md,
+    gap: spazi.sm,
+  },
+  bottoneSessione: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spazi.xs,
+    backgroundColor: colori.accento,
+    borderRadius: raggi.md,
+    paddingVertical: spazi.sm,
+    marginTop: spazi.xs,
+  },
+  testoBottoneSessione: {
+    color: '#0D0F14',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  linkPiano: {
+    paddingVertical: spazi.xs,
+  },
+  testoLinkPiano: {
+    color: colori.accento,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cardCreaPiano: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
+    borderWidth: 1,
+    borderRadius: raggi.md,
+    padding: spazi.md,
+  },
+  titoloCreaPiano: {
+    color: colori.testo,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  testoCreaPiano: {
+    color: colori.testoSecondario,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 2,
   },
   cardBenvenuto: {
     backgroundColor: colori.superficie,

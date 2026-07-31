@@ -397,6 +397,10 @@ verify_jwt = false
 [functions.chat]
 verify_jwt = false
 
+# genera-piano: auth interna (getUser), come chat.
+[functions.genera-piano]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

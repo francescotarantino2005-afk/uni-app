@@ -13,6 +13,33 @@ export type EventoOrario = {
   colore: string | null;
 };
 
+export type StatoSessione = 'da_fare' | 'fatta' | 'meta' | 'saltata';
+
+export type SessionePiano = {
+  data: string; // AAAA-MM-GG
+  ora_inizio: string; // HH:MM
+  ora_fine: string; // HH:MM
+  argomento: string;
+  obiettivo: string;
+  stato: StatoSessione;
+};
+
+export type Piano = {
+  materia: string;
+  data_esame: string;
+  materiale: string;
+  ore_al_giorno: number;
+  creato_il: string;
+  sessioni: SessionePiano[];
+  ripassi: { data: string; argomenti_da_ripassare: string }[];
+};
+
+export type PianoStudio = {
+  id: string;
+  exam_id: string;
+  piano: Piano;
+};
+
 export type MessaggioChat = {
   id: string;
   ruolo: 'user' | 'assistant';
@@ -34,6 +61,7 @@ export type Briefing = {
   user_id: string;
   data: string;
   contenuto: string | null;
+  suggerimento: string | null;
   inviato: boolean;
 };
 

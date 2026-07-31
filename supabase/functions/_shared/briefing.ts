@@ -47,11 +47,52 @@ function oraBreve(ora: string | null): string {
 
 // ---- Raccolta del contesto della giornata ----
 
+export type SessioneStudio = {
+  materia: string;
+  argomento: string;
+  obiettivo: string;
+  ora_inizio: string;
+  oggi: boolean;
+};
+
 export type ContestoBriefing = {
   lezioniOggi: { titolo: string; ora_inizio: string; ora_fine: string | null; aula: string | null }[];
   scadenze: { titolo: string; data: string; categoria: string | null }[];
   esami: { materia: string; data_esame: string }[];
+  sessione: SessioneStudio | null;
 };
+
+/** Prossima sessione di studio non fatta dal piano attivo (se esiste). */
+async function prossimaSessioneStudio(
+  admin: SupabaseClient,
+  userId: string,
+  dataOggi: string
+): Promise<SessioneStudio | null> {
+  const { data } = await admin
+    .from('study_plans')
+    .select('piano')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const piano = data?.piano as
+    | { materia?: string; sessioni?: { data: string; ora_inizio: string; argomento: string; obiettivo: string; stato: string }[] }
+    | undefined;
+  // Nel modello deterministico "da_fare" = ancora da affrontare; gli stati
+  // fatta/meta/saltata sono storia (il loro contenuto è già slittato in avanti).
+  const sessioni = (piano?.sessioni ?? [])
+    .filter((s) => s.stato === 'da_fare')
+    .sort((a, b) => (a.data + a.ora_inizio).localeCompare(b.data + b.ora_inizio));
+  const s = sessioni[0];
+  if (!s) return null;
+  return {
+    materia: piano?.materia ?? '',
+    argomento: s.argomento,
+    obiettivo: s.obiettivo,
+    ora_inizio: s.ora_inizio,
+    oggi: s.data === dataOggi,
+  };
+}
 
 export async function raccogliContesto(
   admin: SupabaseClient,
@@ -85,15 +126,23 @@ export async function raccogliContesto(
       .order('data_esame'),
   ]);
 
+  const sessione = await prossimaSessioneStudio(admin, userId, dataOggi);
+
   return {
     lezioniOggi: lez.data ?? [],
     scadenze: scad.data ?? [],
     esami: es.data ?? [],
+    sessione,
   };
 }
 
 function contestoVuoto(c: ContestoBriefing): boolean {
-  return c.lezioniOggi.length === 0 && c.scadenze.length === 0 && c.esami.length === 0;
+  return (
+    c.lezioniOggi.length === 0 &&
+    c.scadenze.length === 0 &&
+    c.esami.length === 0 &&
+    c.sessione === null
+  );
 }
 
 function giorniA(dataOggi: string, iso: string): number {
@@ -166,52 +215,111 @@ function promptContesto(c: ContestoBriefing, dataOggi: string, giorno: number): 
     }
   }
 
+  if (c.sessione) {
+    righe.push('Sessione di studio dal piano:');
+    righe.push(
+      `- ${c.sessione.oggi ? 'OGGI' : 'la prossima in arretrato'} alle ${oraBreve(c.sessione.ora_inizio)}: ${c.sessione.argomento} (${c.sessione.materia}) — obiettivo: ${c.sessione.obiettivo}`
+    );
+  }
+
   return righe.join('\n');
 }
 
-const SYSTEM_BRIEFING = `Sei l'assistente personale di uno studente universitario italiano. Scrivi il briefing del mattino, dando del tu.
-Tono: un amico sveglio e in gamba, non una segretaria. Diretto, caldo, un pizzico di grinta. Zero burocratese.
+/** Suggerimento statico (nessuna AI): una frase con l'azione più utile per oggi. */
+export function suggerimentoStatico(c: ContestoBriefing, dataOggi: string): string {
+  if (c.sessione && c.sessione.oggi) {
+    return `Oggi tocca ${c.sessione.argomento}: apri la sessione e parti.`;
+  }
+  const urgente = c.scadenze[0];
+  if (urgente) {
+    const g = giorniA(dataOggi, urgente.data);
+    return `${urgente.titolo} ${g <= 0 ? 'scade oggi' : g === 1 ? 'scade domani' : `scade tra ${g} giorni`}: muoviti.`;
+  }
+  const esame = c.esami[0];
+  if (esame) {
+    const g = giorniA(dataOggi, esame.data_esame);
+    return `Esame di ${esame.materia} tra ${g} giorni: se non hai un piano, creane uno.`;
+  }
+  if (c.lezioniOggi.length) {
+    return 'Dopo le lezioni ritagliati un po\' di studio: anche mezz\'ora conta.';
+  }
+  return 'Giornata libera: portati avanti con qualcosa che rimandi da un po\'.';
+}
 
-Regole ferree:
+const SYSTEM_BRIEFING = `Sei l'assistente personale di uno studente universitario italiano. Dai del tu.
+Con lo strumento scrivi_briefing produci DUE cose:
+
+1) briefing — il messaggio del mattino:
+- Tono: un amico sveglio e in gamba, non una segretaria. Diretto, caldo, un pizzico di grinta.
 - 2-3 frasi, circa 35 parole in tutto. Asciutto ma umano.
-- La PRIMA frase è la cosa più importante o urgente della giornata (la lezione principale o la scadenza più vicina): è quella che si legge nell'anteprima della notifica. Se saluti, fallo nella stessa frase (es. "Buongiorno! Oggi Analisi alle 10 in aula T4"), non sprecarci una frase intera.
-- Italiano completo e corretto: parole intere, mai troncate o abbreviate.
-- Testo semplice: niente asterischi, niente markdown, niente elenchi puntati, frasi scorrevoli. Al massimo una emoji.
-Copri le lezioni di oggi (orari e aule) e la scadenza o l'esame più urgente, e chiudi con una spinta o un consiglio pratico. Rispondi SOLO col testo del briefing.`;
+- La PRIMA frase è la cosa più importante o urgente della giornata (la lezione principale, la sessione di studio di oggi o la scadenza più vicina): è quella che si legge nell'anteprima della notifica. Se saluti, fallo nella stessa frase (es. "Buongiorno! Oggi Analisi alle 10 in aula T4").
+- Copri le lezioni di oggi (orari e aule), la scadenza o l'esame più urgente e, se c'è, la sessione di studio pianificata; chiudi con una spinta.
+
+2) suggerimento_oggi — UNA frase sola, massimo 20 parole: l'azione più utile da fare oggi, che colleghi la sessione di studio pianificata, le ore libere e le scadenze imminenti. Se c'è una sessione di studio per oggi, mettila al centro (es. "Blocco libero nel pomeriggio: fai la sessione su X e ti porti avanti").
+
+Regole per entrambi: italiano completo e corretto, parole intere mai troncate. Niente asterischi, niente markdown, niente elenchi. Al massimo una emoji nel briefing.`;
+
+const STRUMENTO_BRIEFING = {
+  name: 'scrivi_briefing',
+  description: 'Salva il briefing del mattino e il suggerimento del giorno.',
+  strict: true,
+  input_schema: {
+    type: 'object' as const,
+    additionalProperties: false,
+    required: ['briefing', 'suggerimento_oggi'],
+    properties: {
+      briefing: { type: 'string', description: '2-3 frasi, circa 35 parole' },
+      suggerimento_oggi: { type: 'string', description: 'una frase sola, max 20 parole' },
+    },
+  },
+};
 
 /**
  * Genera il briefing per un utente.
- * Ritorna { contenuto, usaAI } — usaAI=false se è stato usato un testo statico (nessun costo AI).
- * Non lancia mai: in caso di errore AI degrada al riassunto statico.
+ * Ritorna { contenuto, suggerimento, usaAI } — usaAI=false se è stato usato un
+ * testo statico (nessun costo AI). Non lancia mai: in caso di errore degrada allo statico.
  */
 export async function generaBriefing(
   anthropic: Anthropic,
   contesto: ContestoBriefing,
   dataOggi: string,
   giorno: number
-): Promise<{ contenuto: string; usaAI: boolean }> {
+): Promise<{ contenuto: string; suggerimento: string; usaAI: boolean }> {
   if (contestoVuoto(contesto)) {
-    return { contenuto: briefingGiornataLibera(), usaAI: false };
+    return {
+      contenuto: briefingGiornataLibera(),
+      suggerimento: suggerimentoStatico(contesto, dataOggi),
+      usaAI: false,
+    };
   }
 
   try {
     const risposta = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
-      max_tokens: 400,
+      max_tokens: 500,
       system: SYSTEM_BRIEFING,
+      tools: [STRUMENTO_BRIEFING],
+      tool_choice: { type: 'tool', name: 'scrivi_briefing' },
       messages: [{ role: 'user', content: promptContesto(contesto, dataOggi, giorno) }],
     });
-    const testo = risposta.content
-      .filter((b) => b.type === 'text')
-      .map((b) => (b as { text: string }).text)
-      .join('')
-      .trim();
+    const blocco = risposta.content.find((b) => b.type === 'tool_use');
+    const out = blocco?.input as { briefing?: string; suggerimento_oggi?: string } | undefined;
+    const testo = (out?.briefing ?? '').trim();
+    const sugg = (out?.suggerimento_oggi ?? '').trim();
     if (!testo) throw new Error('risposta vuota');
-    return { contenuto: testo, usaAI: true };
+    return {
+      contenuto: testo,
+      suggerimento: sugg || suggerimentoStatico(contesto, dataOggi),
+      usaAI: true,
+    };
   } catch (e) {
     // Degrado grazioso: budget esaurito / errore rete / servizio occupato.
     console.error('Briefing AI fallito, uso statico:', e);
-    return { contenuto: briefingStaticoDaDati(contesto, dataOggi), usaAI: false };
+    return {
+      contenuto: briefingStaticoDaDati(contesto, dataOggi),
+      suggerimento: suggerimentoStatico(contesto, dataOggi),
+      usaAI: false,
+    };
   }
 }
 

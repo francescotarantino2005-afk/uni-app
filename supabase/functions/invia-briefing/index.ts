@@ -68,15 +68,15 @@ Deno.serve(async (req) => {
       maxRetries: 1,
     });
     const contesto = await raccogliContesto(admin, user.id, oggi, giornoSettimanaRoma());
-    const { contenuto } = await generaBriefing(anthropic, contesto, oggi, giornoSettimanaRoma());
+    const { contenuto, suggerimento } = await generaBriefing(anthropic, contesto, oggi, giornoSettimanaRoma());
 
     // salva (sovrascrive quello di oggi) e marca come inviato
     await admin
       .from('briefings')
-      .upsert({ user_id: user.id, data: oggi, contenuto, inviato: true }, { onConflict: 'user_id,data' });
+      .upsert({ user_id: user.id, data: oggi, contenuto, suggerimento, inviato: true }, { onConflict: 'user_id,data' });
 
     const inviati = await inviaA(admin, user.id, contenuto);
-    return json({ ok: true, contenuto, push_inviate: inviati });
+    return json({ ok: true, contenuto, suggerimento, push_inviate: inviati });
   }
 
   // -- Modalità CRON --

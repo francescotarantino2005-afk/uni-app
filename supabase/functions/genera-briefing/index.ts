@@ -9,6 +9,7 @@ import {
   generaBriefing,
   giornoSettimanaRoma,
   raccogliContesto,
+  suggerimentoStatico,
 } from '../_shared/briefing.ts';
 
 const INATTIVO_GIORNI = 14;
@@ -66,25 +67,31 @@ Deno.serve(async (req) => {
 
     const contesto = await raccogliContesto(admin, p.id, oggi, giorno);
     const vuoto =
-      contesto.lezioniOggi.length + contesto.scadenze.length + contesto.esami.length === 0;
+      contesto.lezioniOggi.length +
+        contesto.scadenze.length +
+        contesto.esami.length === 0 && contesto.sessione === null;
 
     let testo: string;
+    let suggerimento: string;
     if (vuoto) {
-      // Nessuna lezione né scadenza: briefing statico, ZERO chiamate AI.
+      // Nessun impegno: briefing statico, ZERO chiamate AI.
       testo = briefingGiornataLibera();
+      suggerimento = suggerimentoStatico(contesto, oggi);
     } else if (conAI < MAX_AI) {
       const esito = await generaBriefing(anthropic, contesto, oggi, giorno);
       testo = esito.contenuto;
+      suggerimento = esito.suggerimento;
       if (esito.usaAI) conAI++;
     } else {
       // Superato il tetto AI dell'esecuzione: degrado a statico dai dati.
       testo = briefingStaticoDaDati(contesto, oggi);
+      suggerimento = suggerimentoStatico(contesto, oggi);
     }
 
     const { error: errIns } = await admin
       .from('briefings')
       .upsert(
-        { user_id: p.id, data: oggi, contenuto: testo, inviato: false },
+        { user_id: p.id, data: oggi, contenuto: testo, suggerimento, inviato: false },
         { onConflict: 'user_id,data', ignoreDuplicates: true }
       );
     if (!errIns) generati++;
