@@ -62,6 +62,8 @@ export default function LayoutRadice() {
         <Stack.Screen name="importa-orario" options={{ presentation: 'modal' }} />
         <Stack.Screen name="anteprima-orario" options={{ presentation: 'modal' }} />
         <Stack.Screen name="preferenze" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="impostazioni" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="in-arrivo" options={{ presentation: 'modal' }} />
         <Stack.Screen name="esame" options={{ presentation: 'modal' }} />
         <Stack.Screen name="simulatore" options={{ presentation: 'modal' }} />
         <Stack.Screen name="template-scadenze" options={{ presentation: 'modal' }} />

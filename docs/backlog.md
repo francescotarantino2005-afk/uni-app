@@ -42,3 +42,16 @@ Non è un task dello sprint corrente: da affrontare **prima del lancio di settem
 
 ## Idee emerse durante lo sviluppo
 <!-- aggiungi qui, una riga per idea, con data -->
+
+- **2026-08-01 — Agente preparazione esami**: prompt specializzati per disciplina
+  + i materiali del corso come contesto (NON un agente separato per materia).
+  Vincoli: il costo di riassumere materiale lungo è alto, quindi va **dietro
+  abbonamento dal giorno uno** — incompatibile col cap attuale (~10$/mese), il
+  modello va **riprezzato**. Lavora **solo** sui materiali dello studente (appunti,
+  foto delle sue pagine, slide): **mai** distribuzione di contenuto di editori.
+  Anticipato in-app nella schermata "In arrivo" (solo testo, nessuna logica).
+- **2026-08-01 — ISBN → metadati manuale**: lookup di titolo/edizione/indice dei
+  capitoli (Google Books API o simili). I capitoli diventano le **unità del piano
+  di studio esistente** (`lib/pianoStudio.ts`). **Nessun download** di contenuto
+  del libro: **solo metadati**. È il primo pezzo propedeutico all'agente di
+  preparazione esami qui sopra.

@@ -20,6 +20,7 @@ import { dataLungaItaliana, giornoOggi } from '@/lib/date';
 import { useAppStore } from '@/store/useAppStore';
 import { RigaLezione } from '@/components/RigaLezione';
 import { RigaScadenza } from '@/components/RigaScadenza';
+import { BadgeBeta } from '@/components/BadgeBeta';
 import { StatoVuoto } from '@/components/StatoVuoto';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
 import { colori, raggi, spazi } from '@/lib/theme';
@@ -81,8 +82,11 @@ export default function SchermataOggi() {
       }
     >
       <View style={stili.intestazione}>
-        <Text style={stili.data}>{dataLungaItaliana()}</Text>
-        <Pressable onPress={() => router.push('/preferenze')} hitSlop={10}>
+        <View style={stili.headerSinistra}>
+          <Text style={stili.data}>{dataLungaItaliana()}</Text>
+          <BadgeBeta piccolo />
+        </View>
+        <Pressable onPress={() => router.push('/impostazioni')} hitSlop={10}>
           <Ionicons name="settings-outline" size={22} color={colori.testoSecondario} />
         </Pressable>
       </View>
@@ -218,6 +222,11 @@ const stili = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  headerSinistra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
   },
   data: {
     color: colori.testoSecondario,

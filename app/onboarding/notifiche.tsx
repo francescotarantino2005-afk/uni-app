@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
 import { PassoOnboarding } from '@/components/PassoOnboarding';
 import { richiediPermessoNotifiche, salvaTokenPush } from '@/lib/notifiche';
 import { useAppStore } from '@/store/useAppStore';
+import { colori, spazi } from '@/lib/theme';
 
 export default function PassoNotifiche() {
   const utente = useAppStore((s) => s.utente);
@@ -47,6 +49,20 @@ export default function PassoNotifiche() {
       onSecondaria={() => concludi(false)}
       caricamento={caricamento}
       errore={errore}
-    />
+    >
+      <Text style={stili.beta}>
+        Stai usando una beta: nuove funzioni arrivano di continuo.
+      </Text>
+    </PassoOnboarding>
   );
 }
+
+const stili = StyleSheet.create({
+  beta: {
+    color: colori.accento,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: spazi.sm,
+  },
+});
