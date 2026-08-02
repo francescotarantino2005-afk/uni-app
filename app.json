@@ -10,13 +10,15 @@
     "backgroundColor": "#0D0F14",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.assistentestudente.app",
+      "bundleIdentifier": "it.francescotarantino.uniapp",
+      "buildNumber": "1",
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
-      "package": "com.assistentestudente.app",
+      "package": "it.francescotarantino.uniapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
