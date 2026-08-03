@@ -2,6 +2,7 @@
   "expo": {
     "name": "Assistente Studente",
     "slug": "assistente-studente",
+    "owner": "tara7",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,7 +14,9 @@
       "bundleIdentifier": "it.francescotarantino.uniapp",
       "buildNumber": "1",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -25,7 +28,13 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -46,7 +55,8 @@
         "expo-image-picker",
         {
           "photosPermission": "L'app usa le tue foto per leggere l'orario delle lezioni.",
-          "cameraPermission": "L'app usa la fotocamera per fotografare l'orario delle lezioni."
+          "cameraPermission": "L'app usa la fotocamera per fotografare l'orario delle lezioni.",
+          "microphonePermission": false
         }
       ],
       "expo-notifications"
@@ -54,6 +64,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "593b792f-9692-4186-852a-de2d5cce8eb1"
+      }
     }
   }
 }

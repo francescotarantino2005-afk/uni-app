@@ -18,6 +18,9 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# EAS credenziali locali — contiene password in chiaro, MAI nel repo
+credentials.json
+
 # Metro
 .metro-health-check*
 
