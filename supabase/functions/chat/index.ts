@@ -27,8 +27,12 @@ const CATEGORIE_NOTE = ['percorso', 'obiettivi', 'metodo_studio', 'ostacoli', 'p
 const MAX_LEN_NOTA = 300;
 // Difesa in profondità: contenuti che NON devono mai finire in memoria (oltre al
 // divieto nel prompt dell'estrattore). In caso di dubbio si scarta la nota.
+// Area sanitaria/di cura vietata anche se detta in modo neutro o indiretto
+// (medici/psicologi/psichiatri, terapie, visite/appuntamenti, farmaci, ricoveri,
+// il fatto stesso di rivolgersi a un professionista sanitario). I confini di
+// parola evitano di colpire i corsi di laurea "Medicina/Psicologia/Farmacia".
 const NOTE_VIETATE =
-  /diagnos|depress|bipolar|schizo|disturbo|ansiolit|antidepress|psicofarmac|farmac|terapi[ae]|suicid|autolesion|anoress|bulim|religio|cattolic|musulman|ebre|islam|orientamento sessuale|omosess|etero|bisess|transgender|etni|razz|partito|di destra|di sinistra/i;
+  /diagnos|depress|bipolar|schizo|disturb|panico|suicid|autolesion|anoress|bulim|\bmedic[oi]\b|dottoress|\bdottor[ei]\b|\bpsicolog[oai]\b|psicologic|psichiatr|psicoterap|terapi[ae]|terapeut|\bfarmac[oi]\b|psicofarmac|antidepress|ansiolit|ricover|ospedal|ambulator|\bclinic|sanitar|consultorio|pronto soccorso|visita medic|visite medic|controllo medic|appuntamento (medic|sanitar)|professionista sanitar|religio|cattolic|musulman|\bebre|islam|orientamento sessuale|omosess|\betero|bisess|transgender|\betni|\brazz|partito|di destra|di sinistra/i;
 
 // Riferimenti di aiuto — RACCOLTI QUI come costanti così sono facili da aggiornare.
 // >>> DA VERIFICARE PRIMA DELLA PUBBLICAZIONE (numeri segnalati all'utente).
@@ -194,11 +198,13 @@ Cosa si PUÒ memorizzare (solo ciò che serve a fare da tutor):
 - ostacoli: ostacoli concreti che incontra nello studio;
 - preferenze: come vuole essere aiutato.
 
-È VIETATO memorizzare, mai, in nessuna forma:
+È VIETATO memorizzare, mai, in nessuna forma — nemmeno se detto in modo neutro o indiretto:
 - diagnosi, condizioni di salute fisica o mentale, terapie o farmaci;
+- medici, psicologi, psichiatri o altri professionisti sanitari, visite, appuntamenti, controlli, percorsi di cura, ricoveri, e persino il fatto che lo studente si sia rivolto — o voglia rivolgersi — a un professionista sanitario;
 - origine etnica, religione, opinioni politiche, orientamento o vita sessuale;
 - dati riferiti a terze persone.
-Se lo studente racconta un disagio, scrivi la nota in termini FUNZIONALI e non clinici. Ammesso: "fatica a rimanere motivato sugli esami e sta valutando di cambiare percorso". Vietato: qualsiasi formulazione che gli attribuisca una condizione o un disturbo.
+Regola tassativa: se una nota non si può scrivere senza toccare l'area sanitaria o di cura, NON la scrivi. Nel dubbio, non scrivere la nota.
+Se lo studente racconta un disagio, scrivi la nota SOLO in termini funzionali sullo studio (motivazione, concentrazione, organizzazione, dubbi sul percorso), senza alcun riferimento a salute, cura o professionisti sanitari. Ammesso: "fatica a rimanere motivato sugli esami e sta valutando di cambiare percorso". Vietato: qualunque cosa che nomini o alluda a medico/psicologo/terapia/farmaci/visite/diagnosi/una condizione.
 
 Regole:
 - Ogni nota è UN fatto solo, conciso, in italiano, al massimo 300 caratteri.
