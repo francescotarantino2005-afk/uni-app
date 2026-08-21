@@ -34,7 +34,8 @@ const NOTE_VIETATE =
 // >>> DA VERIFICARE PRIMA DELLA PUBBLICAZIONE (numeri segnalati all'utente).
 const RIF_COUNSELING =
   'il servizio di counseling psicologico del tuo ateneo (quasi tutte le università italiane lo offrono gratis agli iscritti)';
-const RIF_TELEFONO_AMICO = 'Telefono Amico Italia, 02 2327 2327';
+const RIF_TELEFONO_AMICO =
+  'Telefono Amico Italia al 02 2327 2327 (tutti i giorni 10-24), oppure su WhatsApp al 324 011 7252 (18-21)';
 const RIF_EMERGENZA = 'il 112, numero unico di emergenza';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
