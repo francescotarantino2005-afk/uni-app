@@ -261,7 +261,8 @@ const stili = StyleSheet.create({
   },
   lista: {
     gap: spazi.sm,
-    paddingBottom: 80,
+    // FAB (42: spazi.sm*2 + icona 26) + margine bottom spazi.lg (24) + 16
+    paddingBottom: 82,
   },
   bottoneAggiungi: {
     position: 'absolute',

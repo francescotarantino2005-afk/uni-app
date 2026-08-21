@@ -166,7 +166,8 @@ const stili = StyleSheet.create({
   contenuto: {
     padding: spazi.md,
     gap: spazi.md,
-    paddingBottom: 90,
+    // FAB (42: spazi.sm*2 + icona 26) + margine bottom spazi.lg (24) + 16
+    paddingBottom: 82,
   },
   cardVuoto: {
     backgroundColor: colori.superficie,
