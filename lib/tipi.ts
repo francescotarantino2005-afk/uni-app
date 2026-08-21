@@ -40,10 +40,33 @@ export type PianoStudio = {
   piano: Piano;
 };
 
+export type StatoInvio = 'inviando' | 'errore';
+
 export type MessaggioChat = {
   id: string;
   ruolo: 'user' | 'assistant';
   contenuto: string;
+  // Campi SOLO client: non arrivano dal DB, non vengono mai inviati al server
+  // né salvati nello storico. L'errore di rete sta qui, mai dentro `contenuto`.
+  statoInvio?: StatoInvio;
+  erroreRete?: string;
+};
+
+export type CategoriaNota =
+  | 'percorso'
+  | 'obiettivi'
+  | 'metodo_studio'
+  | 'ostacoli'
+  | 'preferenze'
+  | 'contesto';
+
+export type NotaStudente = {
+  id: string;
+  categoria: CategoriaNota;
+  contenuto: string;
+  importanza: number; // 1..3
+  archiviata: boolean;
+  updated_at: string;
 };
 
 export type Esame = {

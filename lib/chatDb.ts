@@ -25,11 +25,15 @@ export type EsitoInvio =
   | { tipo: 'cap' } // cap giornaliero raggiunto → upsell
   | { tipo: 'errore'; messaggio: string };
 
-/** Invia un messaggio alla chat AI. */
-export async function inviaMessaggioChat(messaggio: string): Promise<EsitoInvio> {
+/**
+ * Invia un messaggio alla chat AI.
+ * `id` è generato una sola volta alla composizione e riusato nel retry: il server
+ * lo usa come chiave di idempotenza, così un reinvio non duplica il messaggio.
+ */
+export async function inviaMessaggioChat(messaggio: string, id: string): Promise<EsitoInvio> {
   try {
     const { data, error } = await supabase.functions.invoke('chat', {
-      body: { messaggio },
+      body: { messaggio, id },
     });
 
     if (error) {

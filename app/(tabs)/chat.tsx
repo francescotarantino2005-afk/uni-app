@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { caricaStorico, inviaMessaggioChat } from '@/lib/chatDb';
 import { MessaggioChat } from '@/lib/tipi';
-import { MessaggioErrore } from '@/components/MessaggioErrore';
+import { nuovoId } from '@/lib/id';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 const SUGGERIMENTI = [
@@ -29,8 +29,9 @@ export default function SchermataChat() {
   const [testo, setTesto] = useState('');
   const [caricamento, setCaricamento] = useState(true);
   const [invio, setInvio] = useState(false);
-  const [errore, setErrore] = useState<string | null>(null);
   const listaRef = useRef<FlatList>(null);
+  // Guardia contro il doppio invio mentre una richiesta è già in corso.
+  const invioInCorso = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -44,39 +45,72 @@ export default function SchermataChat() {
   // virtualizzazione lasciava gli ultimi messaggi fuori dal render.
   const messaggiInvertiti = [...messaggi].reverse();
 
-  const invia = async (contenuto: string) => {
-    const msg = contenuto.trim();
-    if (!msg || invio) return;
-    setErrore(null);
-    setTesto('');
+  const aggiorna = (id: string, patch: Partial<MessaggioChat>) =>
+    setMessaggi((prima) => prima.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
-    // messaggio dell'utente subito a schermo (ottimista)
-    const provvisorio: MessaggioChat = { id: `local-${Date.now()}`, ruolo: 'user', contenuto: msg };
-    setMessaggi((prima) => [...prima, provvisorio]);
+  // Routine di invio condivisa da primo invio e retry: usa SEMPRE lo stesso id.
+  const esegui = async (id: string, contenuto: string) => {
+    if (invioInCorso.current) return;
+    invioInCorso.current = true;
     setInvio(true);
 
-    const esito = await inviaMessaggioChat(msg);
+    const esito = await inviaMessaggioChat(contenuto, id);
+
     setInvio(false);
+    invioInCorso.current = false;
 
     if (esito.tipo === 'cap') {
+      aggiorna(id, { statoInvio: undefined, erroreRete: undefined });
       router.push('/cap-raggiunto');
       return;
     }
     if (esito.tipo === 'errore') {
-      setErrore(esito.messaggio);
+      // L'errore vive in uno stato separato SOTTO la bolla, mai dentro `contenuto`.
+      aggiorna(id, { statoInvio: 'errore', erroreRete: esito.messaggio });
       return;
     }
+    aggiorna(id, { statoInvio: undefined, erroreRete: undefined });
     setMessaggi((prima) => [
       ...prima,
-      { id: `local-a-${Date.now()}`, ruolo: 'assistant', contenuto: esito.risposta },
+      { id: nuovoId(), ruolo: 'assistant', contenuto: esito.risposta },
     ]);
   };
 
-  const bolla = (m: MessaggioChat) => {
+  const invia = (contenuto: string) => {
+    const msg = contenuto.trim();
+    if (!msg || invioInCorso.current) return;
+    setTesto('');
+    // id generato UNA sola volta, alla composizione.
+    const id = nuovoId();
+    setMessaggi((prima) => [...prima, { id, ruolo: 'user', contenuto: msg, statoInvio: 'inviando' }]);
+    esegui(id, msg);
+  };
+
+  const riprova = (id: string) => {
+    if (invioInCorso.current) return;
+    const m = messaggi.find((x) => x.id === id);
+    if (!m) return;
+    // Stesso id, stesso testo: il server upserta sulla chiave → nessun duplicato.
+    aggiorna(id, { statoInvio: 'inviando', erroreRete: undefined });
+    esegui(id, m.contenuto);
+  };
+
+  const renderMessaggio = (m: MessaggioChat) => {
     const mio = m.ruolo === 'user';
     return (
-      <View style={[stili.bolla, mio ? stili.bollaMia : stili.bollaAI]}>
-        <Text style={[stili.testoBolla, mio && stili.testoBollaMia]}>{m.contenuto}</Text>
+      <View style={mio ? stili.gruppoMio : stili.gruppoAI}>
+        <View style={[stili.bolla, mio ? stili.bollaMia : stili.bollaAI]}>
+          <Text style={[stili.testoBolla, mio && stili.testoBollaMia]}>{m.contenuto}</Text>
+        </View>
+        {mio && m.statoInvio === 'errore' ? (
+          <View style={stili.rigaErrore}>
+            <Ionicons name="alert-circle-outline" size={14} color={colori.errore} />
+            <Text style={stili.testoErrore}>{m.erroreRete}</Text>
+            <Pressable onPress={() => riprova(m.id)} hitSlop={8}>
+              <Text style={stili.riprova}>Riprova</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -114,7 +148,7 @@ export default function SchermataChat() {
             inverted
             keyExtractor={(m) => m.id}
             contentContainerStyle={stili.lista}
-            renderItem={({ item }) => bolla(item)}
+            renderItem={({ item }) => renderMessaggio(item)}
           />
         )}
 
@@ -126,7 +160,6 @@ export default function SchermataChat() {
         ) : null}
 
         <View style={stili.barraInput}>
-          <MessaggioErrore messaggio={errore} />
           <View style={stili.rigaInput}>
             <TextInput
               style={stili.input}
@@ -206,6 +239,13 @@ const stili = StyleSheet.create({
     padding: spazi.md,
     gap: spazi.sm,
   },
+  gruppoMio: {
+    alignItems: 'flex-end',
+    gap: spazi.xs,
+  },
+  gruppoAI: {
+    alignItems: 'flex-start',
+  },
   bolla: {
     maxWidth: '85%',
     borderRadius: raggi.lg,
@@ -232,6 +272,22 @@ const stili = StyleSheet.create({
   testoBollaMia: {
     color: '#0D0F14',
     fontWeight: '500',
+  },
+  rigaErrore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.xs,
+    paddingHorizontal: spazi.xs,
+  },
+  testoErrore: {
+    color: colori.errore,
+    fontSize: 12,
+    flexShrink: 1,
+  },
+  riprova: {
+    color: colori.accento,
+    fontSize: 12,
+    fontWeight: '700',
   },
   scrivendo: {
     flexDirection: 'row',

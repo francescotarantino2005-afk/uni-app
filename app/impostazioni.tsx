@@ -12,7 +12,7 @@ type Voce = {
   icona: keyof typeof Ionicons.glyphMap;
   titolo: string;
   sottotitolo: string;
-  rotta: '/preferenze' | '/in-arrivo';
+  rotta: '/preferenze' | '/in-arrivo' | '/note-memoria';
 };
 
 const VOCI: Voce[] = [
@@ -21,6 +21,12 @@ const VOCI: Voce[] = [
     titolo: 'Il briefing del mattino',
     sottotitolo: 'Scegli a che ora ricevere la tua giornata',
     rotta: '/preferenze',
+  },
+  {
+    icona: 'bulb-outline',
+    titolo: 'Cosa Lode ricorda di me',
+    sottotitolo: 'Guarda e gestisci quello che l\'assistente sa di te',
+    rotta: '/note-memoria',
   },
   {
     icona: 'sparkles-outline',
