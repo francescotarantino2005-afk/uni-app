@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { BadgeBeta } from '@/components/BadgeBeta';
 import { colori, raggi, spazi } from '@/lib/theme';
 
-const NOME_APP = 'Assistente Studente';
+const NOME_APP = 'Lode';
 
 type Voce = {
   icona: keyof typeof Ionicons.glyphMap;

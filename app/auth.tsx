@@ -92,7 +92,7 @@ export default function SchermataAuth() {
           <View style={stili.cerchioIcona}>
             <Ionicons name="sparkles-outline" size={36} color={colori.accento} />
           </View>
-          <Text style={stili.titolo}>Assistente Studente</Text>
+          <Text style={stili.titolo}>Lode</Text>
           <Text style={stili.sottotitolo}>
             {modalita === 'registrazione'
               ? 'Crea il tuo account: bastano email e password.'
