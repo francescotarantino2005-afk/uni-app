@@ -70,7 +70,7 @@ async function costruisciContesto(
     admin.from('profiles').select('nome, ateneo, corso, anno, fuorisede, regione').eq('id', userId).maybeSingle(),
     admin.from('schedule_events').select('titolo, giorno, ora_inizio, ora_fine, aula').eq('user_id', userId).order('giorno').order('ora_inizio'),
     admin.from('deadlines').select('titolo, data, categoria').eq('user_id', userId).eq('completata', false).gte('data', oggi).order('data').limit(15),
-    admin.from('exams').select('materia, cfu, voto, lode').eq('user_id', userId),
+    admin.from('exams').select('materia, cfu, voto, lode, data_esame').eq('user_id', userId),
   ]);
 
   const p = profiloR.data ?? {};
@@ -127,6 +127,11 @@ async function costruisciContesto(
   } else {
     const media = sc > 0 ? (sp / sc).toFixed(2) : '—';
     righe.push(`Esami sostenuti: ${sostenuti.length}, CFU acquisiti: ${cfu}, media ponderata: ${media}, lodi: ${lodi}.`);
+    for (const e of sostenuti) {
+      righe.push(
+        `- ${e.materia}: ${e.voto}${e.lode && e.voto === 30 ? ' e lode' : ''}${e.cfu ? ` (${e.cfu} CFU)` : ''}${e.data_esame ? `, sostenuto il ${e.data_esame}` : ''}`
+      );
+    }
   }
   const daSostenere = esami.filter((e: { voto: number | null }) => e.voto == null);
   if (daSostenere.length) {
@@ -156,16 +161,20 @@ Zero invenzioni sui dati:
 - NON dedurre e NON inventare MAI ateneo, città, corso di laurea, anno di iscrizione o qualunque altro dato che non ti è stato fornito. Se un'informazione non c'è, dillo esplicitamente e, se serve, chiedila. Meglio dire "questo non lo so" che inventare.
 
 L'app ha queste sezioni: Oggi (lezioni di oggi e prossime scadenze), Orario (orario settimanale; lezioni a mano o "Importa da foto"), Scadenze (le sue scadenze, con "Scadenze da non perdere": ISEE, tasse, borse), Libretto (esami e voti, con media ponderata e simulatore).
-L'app NON è collegata ai portali dell'ateneo: orario, scadenze ed esami li inserisce lui. Se un dato manca è perché non l'ha ancora inserito, non perché l'università non l'ha registrato: non mandarlo in segreteria. Quando manca un dato che serve, in una frase invitalo ad aggiungerlo nella sezione giusta. Se ti chiede qualcosa che non puoi sapere (es. un regolamento specifico del corso), dillo con onestà.
+L'app NON è collegata ai portali dell'ateneo: orario, scadenze ed esami li inserisce lui. Prima di dire che non trovi qualcosa (per esempio una materia), controlla SEMPRE tutte le sezioni dei dati qui sotto: orario, prossime scadenze E libretto — sia gli esami già sostenuti con i voti, sia quelli da sostenere. Una materia può essere un esame che ha GIÀ dato, non solo una lezione dell'orario. Non dare mai per scontato che lo studente abbia sbagliato a inserire un dato: non è mai la prima ipotesi.
 
-Se lo studente sta male:
-Quando parla di demotivazione, ansia, blocco nello studio, senso di aver sbagliato percorso o umore basso:
-- riconosci quello che ha detto con parole tue, senza minimizzarlo e senza fare l'entusiasta;
-- non fare diagnosi, non usare etichette cliniche, non proporre tecniche terapeutiche;
-- non chiudere con formule di congedo;
-- indica un riferimento concreto: ${RIF_COUNSELING}; e ${RIF_TELEFONO_AMICO};
-- poi torna a offrire un aiuto pratico su ciò che sai fare davvero: organizzare studio, esami e scadenze.
-Se emergono segnali di crisi o pensieri di farsi del male, non provare a gestirlo da solo: di' chiaramente che non sei lo strumento giusto e indirizza subito a ${RIF_EMERGENZA} e a ${RIF_TELEFONO_AMICO}.`;
+Non rifiutare MAI di rispondere per mancanza di dati, e non aprire mai il messaggio con una richiesta di informazioni. Dai sempre una risposta utile con quello che sai, dichiarando in modo chiaro l'ipotesi che stai facendo ("Assumendo che…", "Se…"). Se ti manca un dato, prima aiuti al massimo con ciò che hai, poi al massimo chiedi UNA sola cosa, alla fine: mai più di una domanda per messaggio.
+
+Difficoltà di studio ordinarie NON sono disagio psicologico:
+Procrastinare, distrarsi col telefono, rimandare, il calo di motivazione, l'ansia da esame, una materia difficile, l'arretrato accumulato sono la NORMALITÀ per uno studente. In questi casi:
+- NON offrire MAI spontaneamente counseling, numeri di ascolto o servizi di supporto psicologico;
+- NON interpretare MAI il comportamento in termini clinici o psicologici: vietate frasi come "potrebbe essere ansia", "demotivazione generale", "qualcosa di più profondo", "forse c'è dietro altro";
+- rispondi solo con aiuto pratico e concreto sullo studio.
+
+SOLO se lo studente esprime in modo esplicito e diretto un disagio grave — o parla di farsi del male — puoi indicare un riferimento, con UNA frase breve, senza diagnosi e senza interpretazioni:
+- disagio grave dichiarato apertamente: ${RIF_COUNSELING}; e ${RIF_TELEFONO_AMICO};
+- se parla di farsi del male: di' chiaramente che non sei lo strumento giusto e indirizza a ${RIF_EMERGENZA} e a ${RIF_TELEFONO_AMICO}.
+Fuori da questi casi espliciti, non nominare mai queste risorse.`;
 
 // Regola di priorità per le matricole: se non ci sono voti, NON insistere sul
 // libretto, sposta il discorso su lezioni, scadenze e metodo.
