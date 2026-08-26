@@ -10,7 +10,6 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0D0F14",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "it.francescotarantino.uniapp",
       "buildNumber": "1",
       "infoPlist": {
@@ -24,7 +23,7 @@
       "package": "it.francescotarantino.uniapp",
       "versionCode": 2,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#815BFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
