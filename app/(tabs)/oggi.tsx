@@ -17,7 +17,6 @@ import { caricaPianoAttivo } from '@/lib/pianoDb';
 import { prossimaSessione } from '@/lib/pianoStudio';
 import { EventoOrario, Scadenza } from '@/lib/tipi';
 import { dataLungaItaliana, giornoOggi } from '@/lib/date';
-import { useAppStore } from '@/store/useAppStore';
 import { RigaLezione } from '@/components/RigaLezione';
 import { RigaScadenza } from '@/components/RigaScadenza';
 import { BadgeBeta } from '@/components/BadgeBeta';
@@ -26,7 +25,6 @@ import { MessaggioErrore } from '@/components/MessaggioErrore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 export default function SchermataOggi() {
-  const esci = useAppStore((s) => s.esci);
   const [briefing, setBriefing] = useState<string | null>(null);
   const [suggerimento, setSuggerimento] = useState<string | null>(null);
   const [haSessione, setHaSessione] = useState(false);
@@ -66,11 +64,6 @@ export default function SchermataOggi() {
     setAggiornamento(true);
     await carica();
     setAggiornamento(false);
-  };
-
-  const gestisciUscita = async () => {
-    await esci();
-    router.replace('/auth');
   };
 
   return (
@@ -201,9 +194,6 @@ export default function SchermataOggi() {
         </>
       )}
 
-      <Pressable onPress={gestisciUscita} style={stili.bottoneEsci}>
-        <Text style={stili.testoEsci}>Esci dall'account</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -369,14 +359,5 @@ const stili = StyleSheet.create({
   },
   lista: {
     gap: spazi.sm,
-  },
-  bottoneEsci: {
-    alignSelf: 'center',
-    paddingVertical: spazi.md,
-  },
-  testoEsci: {
-    color: colori.testoSecondario,
-    fontSize: 13,
-    fontWeight: '600',
   },
 });

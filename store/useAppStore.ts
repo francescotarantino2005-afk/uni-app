@@ -53,16 +53,44 @@ export const useAppStore = create<StatoApp>((set, get) => ({
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      set({ utente: session?.user ?? null });
       if (session?.user) {
-        await get().caricaProfilo();
-        // Segna l'attività (difesa costi: il cron salta chi è inattivo da 14+ giorni).
-        // Best effort, non blocca l'avvio.
-        supabase
-          .from('profiles')
-          .update({ ultimo_accesso: new Date().toISOString() })
-          .eq('id', session.user.id)
-          .then(() => {});
+        // Valida la sessione col server. Se l'utente è stato eliminato (es. "Elimina
+        // account" riuscito ma il client è caduto prima dell'uscita), il server
+        // risponde con un errore di auth → sessione ORFANA: pulisci e vai al login.
+        // Un errore di rete (offline) NON è motivo di logout: si riparte dalla cache.
+        let orfano = false;
+        let utenteValido = session.user;
+        try {
+          const {
+            data: { user },
+            error,
+          } = await supabase.auth.getUser();
+          if (user) {
+            utenteValido = user;
+          } else if (error && (error.status ?? 0) >= 400) {
+            orfano = true;
+          }
+          // errore di rete (status 0) o eccezione → si resta con session.user (offline)
+        } catch {
+          // offline: si tiene la sessione in cache
+        }
+
+        if (orfano) {
+          await supabase.auth.signOut();
+          set({ utente: null });
+        } else {
+          set({ utente: utenteValido });
+          await get().caricaProfilo();
+          // Segna l'attività (difesa costi: il cron salta chi è inattivo da 14+ giorni).
+          // Best effort, non blocca l'avvio.
+          supabase
+            .from('profiles')
+            .update({ ultimo_accesso: new Date().toISOString() })
+            .eq('id', utenteValido.id)
+            .then(() => {});
+        }
+      } else {
+        set({ utente: null });
       }
     } catch {
       // offline all'avvio: si riparte dalla schermata di accesso
