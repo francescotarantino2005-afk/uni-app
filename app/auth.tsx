@@ -34,16 +34,27 @@ export default function SchermataAuth() {
     setErrore(null);
     setInfo(null);
 
+    // Normalizza l'input: la digitazione può portarsi dietro spazi o maiuscole
+    // (autocorrezione, tastiera) che facevano fallire il login rispetto al copia-incolla.
     const mail = email.trim().toLowerCase();
-    if (!mail || !password) {
-      setErrore('Inserisci email e password.');
+    const pw = password.trim();
+    // Riscrivi i valori normalizzati nei campi: l'utente vede cosa verrà inviato.
+    if (mail !== email) setEmail(mail);
+    if (pw !== password) setPassword(pw);
+
+    if (!mail) {
+      setErrore('Inserisci la tua email.');
+      return;
+    }
+    if (!pw) {
+      setErrore('Inserisci la password.');
       return;
     }
 
     setCaricamento(true);
     try {
       if (modalita === 'registrazione') {
-        const { data, error } = await supabase.auth.signUp({ email: mail, password });
+        const { data, error } = await supabase.auth.signUp({ email: mail, password: pw });
         if (error) {
           setErrore(messaggioErroreAuth(error));
           return;
@@ -57,7 +68,7 @@ export default function SchermataAuth() {
           return;
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: mail, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: mail, password: pw });
         if (error) {
           setErrore(messaggioErroreAuth(error));
           return;
@@ -106,8 +117,11 @@ export default function SchermataAuth() {
               onChangeText={setEmail}
               placeholder="nome@esempio.it"
               autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
               autoComplete="email"
               keyboardType="email-address"
+              textContentType="emailAddress"
             />
             <CampoTesto
               etichetta="Password"
@@ -115,7 +129,11 @@ export default function SchermataAuth() {
               onChangeText={setPassword}
               placeholder="Almeno 6 caratteri"
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
               autoComplete={modalita === 'registrazione' ? 'new-password' : 'current-password'}
+              textContentType="password"
             />
 
             <MessaggioErrore messaggio={errore} />
