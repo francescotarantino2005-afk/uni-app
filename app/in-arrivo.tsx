@@ -8,7 +8,7 @@ import { colori, raggi, spazi } from '@/lib/theme';
 // Canale feedback: per ora la mail del fondatore. Sostituibile in un punto solo
 // con un link WhatsApp/Telegram/form quando il canale definitivo sarà pronto.
 const CANALE_FEEDBACK =
-  'mailto:francescotarantino2005@gmail.com?subject=Feedback%20app%20(beta)';
+  'mailto:supportolode@gmail.com?subject=Feedback%20app%20(beta)';
 
 type Stato = 'In sviluppo' | 'In progettazione' | 'Quasi pronto';
 
