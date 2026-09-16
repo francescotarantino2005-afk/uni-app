@@ -145,6 +145,12 @@ export default function SchermataAuth() {
               caricamento={caricamento}
             />
 
+            {modalita === 'accesso' ? (
+              <Pressable onPress={() => router.push('/recupera-password')} disabled={caricamento}>
+                <Text style={stili.linkSecondario}>Password dimenticata?</Text>
+              </Pressable>
+            ) : null}
+
             <Pressable onPress={cambiaModalita} disabled={caricamento}>
               <Text style={stili.linkCambio}>
                 {modalita === 'registrazione'
@@ -199,6 +205,13 @@ const stili = StyleSheet.create({
   },
   linkCambio: {
     color: colori.accento,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: spazi.xs,
+  },
+  linkSecondario: {
+    color: colori.testoSecondario,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

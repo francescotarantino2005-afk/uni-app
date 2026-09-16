@@ -1,8 +1,33 @@
 import { create } from 'zustand';
+import * as Linking from 'expo-linking';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Profilo } from '@/lib/tipi';
 import { LezioneEstratta } from '@/lib/estrazioneOrario';
+
+type TokenRecupero = { access_token: string; refresh_token: string };
+
+/**
+ * Estrae i token da un deep link di recupero password.
+ * - null     → non è un link di recupero
+ * - 'errore' → è un link di recupero ma scaduto/invalido (niente token usabili)
+ */
+function leggiLinkRecupero(url: string): TokenRecupero | 'errore' | null {
+  const hIndex = url.indexOf('#');
+  const qIndex = url.indexOf('?');
+  const frammento = hIndex >= 0 ? url.slice(hIndex + 1) : '';
+  const query = qIndex >= 0 ? url.slice(qIndex + 1, hIndex >= 0 ? hIndex : undefined) : '';
+  const p = new URLSearchParams([frammento, query].filter(Boolean).join('&'));
+
+  const isRecupero = p.get('type') === 'recovery' || url.includes('reset-password');
+  if (!isRecupero) return null;
+  if (p.get('error')) return 'errore';
+
+  const access_token = p.get('access_token');
+  const refresh_token = p.get('refresh_token');
+  if (access_token && refresh_token) return { access_token, refresh_token };
+  return 'errore';
+}
 
 export type FotoOrario = {
   uri: string;
@@ -23,6 +48,13 @@ type StatoApp = {
   utente: User | null;
   profilo: Profilo | null;
 
+  /**
+   * Flag di recupero password. SOLO in memoria (lo store non ha persist): a ogni
+   * avvio riparte da false. Non deve MAI essere persistito, altrimenti un percorso
+   * abbandonato inchioderebbe l'utente su /reset-password per sempre.
+   */
+  recupero: boolean;
+
   // dati raccolti durante l'onboarding / import (solo in memoria)
   ateneoSelezionato: string | null;
   fotoOrario: FotoOrario | null;
@@ -37,6 +69,12 @@ type StatoApp = {
   completaOnboarding: () => Promise<string | null>;
   /** Aggiorna l'ora del briefing in profiles. Ritorna un messaggio d'errore o null. */
   aggiornaOraBriefing: (oraHHMM: string) => Promise<string | null>;
+  /** Entra in modalità recupero da un deep link. Ritorna true se era un link di recupero. */
+  entraInRecupero: (url: string) => Promise<boolean>;
+  /** Chiude il recupero dopo updateUser riuscito: sblocca e porta dentro l'app. */
+  completaRecupero: () => Promise<void>;
+  /** Annulla il recupero: esce dalla sessione e torna al login. */
+  annullaRecupero: () => Promise<void>;
   esci: () => Promise<void>;
 };
 
@@ -44,53 +82,63 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   pronto: false,
   utente: null,
   profilo: null,
+  recupero: false,
   ateneoSelezionato: null,
   fotoOrario: null,
   lezioniEstratte: null,
 
   avvia: async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Valida la sessione col server. Se l'utente è stato eliminato (es. "Elimina
-        // account" riuscito ma il client è caduto prima dell'uscita), il server
-        // risponde con un errore di auth → sessione ORFANA: pulisci e vai al login.
-        // Un errore di rete (offline) NON è motivo di logout: si riparte dalla cache.
-        let orfano = false;
-        let utenteValido = session.user;
-        try {
-          const {
-            data: { user },
-            error,
-          } = await supabase.auth.getUser();
-          if (user) {
-            utenteValido = user;
-          } else if (error && (error.status ?? 0) >= 400) {
-            orfano = true;
-          }
-          // errore di rete (status 0) o eccezione → si resta con session.user (offline)
-        } catch {
-          // offline: si tiene la sessione in cache
-        }
+      // PRECEDENZA ASSOLUTA: se l'app è aperta da un link di recupero, entra in
+      // modalità recupero PRIMA di validare qualsiasi sessione. Così, anche se in
+      // cache c'è una sessione valida (di recupero o vecchia), getUser() non può
+      // mandare l'utente dentro l'app senza aver impostato una nuova password.
+      const urlIniziale = await Linking.getInitialURL();
+      const inRecupero = urlIniziale ? await get().entraInRecupero(urlIniziale) : false;
 
-        if (orfano) {
-          await supabase.auth.signOut();
-          set({ utente: null });
+      if (!inRecupero) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Valida la sessione col server. Se l'utente è stato eliminato (es. "Elimina
+          // account" riuscito ma il client è caduto prima dell'uscita), il server
+          // risponde con un errore di auth → sessione ORFANA: pulisci e vai al login.
+          // Un errore di rete (offline) NON è motivo di logout: si riparte dalla cache.
+          let orfano = false;
+          let utenteValido = session.user;
+          try {
+            const {
+              data: { user },
+              error,
+            } = await supabase.auth.getUser();
+            if (user) {
+              utenteValido = user;
+            } else if (error && (error.status ?? 0) >= 400) {
+              orfano = true;
+            }
+            // errore di rete (status 0) o eccezione → si resta con session.user (offline)
+          } catch {
+            // offline: si tiene la sessione in cache
+          }
+
+          if (orfano) {
+            await supabase.auth.signOut();
+            set({ utente: null });
+          } else {
+            set({ utente: utenteValido });
+            await get().caricaProfilo();
+            // Segna l'attività (difesa costi: il cron salta chi è inattivo da 14+ giorni).
+            // Best effort, non blocca l'avvio.
+            supabase
+              .from('profiles')
+              .update({ ultimo_accesso: new Date().toISOString() })
+              .eq('id', utenteValido.id)
+              .then(() => {});
+          }
         } else {
-          set({ utente: utenteValido });
-          await get().caricaProfilo();
-          // Segna l'attività (difesa costi: il cron salta chi è inattivo da 14+ giorni).
-          // Best effort, non blocca l'avvio.
-          supabase
-            .from('profiles')
-            .update({ ultimo_accesso: new Date().toISOString() })
-            .eq('id', utenteValido.id)
-            .then(() => {});
+          set({ utente: null });
         }
-      } else {
-        set({ utente: null });
       }
     } catch {
       // offline all'avvio: si riparte dalla schermata di accesso
@@ -100,7 +148,16 @@ export const useAppStore = create<StatoApp>((set, get) => ({
 
     // Solo aggiornamenti di stato qui dentro: chiamate a Supabase in questo
     // callback possono bloccarsi (limite documentato di supabase-js).
-    supabase.auth.onAuthStateChange((_evento, sessione) => {
+    supabase.auth.onAuthStateChange((evento, sessione) => {
+      // PASSWORD_RECOVERY (percorso web, dove detectSessionInUrl può emetterlo):
+      // congela il routing invece di trattarlo come un login normale.
+      if (evento === 'PASSWORD_RECOVERY') {
+        set({ recupero: true, utente: null });
+        return;
+      }
+      // Durante il recupero la sessione serve solo a updateUser: il routing resta
+      // inchiodato su /reset-password finché non si completa o si annulla.
+      if (get().recupero) return;
       set({ utente: sessione?.user ?? null });
       if (!sessione?.user) {
         set({ profilo: null, ateneoSelezionato: null, fotoOrario: null, lezioniEstratte: null });
@@ -165,6 +222,34 @@ export const useAppStore = create<StatoApp>((set, get) => ({
     }
     set({ profilo: (data as Profilo) ?? profilo });
     return null;
+  },
+
+  entraInRecupero: async (url) => {
+    const esito = leggiLinkRecupero(url);
+    if (esito === null) return false;
+    // Pin immediato: da qui il guard inchioda l'utente su /reset-password.
+    // utente/profilo restano fuori dal routing finché la password non è impostata.
+    set({ recupero: true, utente: null, profilo: null });
+    if (esito !== 'errore') {
+      // Sessione stabilita coi token DEL LINK (non con quella eventualmente in
+      // cache): updateUser agirà sull'account che ha chiesto il reset. Se i token
+      // sono scaduti setSession fallisce: la schermata reset mostrerà "link scaduto".
+      await supabase.auth.setSession(esito);
+    }
+    return true;
+  },
+
+  completaRecupero: async () => {
+    // La sessione di recupero è piena: dopo updateUser l'utente entra già loggato.
+    const { data } = await supabase.auth.getUser();
+    set({ recupero: false, utente: data.user ?? null });
+    await get().caricaProfilo();
+  },
+
+  annullaRecupero: async () => {
+    set({ recupero: false });
+    await supabase.auth.signOut();
+    // utente/profilo azzerati da onAuthStateChange (ora che recupero è false)
   },
 
   esci: async () => {

@@ -1,19 +1,45 @@
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { useAppStore } from '@/store/useAppStore';
 import { colori } from '@/lib/theme';
 
 export default function LayoutRadice() {
   const pronto = useAppStore((s) => s.pronto);
+  const recupero = useAppStore((s) => s.recupero);
   const avvia = useAppStore((s) => s.avvia);
+  const pathname = usePathname();
   const giaGestito = useRef(false);
 
   useEffect(() => {
     avvia();
   }, [avvia]);
+
+  // Deep link di recupero con app GIÀ in esecuzione (foreground/background):
+  // l'avvio a freddo è gestito dentro avvia() con getInitialURL().
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      useAppStore
+        .getState()
+        .entraInRecupero(url)
+        .then((entrato) => {
+          if (entrato) router.replace('/reset-password');
+        });
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Guard di precedenza: finché recupero è true l'unica rotta ammessa è
+  // /reset-password. Qualunque tentativo di navigare altrove rimbalza indietro.
+  useEffect(() => {
+    if (!pronto) return;
+    if (recupero && pathname !== '/reset-password') {
+      router.replace('/reset-password');
+    }
+  }, [pronto, recupero, pathname]);
 
   // La push del briefing (locale o remota) porta alla Home.
   // Le notifiche non esistono su web: attiviamo il wiring solo su dispositivo.
@@ -68,6 +94,9 @@ export default function LayoutRadice() {
         <Stack.Screen name="simulatore" options={{ presentation: 'modal' }} />
         <Stack.Screen name="template-scadenze" options={{ presentation: 'modal' }} />
         <Stack.Screen name="cap-raggiunto" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="recupera-password" options={{ presentation: 'modal' }} />
+        {/* Non dismissabile: durante il recupero l'utente resta inchiodato qui. */}
+        <Stack.Screen name="reset-password" options={{ gestureEnabled: false }} />
         <Stack.Screen name="nuovo-piano" options={{ presentation: 'modal' }} />
         <Stack.Screen name="piano" />
         <Stack.Screen name="sessione" />
