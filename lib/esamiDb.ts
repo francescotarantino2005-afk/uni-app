@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Esame } from '@/lib/tipi';
+import { Esame, TipoEsame } from '@/lib/tipi';
 
 const ERRORE_RETE = 'Sembra che tu sia offline: controlla la connessione e riprova.';
 const ERRORE_GENERICO = 'Qualcosa è andato storto. Riprova tra poco.';
@@ -16,6 +16,8 @@ export type DatiEsame = {
   data_esame: string | null;
   voto: number | null;
   lode: boolean;
+  professore: string | null;
+  tipo_esame: TipoEsame | null;
 };
 
 /** Tutti gli esami dell'utente. Sostenuti prima (per data), poi da sostenere. */

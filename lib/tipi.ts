@@ -69,6 +69,8 @@ export type NotaStudente = {
   updated_at: string;
 };
 
+export type TipoEsame = 'scritto' | 'orale' | 'entrambi' | 'progetto' | 'altro';
+
 export type Esame = {
   id: string;
   user_id: string;
@@ -77,6 +79,8 @@ export type Esame = {
   data_esame: string | null;
   voto: number | null; // null = da sostenere
   lode: boolean;
+  professore: string | null;
+  tipo_esame: TipoEsame | null;
 };
 
 export type Briefing = {

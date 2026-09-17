@@ -15,7 +15,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { eliminaEsame, salvaEsame } from '@/lib/esamiDb';
-import { Esame } from '@/lib/tipi';
+import { Esame, TipoEsame } from '@/lib/tipi';
 import { VOTO_MAX, VOTO_MIN } from '@/lib/libretto';
 import { dataBreveItaliana, parseDataItaliana } from '@/lib/date';
 import { useAppStore } from '@/store/useAppStore';
@@ -25,6 +25,14 @@ import { MessaggioErrore } from '@/components/MessaggioErrore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 const VOTI = Array.from({ length: VOTO_MAX - VOTO_MIN + 1 }, (_, i) => VOTO_MIN + i);
+
+const TIPI_ESAME: { valore: TipoEsame; etichetta: string }[] = [
+  { valore: 'scritto', etichetta: 'Scritto' },
+  { valore: 'orale', etichetta: 'Orale' },
+  { valore: 'entrambi', etichetta: 'Entrambi' },
+  { valore: 'progetto', etichetta: 'Progetto' },
+  { valore: 'altro', etichetta: 'Altro' },
+];
 
 // "AAAA-MM-GG" → "GG/MM/AAAA" per il campo di testo
 function isoAItaliano(iso: string | null): string {
@@ -44,6 +52,8 @@ export default function SchermataEsame() {
   const [voto, setVoto] = useState<number | null>(null);
   const [lode, setLode] = useState(false);
   const [dataTesto, setDataTesto] = useState('');
+  const [professore, setProfessore] = useState('');
+  const [tipoEsame, setTipoEsame] = useState<TipoEsame | null>(null);
   const [caricamento, setCaricamento] = useState(!!idModifica);
   const [salvataggio, setSalvataggio] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
@@ -60,6 +70,8 @@ export default function SchermataEsame() {
         setVoto(e.voto);
         setLode(e.lode);
         setDataTesto(isoAItaliano(e.data_esame));
+        setProfessore(e.professore ?? '');
+        setTipoEsame(e.tipo_esame ?? null);
       }
       setCaricamento(false);
     })();
@@ -107,6 +119,8 @@ export default function SchermataEsame() {
         data_esame: dataIso,
         voto: sostenuto ? voto : null,
         lode: sostenuto && voto === VOTO_MAX ? lode : false,
+        professore: professore.trim() || null,
+        tipo_esame: tipoEsame,
       },
       idModifica
     );
@@ -228,6 +242,33 @@ export default function SchermataEsame() {
             keyboardType="numbers-and-punctuation"
           />
 
+          <CampoTesto
+            etichetta="Professore (facoltativo)"
+            value={professore}
+            onChangeText={setProfessore}
+            placeholder="Nome del docente"
+          />
+
+          <View style={stili.gruppo}>
+            <Text style={stili.etichettaGruppo}>Tipo d'esame (facoltativo)</Text>
+            <View style={stili.rigaChip}>
+              {TIPI_ESAME.map((t) => {
+                const attivo = tipoEsame === t.valore;
+                return (
+                  <Pressable
+                    key={t.valore}
+                    onPress={() => setTipoEsame(attivo ? null : t.valore)}
+                    style={[stili.chipTipo, attivo && stili.chipTipoAttivo]}
+                  >
+                    <Text style={[stili.testoChipTipo, attivo && stili.testoChipTipoAttivo]}>
+                      {t.etichetta}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           <MessaggioErrore messaggio={errore} />
 
           <BottonePrimario
@@ -320,6 +361,28 @@ const stili = StyleSheet.create({
     fontWeight: '600',
   },
   testoChipVotoAttivo: {
+    color: colori.accento,
+    fontWeight: '800',
+  },
+  chipTipo: {
+    paddingVertical: spazi.sm,
+    paddingHorizontal: spazi.md,
+    borderRadius: raggi.sm,
+    backgroundColor: colori.superficie,
+    borderWidth: 1,
+    borderColor: colori.bordo,
+    alignItems: 'center',
+  },
+  chipTipoAttivo: {
+    backgroundColor: colori.accentoTenue,
+    borderColor: colori.accento,
+  },
+  testoChipTipo: {
+    color: colori.testoSecondario,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  testoChipTipoAttivo: {
     color: colori.accento,
     fontWeight: '800',
   },
