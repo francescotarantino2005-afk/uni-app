@@ -3,7 +3,6 @@ import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 
 const FUSO = 'Europe/Rome'; // gli atenei sono tutti in Italia
-const GIORNI = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
 
 // ---- Utility date/ora nel fuso italiano (gestisce l'ora legale) ----
 
@@ -156,12 +155,12 @@ function giorniA(dataOggi: string, iso: string): number {
 // ---- Briefing STATICO (nessuna chiamata AI): giornata libera o degrado grazioso ----
 
 export function briefingGiornataLibera(): string {
-  return 'Buongiorno! Oggi niente lezioni in calendario e nessuna scadenza in vista. Giornata tua: sfruttala come vuoi. 💪';
+  return 'Oggi niente lezioni in calendario e nessuna scadenza in vista. Giornata tua: sfruttala come vuoi. 💪';
 }
 
 /** Riassunto costruito dai soli dati, senza AI (usato in caso di errore/budget esaurito). */
 export function briefingStaticoDaDati(c: ContestoBriefing, dataOggi: string): string {
-  const parti: string[] = ['Buongiorno! Ecco la tua giornata:'];
+  const parti: string[] = ['Ecco la tua giornata:'];
   if (c.lezioniOggi.length) {
     const l = c.lezioniOggi
       .map((x) => `${x.titolo} (${oraBreve(x.ora_inizio)}${x.aula ? `, ${x.aula}` : ''})`)
@@ -185,8 +184,8 @@ export function briefingStaticoDaDati(c: ContestoBriefing, dataOggi: string): st
 
 // ---- Briefing AI ----
 
-function promptContesto(c: ContestoBriefing, dataOggi: string, giorno: number): string {
-  const righe: string[] = [`Oggi è ${GIORNI[giorno - 1]}.`];
+function promptContesto(c: ContestoBriefing, dataOggi: string): string {
+  const righe: string[] = [];
 
   if (c.lezioniOggi.length) {
     righe.push('Lezioni di oggi:');
@@ -205,6 +204,8 @@ function promptContesto(c: ContestoBriefing, dataOggi: string, giorno: number): 
       const g = giorniA(dataOggi, s.data);
       righe.push(`- ${s.titolo}${s.categoria ? ` (${s.categoria})` : ''}: tra ${g} giorni`);
     }
+  } else {
+    righe.push('Nessuna scadenza nei prossimi 7 giorni.');
   }
 
   if (c.esami.length) {
@@ -213,6 +214,8 @@ function promptContesto(c: ContestoBriefing, dataOggi: string, giorno: number): 
       const g = giorniA(dataOggi, e.data_esame);
       righe.push(`- ${e.materia}: tra ${g} giorni`);
     }
+  } else {
+    righe.push('Nessun esame nei prossimi 21 giorni.');
   }
 
   if (c.sessione) {
@@ -250,14 +253,14 @@ const SYSTEM_BRIEFING = `Sei l'assistente personale di uno studente universitari
 Con lo strumento scrivi_briefing produci DUE cose:
 
 1) briefing — il messaggio del mattino:
-- Tono: un amico sveglio e in gamba, non una segretaria. Diretto, caldo, un pizzico di grinta.
+- Tono: diretto, caldo e naturale, come un amico che ti dà una mano — non una segretaria e non un post motivazionale.
 - 2-3 frasi, circa 35 parole in tutto. Asciutto ma umano.
-- La PRIMA frase è la cosa più importante o urgente della giornata (la lezione principale, la sessione di studio di oggi o la scadenza più vicina): è quella che si legge nell'anteprima della notifica. Se saluti, fallo nella stessa frase (es. "Buongiorno! Oggi Analisi alle 10 in aula T4").
+- La PRIMA frase è la cosa più importante o urgente della giornata (la lezione principale, la sessione di studio di oggi o la scadenza più vicina): è quella che si legge nell'anteprima della notifica. NON salutare e non aprire con "Buongiorno": il saluto è già nel titolo della notifica. Vai dritto al concreto (per esempio apri con la prima lezione e il suo orario).
 - Copri le lezioni di oggi (orari e aule), la scadenza o l'esame più urgente e, se c'è, la sessione di studio pianificata; chiudi con una spinta.
 
 2) suggerimento_oggi — UNA frase sola, massimo 20 parole: l'azione più utile da fare oggi, che colleghi la sessione di studio pianificata, le ore libere e le scadenze imminenti. Se c'è una sessione di studio per oggi, mettila al centro (es. "Blocco libero nel pomeriggio: fai la sessione su X e ti porti avanti").
 
-Regole per entrambi: italiano completo e corretto, parole intere mai troncate. Niente asterischi, niente markdown, niente elenchi. Al massimo una emoji nel briefing.`;
+Regole per entrambi: italiano completo e corretto, parole intere mai troncate. Nomina SOLO lezioni, scadenze, esami, orari e aule presenti nei dati qui sotto: non inventare né dedurre nulla che non sia scritto, e se una sezione dichiara che non c'è niente, non riempirla. Frasi piane e naturali. Niente gergo, niente metafore, niente intensificatori colloquiali. Scrivi come parleresti a voce a un amico, non come un post motivazionale. Niente asterischi, niente markdown, niente elenchi. Al massimo una emoji nel briefing.`;
 
 const STRUMENTO_BRIEFING = {
   name: 'scrivi_briefing',
@@ -282,8 +285,7 @@ const STRUMENTO_BRIEFING = {
 export async function generaBriefing(
   anthropic: Anthropic,
   contesto: ContestoBriefing,
-  dataOggi: string,
-  giorno: number
+  dataOggi: string
 ): Promise<{ contenuto: string; suggerimento: string; usaAI: boolean }> {
   if (contestoVuoto(contesto)) {
     return {
@@ -300,7 +302,7 @@ export async function generaBriefing(
       system: SYSTEM_BRIEFING,
       tools: [STRUMENTO_BRIEFING],
       tool_choice: { type: 'tool', name: 'scrivi_briefing' },
-      messages: [{ role: 'user', content: promptContesto(contesto, dataOggi, giorno) }],
+      messages: [{ role: 'user', content: promptContesto(contesto, dataOggi) }],
     });
     const blocco = risposta.content.find((b) => b.type === 'tool_use');
     const out = blocco?.input as { briefing?: string; suggerimento_oggi?: string } | undefined;

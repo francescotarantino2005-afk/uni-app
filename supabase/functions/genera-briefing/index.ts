@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       testo = briefingGiornataLibera();
       suggerimento = suggerimentoStatico(contesto, oggi);
     } else if (conAI < MAX_AI) {
-      const esito = await generaBriefing(anthropic, contesto, oggi, giorno);
+      const esito = await generaBriefing(anthropic, contesto, oggi);
       testo = esito.contenuto;
       suggerimento = esito.suggerimento;
       if (esito.usaAI) conAI++;

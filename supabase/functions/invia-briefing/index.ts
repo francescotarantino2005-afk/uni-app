@@ -15,7 +15,7 @@ import {
   tokenPushUtente,
 } from '../_shared/briefing.ts';
 
-const TITOLO = 'Il tuo briefing ☀️';
+const TITOLO = 'Buongiorno ☀️';
 
 function json(corpo: unknown, stato = 200): Response {
   return new Response(JSON.stringify(corpo), {

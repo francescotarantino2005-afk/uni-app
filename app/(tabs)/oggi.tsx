@@ -94,7 +94,7 @@ export default function SchermataOggi() {
             <View style={stili.cardBriefing}>
               <View style={stili.intestazioneBriefing}>
                 <Ionicons name="sunny" size={18} color={colori.accento} />
-                <Text style={stili.etichettaBriefing}>Il tuo briefing</Text>
+                <Text style={stili.etichettaBriefing}>Buongiorno</Text>
               </View>
               <Text style={stili.testoBriefing}>{briefing}</Text>
             </View>
