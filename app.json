@@ -8,7 +8,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "assistentestudente",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#0D0F14",
+    "backgroundColor": "#FBFAF8",
     "ios": {
       "bundleIdentifier": "it.francescotarantino.uniapp",
       "buildNumber": "1",
