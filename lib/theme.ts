@@ -6,6 +6,12 @@
 // Regola sull'accento: il viola (`accento`) indica ciò che è toccabile
 // (bottoni, link, elementi attivi, selezione). Non è decorazione: non va usato
 // per titoli, bordi o icone decorative.
+//
+// Colori di STATO (successo/avviso/errore): asse separato dall'accento.
+// Indicano una condizione, non sono decorazione e non sostituiscono mai il
+// viola. L'avviso ha due valori: `avviso` per il TESTO (l'ambra piena non si
+// legge come testo su fondo chiaro) e `avvisoPallino` per pallini, bordi e
+// riempimenti (ambra piena).
 
 export type Palette = {
   /** sfondo dell'app; funge anche da colore del testo/icona SOPRA l'accento */
@@ -22,9 +28,13 @@ export type Palette = {
   accento: string;
   /** velatura dell'accento, per lo sfondo di elementi attivi/selezionati */
   accentoTenue: string;
-  /** stato positivo */
+  /** stato positivo (testo e pallino) */
   successo: string;
-  /** stato di errore */
+  /** stato di avviso — TESTO (ambra scura, leggibile) */
+  avviso: string;
+  /** stato di avviso — PALLINO/BORDO/RIEMPIMENTO (ambra piena, mai per il testo) */
+  avvisoPallino: string;
+  /** stato di errore (testo e pallino) */
   errore: string;
 };
 
@@ -36,9 +46,11 @@ export const paletteChiara: Palette = {
   testo: '#17151F',
   testoSecondario: '#6E6883',
   accento: '#6D4AFF',
-  // Non specificati nella richiesta (che dava i 6 core): scelti per il chiaro.
   accentoTenue: 'rgba(109, 74, 255, 0.10)',
+  // Asse di stato (dalla richiesta).
   successo: '#15803D',
+  avviso: '#B45309',
+  avvisoPallino: '#F59E0B',
   errore: '#DC2626',
 };
 
@@ -51,7 +63,10 @@ export const paletteScura: Palette = {
   testoSecondario: '#98A0B3',
   accento: '#8B7CFF',
   accentoTenue: 'rgba(139, 124, 255, 0.14)',
+  // Asse di stato: sul fondo scuro l'ambra piena è leggibile anche come testo.
   successo: '#4ADE80',
+  avviso: '#FBBF24',
+  avvisoPallino: '#FBBF24',
   errore: '#F87171',
 };
 
