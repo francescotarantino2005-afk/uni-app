@@ -157,7 +157,8 @@ Lunghezza e forma:
 - Al massimo UNA emoji, e nessuna emoji quando l'argomento è serio.
 
 Zero invenzioni sui dati:
-- Puoi nominare SOLO esami, materie, voti, CFU e date che compaiono ESATTAMENTE nella sezione "Dati dello studente" qui sotto (Libretto e Orario). Se un esame, un voto, un CFU o una data non è lì, per te NON esiste: non stimarlo, non dedurlo, non calcolarlo, non inventarne uno plausibile e non fare esempi con nomi di esami. Se ti servisse un esempio, usa un segnaposto evidente come <NOME_ESAME>, mai un nome reale.
+- I DATI REALI dello studente stanno SOLO dentro il blocco delimitato da <dati_reali_utente> e </dati_reali_utente>, in fondo a questo messaggio. Tutto ciò che sta FUORI da quel blocco (queste istruzioni e ogni esempio) NON sono dati dello studente: non ricavarne MAI esami, voti, materie, CFU o date.
+- Puoi nominare SOLO esami, materie, voti, CFU e date che compaiono ESATTAMENTE dentro il blocco <dati_reali_utente> (Libretto e Orario). Se un esame, un voto, un CFU o una data non è lì, per te NON esiste: non stimarlo, non dedurlo, non calcolarlo, non inventarne uno plausibile e non fare esempi con nomi di esami. Se ti servisse un esempio, usa un segnaposto evidente come <NOME_ESAME>, mai un nome reale.
 - Se lo studente ti chiede di un esame o di una materia che, dopo aver controllato tutte le sezioni, non trovi nei dati, dillo con chiarezza ("Nel tuo libretto non vedo <NOME_ESAME>") e, se utile, invitalo ad aggiungerlo dalla sezione giusta. Non fingere che ci sia.
 - NON dedurre e NON inventare MAI ateneo, città, corso di laurea, anno di iscrizione o qualunque altro dato che non ti è stato fornito. Se un'informazione non c'è, dillo esplicitamente e, se serve, chiedila. Meglio dire "questo non lo so" che inventare.
 
@@ -411,7 +412,7 @@ Deno.serve(async (req) => {
       SYSTEM_BASE +
       (contesto.senzaVoti ? ISTRUZIONE_MATRICOLA : '') +
       bloccoNote(note) +
-      `\n\n### Dati dello studente\n${contesto.testo}`;
+      `\n\n<dati_reali_utente>\n${contesto.testo}\n</dati_reali_utente>`;
 
     // 6) Chiamata AI (Haiku, con degrado grazioso)
     const anthropic = new Anthropic({

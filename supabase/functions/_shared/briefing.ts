@@ -225,7 +225,7 @@ function promptContesto(c: ContestoBriefing, dataOggi: string): string {
     );
   }
 
-  return righe.join('\n');
+  return `<dati_reali_utente>\n${righe.join('\n')}\n</dati_reali_utente>`;
 }
 
 /** Suggerimento statico (nessuna AI): una frase con l'azione più utile per oggi. */
@@ -260,7 +260,7 @@ Con lo strumento scrivi_briefing produci DUE cose:
 
 2) suggerimento_oggi — UNA frase sola, massimo 20 parole: l'azione più utile da fare oggi, che colleghi la sessione di studio pianificata, le ore libere e le scadenze imminenti. Se c'è una sessione di studio per oggi, mettila al centro (es. "Blocco libero nel pomeriggio: fai la sessione su X e ti porti avanti").
 
-Regole per entrambi: italiano completo e corretto, parole intere mai troncate. Nomina SOLO lezioni, scadenze, esami, orari e aule presenti nei dati qui sotto: non inventare né dedurre nulla che non sia scritto, e se una sezione dichiara che non c'è niente, non riempirla. Frasi piane e naturali. Niente gergo, niente metafore, niente intensificatori colloquiali. Scrivi come parleresti a voce a un amico, non come un post motivazionale. Niente asterischi, niente markdown, niente elenchi. Al massimo una emoji nel briefing.`;
+Regole per entrambi: italiano completo e corretto, parole intere mai troncate. I dati reali stanno SOLO dentro il blocco <dati_reali_utente>…</dati_reali_utente>: nomina solo lezioni, scadenze, esami, orari e aule presenti lì dentro, tutto ciò che sta fuori non sono dati; non inventare né dedurre nulla che non sia scritto, e se una sezione dichiara che non c'è niente, non riempirla. Frasi piane e naturali. Niente gergo, niente metafore, niente intensificatori colloquiali. Scrivi come parleresti a voce a un amico, non come un post motivazionale. Niente asterischi, niente markdown, niente elenchi. Al massimo una emoji nel briefing.`;
 
 const STRUMENTO_BRIEFING = {
   name: 'scrivi_briefing',

@@ -180,6 +180,7 @@ const STRUMENTO_PIANO = {
 
 const SYSTEM = `Sei un tutor che prepara il piano di studio per l'esame di uno studente universitario italiano.
 Ricevi: la data dell'esame, il materiale da coprire, quante ore al giorno può studiare, e per ogni giorno da oggi all'esame le fasce ORARIE LIBERE (fuori dalle lezioni).
+Tutti i dati reali stanno SOLO dentro il blocco <dati_reali_utente>…</dati_reali_utente>: usa esclusivamente quelli, non inventare esami, materie o fasce che non compaiono lì dentro.
 Costruisci il piano con lo strumento salva_piano, in italiano, rispettando queste regole ferree:
 - Pianifica A RITROSO partendo dalla data dell'esame.
 - Lascia SEMPRE liberi da nuove sessioni gli ultimi 3 giorni prima dell'esame: in quei giorni metti solo ripasso generale (nel campo "ripassi").
@@ -280,12 +281,14 @@ Deno.serve(async (req) => {
 
     const contesto = contestoGiorni(inizio, dataEsame, lezioniR.data ?? [], scadenzePerData);
 
-    const prompt = `Esame di ${esame.materia}: ${dataEsame} (tra ${giorniTra(oggi, dataEsame)} giorni).
+    const prompt = `<dati_reali_utente>
+Esame di ${esame.materia}: ${dataEsame} (tra ${giorniTra(oggi, dataEsame)} giorni).
 Ore di studio al giorno: ${oreAlGiorno}.
 Materiale da coprire: ${materiale}.
 
 Giorni disponibili con le fasce libere (usa SOLO queste):
-${contesto}`;
+${contesto}
+</dati_reali_utente>`;
 
     // 6) Chiamata AI con forced tool use e timeout
     const anthropic = new Anthropic({
