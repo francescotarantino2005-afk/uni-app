@@ -151,7 +151,7 @@ export default function SchermataLibretto() {
       </ScrollView>
 
       <Pressable style={stili.bottoneAggiungi} onPress={() => router.push('/esame')}>
-        <Ionicons name="add" size={26} color="#0D0F14" />
+        <Ionicons name="add" size={26} color={colori.sfondo} />
         <Text style={stili.testoAggiungi}>Esame</Text>
       </Pressable>
     </View>
@@ -311,7 +311,7 @@ const stili = StyleSheet.create({
     alignItems: 'center',
   },
   badgeLode: {
-    backgroundColor: 'rgba(74, 222, 128, 0.16)',
+    backgroundColor: colori.superficie,
   },
   testoVoto: {
     color: colori.accento,
@@ -334,7 +334,7 @@ const stili = StyleSheet.create({
     paddingHorizontal: spazi.md,
   },
   testoAggiungi: {
-    color: '#0D0F14',
+    color: colori.sfondo,
     fontSize: 15,
     fontWeight: '700',
   },

@@ -175,7 +175,7 @@ export default function SchermataChat() {
               onPress={() => invia(testo)}
               disabled={!testo.trim() || invio}
             >
-              <Ionicons name="arrow-up" size={22} color="#0D0F14" />
+              <Ionicons name="arrow-up" size={22} color={colori.sfondo} />
             </Pressable>
           </View>
         </View>
@@ -270,7 +270,7 @@ const stili = StyleSheet.create({
     lineHeight: 21,
   },
   testoBollaMia: {
-    color: '#0D0F14',
+    color: colori.sfondo,
     fontWeight: '500',
   },
   rigaErrore: {

@@ -19,15 +19,17 @@ export function MessaggioErrore({ messaggio, informativo = false }: Props) {
 
 const stili = StyleSheet.create({
   riquadro: {
-    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    // La tinta rossa non è un token: box neutro con bordo/testo d'errore (leggibile come errore).
+    backgroundColor: colori.superficie,
     borderColor: colori.errore,
     borderWidth: 1,
     borderRadius: raggi.md,
     padding: spazi.md,
   },
+  // Messaggio informativo (non toccabile): niente viola decorativo, resta neutro.
   riquadroInfo: {
-    backgroundColor: colori.accentoTenue,
-    borderColor: colori.accento,
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
   },
   testo: {
     color: colori.errore,

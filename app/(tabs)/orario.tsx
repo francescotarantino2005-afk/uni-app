@@ -89,7 +89,7 @@ export default function SchermataOrario() {
           style={stili.bottoneAggiungi}
           onPress={() => router.push(`/lezione?giorno=${giorno}`)}
         >
-          <Ionicons name="add" size={26} color="#0D0F14" />
+          <Ionicons name="add" size={26} color={colori.sfondo} />
           <Text style={stili.testoAggiungi}>Lezione</Text>
         </Pressable>
       </View>
@@ -167,7 +167,7 @@ const stili = StyleSheet.create({
     paddingHorizontal: spazi.md,
   },
   testoAggiungi: {
-    color: '#0D0F14',
+    color: colori.sfondo,
     fontSize: 15,
     fontWeight: '700',
   },

@@ -164,7 +164,7 @@ export default function SchermataSessione() {
 
         {avanz.inRitardo ? (
           <View style={stili.avviso}>
-            <Ionicons name="warning-outline" size={18} color="#FBBF24" />
+            <Ionicons name="warning-outline" size={18} color={colori.errore} />
             <Text style={stili.testoAvviso}>
               Sei indietro di qualche sessione: a questo ritmo copri circa il{' '}
               {avanz.percentualeRaggiungibile}% del programma. Se vuoi, rigenera il piano con le ore
@@ -208,8 +208,8 @@ export default function SchermataSessione() {
                 <Text style={[stili.testoEsito, { color: colori.successo }]}>Fatto</Text>
               </Pressable>
               <Pressable style={stili.esito} onPress={() => concludi('meta')}>
-                <Ionicons name="contract-outline" size={20} color="#FBBF24" />
-                <Text style={[stili.testoEsito, { color: '#FBBF24' }]}>A metà</Text>
+                <Ionicons name="contract-outline" size={20} color={colori.testoSecondario} />
+                <Text style={[stili.testoEsito, { color: colori.testoSecondario }]}>A metà</Text>
               </Pressable>
               <Pressable style={stili.esito} onPress={() => concludi('saltata')}>
                 <Ionicons name="close" size={20} color={colori.errore} />
@@ -256,8 +256,8 @@ const stili = StyleSheet.create({
   avviso: {
     flexDirection: 'row',
     gap: spazi.sm,
-    backgroundColor: 'rgba(251, 191, 36, 0.10)',
-    borderColor: '#FBBF24',
+    backgroundColor: colori.superficie,
+    borderColor: colori.errore,
     borderWidth: 1,
     borderRadius: raggi.md,
     padding: spazi.md,

@@ -118,7 +118,7 @@ export default function SchermataOggi() {
               </Text>
               {haSessione ? (
                 <Pressable style={stili.bottoneSessione} onPress={() => router.push('/sessione')}>
-                  <Ionicons name="play" size={18} color="#0D0F14" />
+                  <Ionicons name="play" size={18} color={colori.sfondo} />
                   <Text style={stili.testoBottoneSessione}>Inizia sessione</Text>
                 </Pressable>
               ) : (
@@ -250,7 +250,7 @@ const stili = StyleSheet.create({
     marginTop: spazi.xs,
   },
   testoBottoneSessione: {
-    color: '#0D0F14',
+    color: colori.sfondo,
     fontSize: 15,
     fontWeight: '700',
   },

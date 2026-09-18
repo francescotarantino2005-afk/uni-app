@@ -20,7 +20,7 @@ import { colori, raggi, spazi } from '@/lib/theme';
 
 const COLORE_STATO: Record<string, string> = {
   fatta: colori.successo,
-  meta: '#FBBF24',
+  meta: colori.testoSecondario,
   saltata: colori.errore,
   da_fare: colori.testoSecondario,
 };
@@ -174,7 +174,7 @@ const stili = StyleSheet.create({
     padding: spazi.md,
     gap: spazi.xs,
   },
-  cardAvanzRitardo: { borderColor: '#FBBF24', backgroundColor: 'rgba(251, 191, 36, 0.10)' },
+  cardAvanzRitardo: { borderColor: colori.errore, backgroundColor: colori.superficie },
   avanzTitolo: { color: colori.testo, fontSize: 15, fontWeight: '700' },
   avanzTesto: { color: colori.testoSecondario, fontSize: 13, lineHeight: 19 },
   cardCompletato: {

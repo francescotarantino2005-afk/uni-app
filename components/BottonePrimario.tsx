@@ -26,7 +26,7 @@ export function BottonePrimario({
       ]}
     >
       {caricamento ? (
-        <ActivityIndicator color="#0D0F14" />
+        <ActivityIndicator color={colori.sfondo} />
       ) : (
         <Text style={stili.etichetta}>{etichetta}</Text>
       )}
@@ -51,7 +51,7 @@ const stili = StyleSheet.create({
     opacity: 0.4,
   },
   etichetta: {
-    color: '#0D0F14',
+    color: colori.sfondo,
     fontSize: 16,
     fontWeight: '700',
   },

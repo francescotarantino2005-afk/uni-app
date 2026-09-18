@@ -194,7 +194,7 @@ export default function SchermataEsame() {
               value={sostenuto}
               onValueChange={setSostenuto}
               trackColor={{ true: colori.accento, false: colori.bordo }}
-              thumbColor="#FFFFFF"
+              thumbColor={colori.superficie}
             />
           </View>
 

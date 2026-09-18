@@ -182,7 +182,7 @@ export default function SchermataScadenze() {
 
       {!formAperto ? (
         <Pressable style={stili.bottoneAggiungi} onPress={() => setFormAperto(true)}>
-          <Ionicons name="add" size={26} color="#0D0F14" />
+          <Ionicons name="add" size={26} color={colori.sfondo} />
           <Text style={stili.testoAggiungi}>Scadenza</Text>
         </Pressable>
       ) : null}
@@ -277,7 +277,7 @@ const stili = StyleSheet.create({
     paddingHorizontal: spazi.md,
   },
   testoAggiungi: {
-    color: '#0D0F14',
+    color: colori.sfondo,
     fontSize: 15,
     fontWeight: '700',
   },
