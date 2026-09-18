@@ -27,11 +27,13 @@ export default function LayoutTab() {
         tabBarInactiveTintColor: colori.testoSecondario,
       }}
     >
-      <Tabs.Screen name="oggi" options={{ title: 'Oggi', tabBarIcon: icona('sunny-outline') }} />
+      {/* Ordine: Oggi, Orario, Chat (al centro), Libretto, Scadenze. */}
+      {/* Oggi: header nativo nascosto — la riga di marchio + data fa da intestazione. */}
+      <Tabs.Screen name="oggi" options={{ title: 'Oggi', tabBarIcon: icona('sunny-outline'), headerShown: false }} />
       <Tabs.Screen name="orario" options={{ title: 'Orario', tabBarIcon: icona('calendar-outline') }} />
-      <Tabs.Screen name="scadenze" options={{ title: 'Scadenze', tabBarIcon: icona('alarm-outline') }} />
-      <Tabs.Screen name="libretto" options={{ title: 'Libretto', tabBarIcon: icona('school-outline') }} />
       <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: icona('chatbubble-ellipses-outline') }} />
+      <Tabs.Screen name="libretto" options={{ title: 'Libretto', tabBarIcon: icona('school-outline') }} />
+      <Tabs.Screen name="scadenze" options={{ title: 'Scadenze', tabBarIcon: icona('alarm-outline') }} />
     </Tabs>
   );
 }

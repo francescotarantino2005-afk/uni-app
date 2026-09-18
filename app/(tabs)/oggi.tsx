@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { caricaLezioni } from '@/lib/orarioDb';
@@ -71,7 +72,7 @@ export default function SchermataOggi() {
   };
 
   return (
-    <View style={stili.schermo}>
+    <SafeAreaView style={stili.schermo} edges={['top']}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={stili.contenuto}
@@ -208,7 +209,7 @@ export default function SchermataOggi() {
 
       </ScrollView>
       <BottoneChat />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -231,7 +232,8 @@ const stili = StyleSheet.create({
   marchioSinistra: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spazi.xs,
+    // più aria fra il fiocco del cappello e la "L" di Lode.
+    gap: spazi.md,
   },
   logoMarchio: {
     width: 40,

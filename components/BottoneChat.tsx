@@ -7,7 +7,7 @@ const MASCOTTE = require('@/assets/images/lode-bot-testa.png');
 const RAPPORTO = 702 / 726; // altezza/larghezza dell'immagine
 
 export const CHAT_FAB_DIAMETRO = 56;
-const LARG_IMG = 52; // ~93% del pulsante: la testa riempie il cerchio
+const LARG_IMG = 50; // la testa riempie il cerchio
 const ALT_IMG = LARG_IMG * RAPPORTO;
 
 /**
@@ -38,20 +38,24 @@ const stili = StyleSheet.create({
     height: CHAT_FAB_DIAMETRO,
     borderRadius: raggi.pieno,
     backgroundColor: colori.superficie,
+    // anello sottile viola: stacca il cerchio bianco dalla pagina quasi bianca.
+    borderWidth: 1.5,
+    borderColor: colori.accento,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'visible', // il cappello sborda oltre il bordo superiore
+    overflow: 'visible', // solo il cappello sborda oltre il bordo superiore
+    // ombra percepibile, così si legge come elemento toccabile.
     shadowColor: colori.testo,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
   immagine: {
     width: LARG_IMG,
     height: ALT_IMG,
-    // sposta l'immagine in su di poco: la faccia resta centrata e leggibile,
-    // il cappello sborda leggermente oltre il bordo superiore del cerchio.
-    transform: [{ translateY: -4 }],
+    // alzata dentro il cerchio: il mento resta interamente dentro, solo il
+    // cappello sborda leggermente oltre il bordo superiore.
+    transform: [{ translateY: -8 }],
   },
 });
