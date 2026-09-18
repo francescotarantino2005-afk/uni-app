@@ -59,7 +59,7 @@ export default function PassoNotifiche() {
 
 const stili = StyleSheet.create({
   beta: {
-    color: colori.accento,
+    color: colori.testoSecondario,
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',

@@ -36,7 +36,7 @@ export function RigaScadenza({ scadenza, onToggle }: Props) {
         </Pressable>
       ) : (
         <View style={stili.spunta}>
-          <Ionicons name={iconaCategoria(scadenza.categoria)} size={22} color={colori.accento} />
+          <Ionicons name={iconaCategoria(scadenza.categoria)} size={22} color={colori.testoSecondario} />
         </View>
       )}
       <View style={stili.corpo}>

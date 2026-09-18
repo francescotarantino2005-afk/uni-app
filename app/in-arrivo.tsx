@@ -14,7 +14,7 @@ type Stato = 'In sviluppo' | 'In progettazione' | 'Quasi pronto';
 
 const COLORE_STATO: Record<Stato, string> = {
   'Quasi pronto': colori.successo,
-  'In sviluppo': colori.accento,
+  'In sviluppo': colori.testoSecondario,
   'In progettazione': colori.testoSecondario,
 };
 

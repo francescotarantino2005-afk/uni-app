@@ -240,7 +240,7 @@ const stili = StyleSheet.create({
   corpo: { flex: 1, padding: spazi.lg, gap: spazi.lg, justifyContent: 'center' },
   blocco: { gap: spazi.sm, alignItems: 'center' },
   etichetta: {
-    color: colori.accento,
+    color: colori.testoSecondario,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',

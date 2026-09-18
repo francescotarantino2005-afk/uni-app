@@ -64,7 +64,7 @@ export default function SchermataTemplateScadenze() {
       <View key={t.id} style={stili.card}>
         <View style={stili.intestazioneCard}>
           <View style={stili.cerchioIcona}>
-            <Ionicons name={iconaCategoria(t.categoria)} size={18} color={colori.accento} />
+            <Ionicons name={iconaCategoria(t.categoria)} size={18} color={colori.testoSecondario} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={stili.titolo}>{t.titolo}</Text>

@@ -321,7 +321,7 @@ const stili = StyleSheet.create({
     fontSize: 14,
   },
   valoreRisultato: {
-    color: colori.accento,
+    color: colori.testo,
     fontSize: 44,
     fontWeight: '800',
   },

@@ -110,7 +110,7 @@ export default function SchermataLibretto() {
             </View>
 
             <Pressable style={stili.bottoneSimulatore} onPress={() => router.push('/simulatore')}>
-              <Ionicons name="calculator-outline" size={20} color={colori.accento} />
+              <Ionicons name="calculator-outline" size={20} color={colori.testoSecondario} />
               <Text style={stili.testoSimulatore}>Simulatore media</Text>
               <Ionicons name="chevron-forward" size={18} color={colori.testoSecondario} />
             </Pressable>
@@ -209,7 +209,7 @@ const stili = StyleSheet.create({
     letterSpacing: 0.5,
   },
   mediaGrande: {
-    color: colori.accento,
+    color: colori.testo,
     fontSize: 52,
     fontWeight: '800',
   },
@@ -244,7 +244,7 @@ const stili = StyleSheet.create({
     fontSize: 14,
   },
   proiezioneValore: {
-    color: colori.accento,
+    color: colori.testo,
     fontWeight: '800',
   },
   notaProiezione: {
@@ -307,14 +307,14 @@ const stili = StyleSheet.create({
     paddingVertical: spazi.xs,
     paddingHorizontal: spazi.sm,
     borderRadius: raggi.sm,
-    backgroundColor: colori.accentoTenue,
+    backgroundColor: colori.bordo,
     alignItems: 'center',
   },
   badgeLode: {
     backgroundColor: colori.superficie,
   },
   testoVoto: {
-    color: colori.accento,
+    color: colori.testo,
     fontSize: 15,
     fontWeight: '800',
   },

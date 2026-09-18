@@ -278,7 +278,7 @@ const stili = StyleSheet.create({
     alignItems: 'center',
   },
   testoBadge: {
-    color: colori.accento,
+    color: colori.testoSecondario,
     fontSize: 12,
     fontWeight: '700',
   },

@@ -17,9 +17,10 @@ export function BadgeBeta({ piccolo = false }: Props) {
 
 const stili = StyleSheet.create({
   badge: {
+    // Badge informativo, non toccabile: neutro, niente viola decorativo.
     alignSelf: 'flex-start',
-    backgroundColor: colori.accentoTenue,
-    borderColor: colori.accento,
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
     borderWidth: 1,
     borderRadius: raggi.pieno,
     paddingHorizontal: spazi.sm,
@@ -30,7 +31,7 @@ const stili = StyleSheet.create({
     paddingVertical: 1,
   },
   testo: {
-    color: colori.accento,
+    color: colori.testoSecondario,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,

@@ -68,11 +68,11 @@ export function SelettoreFotoOrario({ foto, onFoto }: Props) {
       ) : (
         <View style={stili.riquadroAzioni}>
           <Pressable style={stili.azione} onPress={scattaFoto}>
-            <Ionicons name="camera-outline" size={26} color={colori.accento} />
+            <Ionicons name="camera-outline" size={26} color={colori.testoSecondario} />
             <Text style={stili.testoAzione}>Scatta una foto</Text>
           </Pressable>
           <Pressable style={stili.azione} onPress={scegliDallaGalleria}>
-            <Ionicons name="images-outline" size={26} color={colori.accento} />
+            <Ionicons name="images-outline" size={26} color={colori.testoSecondario} />
             <Text style={stili.testoAzione}>Scegli dalla galleria</Text>
           </Pressable>
         </View>

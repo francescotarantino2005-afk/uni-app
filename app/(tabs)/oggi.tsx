@@ -93,14 +93,14 @@ export default function SchermataOggi() {
           {briefing ? (
             <View style={stili.cardBriefing}>
               <View style={stili.intestazioneBriefing}>
-                <Ionicons name="sunny" size={18} color={colori.accento} />
+                <Ionicons name="sunny" size={18} color={colori.testoSecondario} />
                 <Text style={stili.etichettaBriefing}>Buongiorno</Text>
               </View>
               <Text style={stili.testoBriefing}>{briefing}</Text>
             </View>
           ) : (
             <Pressable style={stili.cardBriefingVuota} onPress={() => router.push('/preferenze')}>
-              <Ionicons name="sunny-outline" size={20} color={colori.accento} />
+              <Ionicons name="sunny-outline" size={20} color={colori.testoSecondario} />
               <Text style={stili.testoBriefingVuoto}>
                 Il briefing del mattino arriva ogni giorno all'ora che scegli. Impostala qui →
               </Text>
@@ -110,7 +110,7 @@ export default function SchermataOggi() {
           {haPiano ? (
             <View style={stili.cardOggi}>
               <View style={stili.intestazioneBriefing}>
-                <Ionicons name="flag" size={18} color={colori.accento} />
+                <Ionicons name="flag" size={18} color={colori.testoSecondario} />
                 <Text style={stili.etichettaBriefing}>Oggi</Text>
               </View>
               <Text style={stili.testoBriefing}>
@@ -129,7 +129,7 @@ export default function SchermataOggi() {
             </View>
           ) : (
             <Pressable style={stili.cardCreaPiano} onPress={() => router.push('/nuovo-piano')}>
-              <Ionicons name="rocket-outline" size={20} color={colori.accento} />
+              <Ionicons name="rocket-outline" size={20} color={colori.testoSecondario} />
               <View style={{ flex: 1 }}>
                 <Text style={stili.titoloCreaPiano}>Prepara un esame senza ansia</Text>
                 <Text style={stili.testoCreaPiano}>
@@ -224,8 +224,8 @@ const stili = StyleSheet.create({
     fontWeight: '600',
   },
   cardBriefing: {
-    backgroundColor: colori.accentoTenue,
-    borderColor: colori.accento,
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
     borderWidth: 1,
     borderRadius: raggi.lg,
     padding: spazi.md,
@@ -233,7 +233,7 @@ const stili = StyleSheet.create({
   },
   cardOggi: {
     backgroundColor: colori.superficie,
-    borderColor: colori.accento,
+    borderColor: colori.bordo,
     borderWidth: 1,
     borderRadius: raggi.lg,
     padding: spazi.md,
@@ -324,7 +324,7 @@ const stili = StyleSheet.create({
     gap: spazi.xs,
   },
   etichettaBriefing: {
-    color: colori.accento,
+    color: colori.testoSecondario,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',

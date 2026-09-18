@@ -101,7 +101,7 @@ export default function SchermataImpostazioni() {
         <View style={stili.lista}>
           {VOCI.map((v) => (
             <Pressable key={v.rotta} style={stili.voce} onPress={() => router.push(v.rotta)}>
-              <Ionicons name={v.icona} size={22} color={colori.accento} />
+              <Ionicons name={v.icona} size={22} color={colori.testoSecondario} />
               <View style={{ flex: 1 }}>
                 <Text style={stili.voceTitolo}>{v.titolo}</Text>
                 <Text style={stili.voceSottotitolo}>{v.sottotitolo}</Text>
