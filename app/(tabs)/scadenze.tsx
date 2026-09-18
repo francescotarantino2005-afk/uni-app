@@ -19,6 +19,7 @@ import { StatoVuoto } from '@/components/StatoVuoto';
 import { BottonePrimario } from '@/components/BottonePrimario';
 import { CampoTesto } from '@/components/CampoTesto';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
+import { BottoneChat } from '@/components/BottoneChat';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 export default function SchermataScadenze() {
@@ -186,6 +187,8 @@ export default function SchermataScadenze() {
           <Text style={stili.testoAggiungi}>Scadenza</Text>
         </Pressable>
       ) : null}
+
+      <BottoneChat />
     </View>
   );
 }
@@ -261,13 +264,14 @@ const stili = StyleSheet.create({
   },
   lista: {
     gap: spazi.sm,
-    // FAB (42: spazi.sm*2 + icona 26) + margine bottom spazi.lg (24) + 16
-    paddingBottom: 82,
+    // spazio per il "+" (alzato sopra il chat FAB) + il chat FAB: l'ultima riga resta libera.
+    paddingBottom: 140,
   },
   bottoneAggiungi: {
     position: 'absolute',
     right: spazi.lg,
-    bottom: spazi.lg,
+    // alzato sopra il pulsante chat flottante (56 + margine).
+    bottom: 80,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spazi.xs,

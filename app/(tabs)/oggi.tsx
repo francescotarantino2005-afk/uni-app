@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -22,7 +23,10 @@ import { RigaScadenza } from '@/components/RigaScadenza';
 import { BadgeBeta } from '@/components/BadgeBeta';
 import { StatoVuoto } from '@/components/StatoVuoto';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
+import { BottoneChat } from '@/components/BottoneChat';
 import { colori, raggi, spazi } from '@/lib/theme';
+
+const MASCOTTE = require('@/assets/images/lode-bot-testa.png');
 
 export default function SchermataOggi() {
   const [briefing, setBriefing] = useState<string | null>(null);
@@ -67,22 +71,30 @@ export default function SchermataOggi() {
   };
 
   return (
-    <ScrollView
-      style={stili.schermo}
-      contentContainerStyle={stili.contenuto}
-      refreshControl={
-        <RefreshControl refreshing={aggiornamento} onRefresh={aggiorna} tintColor={colori.accento} />
-      }
-    >
-      <View style={stili.intestazione}>
-        <View style={stili.headerSinistra}>
-          <Text style={stili.data}>{dataLungaItaliana()}</Text>
-          <BadgeBeta piccolo />
+    <View style={stili.schermo}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={stili.contenuto}
+        refreshControl={
+          <RefreshControl refreshing={aggiornamento} onRefresh={aggiorna} tintColor={colori.accento} />
+        }
+      >
+        <View style={stili.marchio}>
+          <View style={stili.marchioSinistra}>
+            <Image source={MASCOTTE} style={stili.logoMarchio} resizeMode="contain" />
+            <Text style={stili.nomeMarchio}>Lode</Text>
+          </View>
+          <Pressable onPress={() => router.push('/impostazioni')} hitSlop={10}>
+            <Ionicons name="settings-outline" size={22} color={colori.testoSecondario} />
+          </Pressable>
         </View>
-        <Pressable onPress={() => router.push('/impostazioni')} hitSlop={10}>
-          <Ionicons name="settings-outline" size={22} color={colori.testoSecondario} />
-        </Pressable>
-      </View>
+
+        <View style={stili.intestazione}>
+          <View style={stili.headerSinistra}>
+            <Text style={stili.data}>{dataLungaItaliana()}</Text>
+            <BadgeBeta piccolo />
+          </View>
+        </View>
 
       <MessaggioErrore messaggio={errore} />
 
@@ -194,7 +206,9 @@ export default function SchermataOggi() {
         </>
       )}
 
-    </ScrollView>
+      </ScrollView>
+      <BottoneChat />
+    </View>
   );
 }
 
@@ -206,7 +220,27 @@ const stili = StyleSheet.create({
   contenuto: {
     padding: spazi.md,
     gap: spazi.md,
-    paddingBottom: spazi.xl,
+    // spazio per il pulsante chat flottante: l'ultima riga resta leggibile.
+    paddingBottom: 90,
+  },
+  marchio: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  marchioSinistra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.xs,
+  },
+  logoMarchio: {
+    width: 40,
+    height: 40 * (702 / 726),
+  },
+  nomeMarchio: {
+    color: colori.testo,
+    fontSize: 20,
+    fontWeight: '800',
   },
   intestazione: {
     flexDirection: 'row',

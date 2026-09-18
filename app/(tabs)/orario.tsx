@@ -15,6 +15,7 @@ import { GIORNI_BREVI, GIORNI_SETTIMANA, giornoOggi } from '@/lib/date';
 import { RigaLezione } from '@/components/RigaLezione';
 import { StatoVuoto } from '@/components/StatoVuoto';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
+import { BottoneChat } from '@/components/BottoneChat';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 export default function SchermataOrario() {
@@ -93,6 +94,8 @@ export default function SchermataOrario() {
           <Text style={stili.testoAggiungi}>Lezione</Text>
         </Pressable>
       </View>
+
+      <BottoneChat />
     </View>
   );
 }
@@ -131,13 +134,14 @@ const stili = StyleSheet.create({
   },
   lista: {
     gap: spazi.sm,
-    // barraAzioni (42: spazi.sm*2 + icona 26) + margine bottom spazi.lg (24) + 16
-    paddingBottom: 82,
+    // spazio per la barra azioni (alzata sopra il chat FAB) + il chat FAB.
+    paddingBottom: 140,
   },
   barraAzioni: {
     position: 'absolute',
     right: spazi.lg,
-    bottom: spazi.lg,
+    // alzata sopra il pulsante chat flottante (56 + margine).
+    bottom: 80,
     flexDirection: 'row',
     gap: spazi.sm,
   },

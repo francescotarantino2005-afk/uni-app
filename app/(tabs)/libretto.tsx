@@ -15,6 +15,7 @@ import { Esame } from '@/lib/tipi';
 import { dataBreveItaliana } from '@/lib/date';
 import { StatoVuoto } from '@/components/StatoVuoto';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
+import { BottoneChat } from '@/components/BottoneChat';
 import { colori, raggi, spazi } from '@/lib/theme';
 
 export default function SchermataLibretto() {
@@ -154,6 +155,8 @@ export default function SchermataLibretto() {
         <Ionicons name="add" size={26} color={colori.sfondo} />
         <Text style={stili.testoAggiungi}>Esame</Text>
       </Pressable>
+
+      <BottoneChat />
     </View>
   );
 }
@@ -166,8 +169,8 @@ const stili = StyleSheet.create({
   contenuto: {
     padding: spazi.md,
     gap: spazi.md,
-    // FAB (42: spazi.sm*2 + icona 26) + margine bottom spazi.lg (24) + 16
-    paddingBottom: 82,
+    // spazio per il "+" (alzato sopra il chat FAB) + il chat FAB: l'ultima riga resta libera.
+    paddingBottom: 140,
   },
   cardVuoto: {
     backgroundColor: colori.superficie,
@@ -324,7 +327,8 @@ const stili = StyleSheet.create({
   bottoneAggiungi: {
     position: 'absolute',
     right: spazi.lg,
-    bottom: spazi.lg,
+    // alzato sopra il pulsante chat flottante (56 + margine).
+    bottom: 80,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spazi.xs,
