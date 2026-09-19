@@ -134,8 +134,8 @@ const stili = StyleSheet.create({
   },
   lista: {
     gap: spazi.sm,
-    // spazio per la barra azioni (alzata sopra il chat FAB) + il chat FAB.
-    paddingBottom: 140,
+    // spazio ampio: barra azioni alzata + chat FAB; l'ultima riga (anche stato vuoto) resta libera.
+    paddingBottom: 150,
   },
   barraAzioni: {
     position: 'absolute',

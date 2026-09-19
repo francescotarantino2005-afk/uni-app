@@ -169,8 +169,8 @@ const stili = StyleSheet.create({
   contenuto: {
     padding: spazi.md,
     gap: spazi.md,
-    // spazio per il "+" (alzato sopra il chat FAB) + il chat FAB: l'ultima riga resta libera.
-    paddingBottom: 140,
+    // spazio ampio: "+" alzato + chat FAB; l'ultima riga (anche stato vuoto) resta libera.
+    paddingBottom: 150,
   },
   cardVuoto: {
     backgroundColor: colori.superficie,

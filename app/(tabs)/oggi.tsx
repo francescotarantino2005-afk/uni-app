@@ -221,8 +221,9 @@ const stili = StyleSheet.create({
   contenuto: {
     padding: spazi.md,
     gap: spazi.md,
-    // spazio per il pulsante chat flottante: l'ultima riga resta leggibile.
-    paddingBottom: 90,
+    // spazio ampio per il pulsante chat flottante: anche l'ultima riga degli
+    // stati vuoti resta interamente leggibile con il pulsante sopra.
+    paddingBottom: 130,
   },
   marchio: {
     flexDirection: 'row',

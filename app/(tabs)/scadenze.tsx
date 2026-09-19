@@ -264,8 +264,8 @@ const stili = StyleSheet.create({
   },
   lista: {
     gap: spazi.sm,
-    // spazio per il "+" (alzato sopra il chat FAB) + il chat FAB: l'ultima riga resta libera.
-    paddingBottom: 140,
+    // spazio ampio: "+" alzato + chat FAB; l'ultima riga (anche stato vuoto) resta libera.
+    paddingBottom: 150,
   },
   bottoneAggiungi: {
     position: 'absolute',
