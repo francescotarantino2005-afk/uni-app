@@ -6,15 +6,16 @@ import { BottonePrimario } from '@/components/BottonePrimario';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
-const PASSI_TOTALI = 3;
+const PASSI_TOTALI = 6;
 
 type Props = {
   passo: number;
   icona: keyof typeof Ionicons.glyphMap;
   titolo: string;
   descrizione: string;
-  etichettaBottone: string;
-  onAvanti: () => void;
+  /** Bottone primario opzionale: se manca (o manca onAvanti) non viene mostrato. */
+  etichettaBottone?: string;
+  onAvanti?: () => void;
   bottoneDisabilitato?: boolean;
   caricamento?: boolean;
   /** azione secondaria testuale, es. "Salto, lo farò dopo" */
@@ -58,12 +59,14 @@ export function PassoOnboarding({
 
       <View style={stili.pie}>
         <MessaggioErrore messaggio={errore} />
-        <BottonePrimario
-          etichetta={etichettaBottone}
-          onPress={onAvanti}
-          disabilitato={bottoneDisabilitato}
-          caricamento={caricamento}
-        />
+        {etichettaBottone && onAvanti ? (
+          <BottonePrimario
+            etichetta={etichettaBottone}
+            onPress={onAvanti}
+            disabilitato={bottoneDisabilitato}
+            caricamento={caricamento}
+          />
+        ) : null}
         {etichettaSecondaria && onSecondaria ? (
           <Pressable onPress={onSecondaria} disabled={caricamento}>
             <Text style={stili.linkSecondario}>{etichettaSecondaria}</Text>

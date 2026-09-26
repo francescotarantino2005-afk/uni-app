@@ -39,7 +39,7 @@ export default function PassoNotifiche() {
 
   return (
     <PassoOnboarding
-      passo={3}
+      passo={6}
       icona="notifications-outline"
       titolo="Il briefing del mattino"
       descrizione="Ogni mattina, all'ora che scegli tu: le lezioni di oggi, le scadenze in arrivo e cosa studiare. Attiva le notifiche per riceverlo."

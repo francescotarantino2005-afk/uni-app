@@ -104,6 +104,19 @@ export type Scadenza = {
   fonte: string;
 };
 
+/**
+ * Passo raggiunto nell'accoglienza. Il valore è il primo passo NON ancora
+ * fatto (dove riprendere). `null` = profilo creato prima della tappa 1
+ * (legacy) → trattato come accoglienza completata.
+ */
+export type AccoglienzaStato =
+  | 'corso'
+  | 'anno'
+  | 'nome_bot'
+  | 'orario'
+  | 'notifiche'
+  | 'completata';
+
 export type Profilo = {
   id: string;
   nome: string | null;
@@ -115,4 +128,11 @@ export type Profilo = {
   ora_briefing: string;
   premium: boolean;
   created_at: string;
+  /** nome scelto per il bot (default "Lode"). */
+  nome_bot: string;
+  /** raccolto dal dialogo (tappa 3+): forma libera, nessuna query sopra. */
+  profilo_studio: Record<string, unknown>;
+  /** domande che il bot farà più avanti (tappa 3+). */
+  domande_in_coda: unknown[];
+  accoglienza_stato: AccoglienzaStato | null;
 };

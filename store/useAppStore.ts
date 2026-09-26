@@ -65,7 +65,9 @@ type StatoApp = {
   impostaAteneo: (ateneo: string) => void;
   impostaFotoOrario: (foto: FotoOrario | null) => void;
   impostaLezioniEstratte: (lezioni: LezioneEstratta[] | null) => void;
-  /** Crea la riga in profiles a fine onboarding. Ritorna un messaggio d'errore o null. */
+  /** Crea/aggiorna la riga profiles durante l'accoglienza (salvataggio progressivo). */
+  aggiornaAccoglienza: (patch: Partial<Profilo>) => Promise<string | null>;
+  /** Segna l'accoglienza come completata. Ritorna un messaggio d'errore o null. */
   completaOnboarding: () => Promise<string | null>;
   /** Aggiorna l'ora del briefing in profiles. Ritorna un messaggio d'errore o null. */
   aggiornaOraBriefing: (oraHHMM: string) => Promise<string | null>;
@@ -182,13 +184,15 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   impostaFotoOrario: (foto) => set({ fotoOrario: foto }),
   impostaLezioniEstratte: (lezioni) => set({ lezioniEstratte: lezioni }),
 
-  completaOnboarding: async () => {
-    const { utente, ateneoSelezionato } = get();
+  aggiornaAccoglienza: async (patch) => {
+    const { utente } = get();
     if (!utente) return 'Sessione scaduta: accedi di nuovo.';
 
+    // upsert sull'id (primary key): crea la riga al primo passo (ateneo) e la
+    // aggiorna ai passi successivi, senza toccare le colonne non passate.
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: utente.id, ateneo: ateneoSelezionato })
+      .upsert({ id: utente.id, ...patch })
       .select()
       .single();
 
@@ -196,12 +200,14 @@ export const useAppStore = create<StatoApp>((set, get) => ({
       if (/network request failed|fetch failed/i.test(error.message)) {
         return 'Sembra che tu sia offline: controlla la connessione e riprova.';
       }
-      return 'Non siamo riusciti a salvare il profilo. Riprova tra poco.';
+      return 'Non siamo riusciti a salvare. Riprova tra poco.';
     }
 
     set({ profilo: data as Profilo });
     return null;
   },
+
+  completaOnboarding: async () => get().aggiornaAccoglienza({ accoglienza_stato: 'completata' }),
 
   aggiornaOraBriefing: async (oraHHMM) => {
     const { utente, profilo } = get();

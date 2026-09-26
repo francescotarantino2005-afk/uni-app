@@ -16,5 +16,21 @@ export default function Ingresso() {
   if (recupero) return <Redirect href="/reset-password" />;
   if (!utente) return <Redirect href="/auth" />;
   if (!profilo) return <Redirect href="/onboarding/ateneo" />;
+
+  // Accoglienza in corso: riprendi dal primo passo non ancora fatto.
+  // (accoglienza_stato null = profilo creato prima della tappa 1 → dentro l'app.)
+  switch (profilo.accoglienza_stato) {
+    case 'corso':
+      return <Redirect href="/onboarding/corso" />;
+    case 'anno':
+      return <Redirect href="/onboarding/anno" />;
+    case 'nome_bot':
+      return <Redirect href="/onboarding/nome-bot" />;
+    case 'orario':
+      return <Redirect href="/onboarding/foto-orario" />;
+    case 'notifiche':
+      return <Redirect href="/onboarding/notifiche" />;
+  }
+
   return <Redirect href="/oggi" />;
 }

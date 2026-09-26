@@ -9,8 +9,20 @@ export default function PassoFotoOrario() {
   const fotoOrario = useAppStore((s) => s.fotoOrario);
   const impostaFotoOrario = useAppStore((s) => s.impostaFotoOrario);
   const impostaLezioniEstratte = useAppStore((s) => s.impostaLezioniEstratte);
+  const aggiornaAccoglienza = useAppStore((s) => s.aggiornaAccoglienza);
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
+
+  // "Salto, lo farò dopo": avanza l'accoglienza e passa alle notifiche.
+  const salta = async () => {
+    setErrore(null);
+    const err = await aggiornaAccoglienza({ accoglienza_stato: 'notifiche' });
+    if (err) {
+      setErrore(err);
+      return;
+    }
+    router.push('/onboarding/notifiche');
+  };
 
   const estrai = async () => {
     if (!fotoOrario) return;
@@ -32,7 +44,7 @@ export default function PassoFotoOrario() {
 
   return (
     <PassoOnboarding
-      passo={2}
+      passo={5}
       icona="camera-outline"
       titolo="Fotografa il tuo orario"
       descrizione="Una foto o uno screenshot dell'orario delle lezioni: l'AI lo trasforma nel tuo calendario personale."
@@ -41,7 +53,7 @@ export default function PassoFotoOrario() {
       caricamento={caricamento}
       onAvanti={estrai}
       etichettaSecondaria="Salto, lo farò dopo"
-      onSecondaria={() => router.push('/onboarding/notifiche')}
+      onSecondaria={salta}
       errore={errore}
     >
       <SelettoreFotoOrario foto={fotoOrario} onFoto={impostaFotoOrario} />

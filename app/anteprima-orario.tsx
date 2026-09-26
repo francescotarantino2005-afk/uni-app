@@ -25,7 +25,6 @@ export default function SchermataAnteprimaOrario() {
   const daOnboarding = da === 'onboarding';
 
   const utente = useAppStore((s) => s.utente);
-  const ateneoSelezionato = useAppStore((s) => s.ateneoSelezionato);
   const lezioniIniziali = useAppStore((s) => s.lezioniEstratte);
   const impostaLezioniEstratte = useAppStore((s) => s.impostaLezioniEstratte);
   const impostaFotoOrario = useAppStore((s) => s.impostaFotoOrario);
@@ -67,12 +66,13 @@ export default function SchermataAnteprimaOrario() {
 
     setSalvataggio(true);
     try {
-      // Durante l'onboarding il profilo non esiste ancora: lo creiamo qui
-      // (schedule_events.user_id punta a profiles).
+      // In onboarding il profilo esiste già (creato allo step ateneo): qui
+      // avanza solo lo stato dell'accoglienza al passo successivo (notifiche).
       if (daOnboarding) {
         const { error } = await supabase
           .from('profiles')
-          .upsert({ id: utente.id, ateneo: ateneoSelezionato });
+          .update({ accoglienza_stato: 'notifiche' })
+          .eq('id', utente.id);
         if (error) throw error;
       }
 

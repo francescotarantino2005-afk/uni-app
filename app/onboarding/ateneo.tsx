@@ -10,8 +10,25 @@ import { colori, raggi, spazi } from '@/lib/theme';
 export default function PassoAteneo() {
   const ateneoSelezionato = useAppStore((s) => s.ateneoSelezionato);
   const impostaAteneo = useAppStore((s) => s.impostaAteneo);
+  const aggiornaAccoglienza = useAppStore((s) => s.aggiornaAccoglienza);
   const [query, setQuery] = useState('');
+  const [salvataggio, setSalvataggio] = useState(false);
+  const [errore, setErrore] = useState<string | null>(null);
   const risultati = useMemo(() => cercaAtenei(query), [query]);
+
+  // Crea la riga profiles ora (salvataggio progressivo) e passa al corso.
+  const procedi = async () => {
+    if (!ateneoSelezionato) return;
+    setErrore(null);
+    setSalvataggio(true);
+    const err = await aggiornaAccoglienza({ ateneo: ateneoSelezionato, accoglienza_stato: 'corso' });
+    setSalvataggio(false);
+    if (err) {
+      setErrore(err);
+      return;
+    }
+    router.push('/onboarding/corso');
+  };
 
   return (
     <PassoOnboarding
@@ -21,7 +38,9 @@ export default function PassoAteneo() {
       descrizione="Scegli il tuo ateneo: ci serve per proporti le scadenze giuste e capire il tuo calendario."
       etichettaBottone="Continua"
       bottoneDisabilitato={!ateneoSelezionato}
-      onAvanti={() => router.push('/onboarding/foto-orario')}
+      caricamento={salvataggio}
+      onAvanti={procedi}
+      errore={errore}
     >
       <View style={stili.contenitore}>
         <CampoTesto
