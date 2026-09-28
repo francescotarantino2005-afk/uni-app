@@ -15,6 +15,7 @@ import { EsameEstratto } from '@/lib/estrazioneLibretto';
 import { DatiEsame, inserisciEsami } from '@/lib/esamiDb';
 import { VOTO_MAX, VOTO_MIN } from '@/lib/libretto';
 import { isoAItaliano, parseDataItaliana } from '@/lib/date';
+import { trovaSimili } from '@/lib/somiglianzaEsami';
 import { useAppStore } from '@/store/useAppStore';
 import { BottonePrimario } from '@/components/BottonePrimario';
 import { CampoTesto } from '@/components/CampoTesto';
@@ -84,6 +85,8 @@ export default function ConfermaLibretto() {
   const [aperta, setAperta] = useState<number | null>(null);
   const [salvataggio, setSalvataggio] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
+  // Coppie di righe simili che lo studente ha dichiarato esami diversi ("1-4").
+  const [diversi, setDiversi] = useState<Set<string>>(new Set());
   // Gli esami sono già entrati ma l'avanzamento dell'accoglienza no: al nuovo
   // tentativo si ripete solo quello, senza inserire due volte gli stessi esami.
   const esamiSalvati = useRef(false);
@@ -171,9 +174,25 @@ export default function ConfermaLibretto() {
     router.replace('/onboarding/libretto-pronto');
   };
 
+  // Nomi molto simili: si segnalano e basta, non si uniscono mai da soli.
+  const coppia = (a: number, b: number) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+  const tuttiSimili = trovaSimili(righe);
+  const similiDi = (id: number) =>
+    (tuttiSimili.get(id) ?? []).filter((altro) => !diversi.has(coppia(id, altro)));
+  const numeroRiga = (id: number) => righe.findIndex((r) => r.id === id) + 1;
+
+  const segnaDiversi = (id: number) => {
+    setDiversi((prima) => {
+      const nuovo = new Set(prima);
+      for (const altro of similiDi(id)) nuovo.add(coppia(id, altro));
+      return nuovo;
+    });
+  };
+
   const riga = (r: Riga, indice: number) => {
     const espansa = aperta === r.id;
-    const attenzione = daCompletare(r);
+    const simili = similiDi(r.id);
+    const attenzione = daCompletare(r) || simili.length > 0;
     return (
       <View key={r.id} style={[stili.riga, attenzione && stili.rigaAttenzione]}>
         <Pressable style={stili.intestazioneRiga} onPress={() => setAperta(espansa ? null : r.id)}>
@@ -186,6 +205,11 @@ export default function ConfermaLibretto() {
               {r.cfu.trim() ? `${r.cfu.trim()} CFU` : 'CFU ?'}
               {r.data.trim() ? `  ·  ${r.data.trim()}` : ''}
             </Text>
+            {simili.length > 0 ? (
+              <Text style={stili.avvisoRiga}>
+                Nome simile alla riga {simili.map(numeroRiga).join(', ')}
+              </Text>
+            ) : null}
           </View>
           <Text style={[stili.esito, attenzione && stili.esitoAttenzione]}>{descriviStato(r)}</Text>
           <Pressable onPress={() => togli(r.id)} hitSlop={10}>
@@ -200,6 +224,23 @@ export default function ConfermaLibretto() {
 
         {espansa ? (
           <View style={stili.editor}>
+            {simili.length > 0 ? (
+              <View style={stili.boxSimili}>
+                <Text style={stili.testoSimili}>
+                  Somiglia a{' '}
+                  {simili
+                    .map((id) => {
+                      const altra = righe.find((x) => x.id === id);
+                      return `«${altra?.materia.trim() || '(senza nome)'}» (riga ${numeroRiga(id)})`;
+                    })
+                    .join(', ')}
+                  . Se è lo stesso esame, togline uno: altrimenti conterebbe due volte nella media.
+                </Text>
+                <Pressable onPress={() => segnaDiversi(r.id)} hitSlop={6}>
+                  <Text style={stili.linkDiversi}>Sono esami diversi</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <CampoTesto
               etichetta="Esame"
               value={r.materia}
@@ -288,6 +329,7 @@ export default function ConfermaLibretto() {
   };
 
   const nDaCompletare = righe.filter(daCompletare).length;
+  const nSimili = righe.filter((r) => similiDi(r.id).length > 0).length;
 
   return (
     <SafeAreaView style={stili.schermo}>
@@ -304,6 +346,11 @@ export default function ConfermaLibretto() {
           {nDaCompletare > 0 ? (
             <Text style={stili.avviso}>
               {nDaCompletare === 1 ? '1 riga da completare' : `${nDaCompletare} righe da completare`}
+            </Text>
+          ) : null}
+          {nSimili > 0 ? (
+            <Text style={stili.avviso}>
+              {nSimili} righe con nomi molto simili: controlla che non sia lo stesso esame due volte
             </Text>
           ) : null}
         </View>
@@ -398,6 +445,29 @@ const stili = StyleSheet.create({
   },
   esito: {
     color: colori.testo,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  avvisoRiga: {
+    color: colori.avviso,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  boxSimili: {
+    borderWidth: 1,
+    borderColor: colori.avvisoPallino,
+    borderRadius: raggi.sm,
+    padding: spazi.sm,
+    gap: spazi.xs,
+  },
+  testoSimili: {
+    color: colori.testo,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  linkDiversi: {
+    color: colori.accento,
     fontSize: 13,
     fontWeight: '700',
   },
