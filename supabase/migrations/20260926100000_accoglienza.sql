@@ -5,6 +5,7 @@
 -- profili gia' presenti = utente onboardato prima di questa tappa (legacy),
 -- che l'app tratta come "accoglienza completata".
 alter table profiles add column if not exists nome_bot text default 'Lode';
+alter table profiles add column if not exists matricola boolean;
 alter table profiles add column if not exists profilo_studio jsonb default '{}'::jsonb;
 alter table profiles add column if not exists domande_in_coda jsonb default '[]'::jsonb;
 alter table profiles add column if not exists accoglienza_stato text;

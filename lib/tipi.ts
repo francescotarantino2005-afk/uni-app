@@ -130,6 +130,8 @@ export type Profilo = {
   created_at: string;
   /** nome scelto per il bot (default "Lode"). */
   nome_bot: string;
+  /** bivio dell'accoglienza: true = primo anno, false = anni successivi. */
+  matricola: boolean | null;
   /** raccolto dal dialogo (tappa 3+): forma libera, nessuna query sopra. */
   profilo_studio: Record<string, unknown>;
   /** domande che il bot farà più avanti (tappa 3+). */

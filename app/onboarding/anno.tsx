@@ -12,12 +12,12 @@ export default function PassoAnno() {
   const [salvataggio, setSalvataggio] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
-  // anno = 1 → matricola (primo anno); anno = 2 → anni successivi (sentinella
-  // "ha già esami"): registra il bivio senza chiedere ancora l'anno esatto.
-  const scegli = async (anno: number) => {
+  // Registra solo il bivio matricola / anni successivi: la colonna anno resta
+  // vuota, riservata all'anno di corso vero.
+  const scegli = async (matricola: boolean) => {
     setErrore(null);
     setSalvataggio(true);
-    const err = await aggiornaAccoglienza({ anno, accoglienza_stato: 'nome_bot' });
+    const err = await aggiornaAccoglienza({ matricola, accoglienza_stato: 'nome_bot' });
     setSalvataggio(false);
     if (err) {
       setErrore(err);
@@ -34,14 +34,14 @@ export default function PassoAnno() {
       descrizione="Così so se stai partendo ora o hai già esami alle spalle: cambia il modo in cui ti do una mano."
     >
       <View style={stili.contenitore}>
-        <Pressable style={stili.scelta} disabled={salvataggio} onPress={() => scegli(1)}>
+        <Pressable style={stili.scelta} disabled={salvataggio} onPress={() => scegli(true)}>
           <Ionicons name="leaf-outline" size={26} color={colori.testoSecondario} />
           <View style={{ flex: 1 }}>
             <Text style={stili.titoloScelta}>Primo anno</Text>
             <Text style={stili.sottoScelta}>Matricola: sto iniziando adesso</Text>
           </View>
         </Pressable>
-        <Pressable style={stili.scelta} disabled={salvataggio} onPress={() => scegli(2)}>
+        <Pressable style={stili.scelta} disabled={salvataggio} onPress={() => scegli(false)}>
           <Ionicons name="trending-up-outline" size={26} color={colori.testoSecondario} />
           <View style={{ flex: 1 }}>
             <Text style={stili.titoloScelta}>Anni successivi</Text>
