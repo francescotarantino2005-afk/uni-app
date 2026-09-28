@@ -16,6 +16,7 @@ export type DatiEsame = {
   data_esame: string | null;
   voto: number | null;
   lode: boolean;
+  idoneita: boolean;
   professore: string | null;
   tipo_esame: TipoEsame | null;
 };
@@ -39,6 +40,19 @@ export async function salvaEsame(
   const { error } = id
     ? await supabase.from('exams').update(riga).eq('id', id)
     : await supabase.from('exams').insert(riga);
+  return { errore: error ? traduci(error.message) : null };
+}
+
+/**
+ * Inserisce più esami in un'unica richiesta (import del libretto): o entrano
+ * tutti o nessuno, così un errore non lascia il libretto a metà.
+ */
+export async function inserisciEsami(
+  userId: string,
+  esami: DatiEsame[]
+): Promise<{ errore: string | null }> {
+  const righe = esami.map((e) => ({ ...e, user_id: userId }));
+  const { error } = await supabase.from('exams').insert(righe);
   return { errore: error ? traduci(error.message) : null };
 }
 

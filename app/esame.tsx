@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { eliminaEsame, salvaEsame } from '@/lib/esamiDb';
 import { Esame, TipoEsame } from '@/lib/tipi';
 import { VOTO_MAX, VOTO_MIN } from '@/lib/libretto';
-import { dataBreveItaliana, parseDataItaliana } from '@/lib/date';
+import { isoAItaliano, parseDataItaliana } from '@/lib/date';
 import { useAppStore } from '@/store/useAppStore';
 import { BottonePrimario } from '@/components/BottonePrimario';
 import { CampoTesto } from '@/components/CampoTesto';
@@ -34,13 +34,6 @@ const TIPI_ESAME: { valore: TipoEsame; etichetta: string }[] = [
   { valore: 'altro', etichetta: 'Altro' },
 ];
 
-// "AAAA-MM-GG" → "GG/MM/AAAA" per il campo di testo
-function isoAItaliano(iso: string | null): string {
-  if (!iso) return '';
-  const [a, m, g] = iso.split('-');
-  return a && m && g ? `${g}/${m}/${a}` : '';
-}
-
 export default function SchermataEsame() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const idModifica = id;
@@ -49,6 +42,8 @@ export default function SchermataEsame() {
   const [materia, setMateria] = useState('');
   const [cfu, setCfu] = useState('');
   const [sostenuto, setSostenuto] = useState(true);
+  // superato senza voto: CFU sì, media no
+  const [idoneita, setIdoneita] = useState(false);
   const [voto, setVoto] = useState<number | null>(null);
   const [lode, setLode] = useState(false);
   const [dataTesto, setDataTesto] = useState('');
@@ -66,7 +61,8 @@ export default function SchermataEsame() {
       if (e) {
         setMateria(e.materia);
         setCfu(e.cfu != null ? String(e.cfu) : '');
-        setSostenuto(e.voto != null);
+        setSostenuto(e.voto != null || e.idoneita);
+        setIdoneita(e.idoneita);
         setVoto(e.voto);
         setLode(e.lode);
         setDataTesto(isoAItaliano(e.data_esame));
@@ -97,7 +93,8 @@ export default function SchermataEsame() {
       setErrore('I CFU devono essere un numero intero positivo.');
       return;
     }
-    if (sostenuto && voto == null) {
+    const conVoto = sostenuto && !idoneita;
+    if (conVoto && voto == null) {
       setErrore('Scegli il voto, oppure segna l\'esame come "da sostenere".');
       return;
     }
@@ -117,8 +114,9 @@ export default function SchermataEsame() {
         materia: materia.trim(),
         cfu: cfuNum,
         data_esame: dataIso,
-        voto: sostenuto ? voto : null,
-        lode: sostenuto && voto === VOTO_MAX ? lode : false,
+        voto: conVoto ? voto : null,
+        lode: conVoto && voto === VOTO_MAX ? lode : false,
+        idoneita: sostenuto && idoneita,
         professore: professore.trim() || null,
         tipo_esame: tipoEsame,
       },
@@ -187,7 +185,11 @@ export default function SchermataEsame() {
             <View style={{ flex: 1 }}>
               <Text style={stili.etichettaSwitch}>Già sostenuto</Text>
               <Text style={stili.notaSwitch}>
-                {sostenuto ? 'Inserisci il voto qui sotto' : 'Esame ancora da fare (non entra nella media)'}
+                {!sostenuto
+                  ? 'Esame ancora da fare (non entra nella media)'
+                  : idoneita
+                    ? 'Idoneità: i CFU contano, la media no'
+                    : 'Inserisci il voto qui sotto'}
               </Text>
             </View>
             <Switch
@@ -199,6 +201,28 @@ export default function SchermataEsame() {
           </View>
 
           {sostenuto ? (
+            <View style={stili.rigaChip}>
+              {[
+                { valore: false, etichetta: 'Con voto' },
+                { valore: true, etichetta: 'Idoneità (senza voto)' },
+              ].map((o) => {
+                const attivo = idoneita === o.valore;
+                return (
+                  <Pressable
+                    key={o.etichetta}
+                    onPress={() => setIdoneita(o.valore)}
+                    style={[stili.chipTipo, attivo && stili.chipTipoAttivo]}
+                  >
+                    <Text style={[stili.testoChipTipo, attivo && stili.testoChipTipoAttivo]}>
+                      {o.etichetta}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
+          {sostenuto && !idoneita ? (
             <View style={stili.gruppo}>
               <Text style={stili.etichettaGruppo}>Voto</Text>
               <View style={stili.rigaChip}>

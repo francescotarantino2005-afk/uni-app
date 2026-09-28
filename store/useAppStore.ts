@@ -4,6 +4,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Profilo } from '@/lib/tipi';
 import { LezioneEstratta } from '@/lib/estrazioneOrario';
+import type { EsameEstratto } from '@/lib/estrazioneLibretto';
 
 type TokenRecupero = { access_token: string; refresh_token: string };
 
@@ -59,12 +60,18 @@ type StatoApp = {
   ateneoSelezionato: string | null;
   fotoOrario: FotoOrario | null;
   lezioniEstratte: LezioneEstratta[] | null;
+  /** foto del libretto in attesa di lettura (più pagine, una chiamata sola) */
+  fotoLibretto: FotoOrario[];
+  /** esami letti dalle foto, NON ancora salvati: si salvano solo dopo la conferma */
+  esamiEstratti: EsameEstratto[] | null;
 
   avvia: () => Promise<void>;
   caricaProfilo: () => Promise<void>;
   impostaAteneo: (ateneo: string) => void;
   impostaFotoOrario: (foto: FotoOrario | null) => void;
   impostaLezioniEstratte: (lezioni: LezioneEstratta[] | null) => void;
+  impostaFotoLibretto: (foto: FotoOrario[]) => void;
+  impostaEsamiEstratti: (esami: EsameEstratto[] | null) => void;
   /** Crea/aggiorna la riga profiles durante l'accoglienza (salvataggio progressivo). */
   aggiornaAccoglienza: (patch: Partial<Profilo>) => Promise<string | null>;
   /** Segna l'accoglienza come completata. Ritorna un messaggio d'errore o null. */
@@ -88,6 +95,8 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   ateneoSelezionato: null,
   fotoOrario: null,
   lezioniEstratte: null,
+  fotoLibretto: [],
+  esamiEstratti: null,
 
   avvia: async () => {
     try {
@@ -162,7 +171,14 @@ export const useAppStore = create<StatoApp>((set, get) => ({
       if (get().recupero) return;
       set({ utente: sessione?.user ?? null });
       if (!sessione?.user) {
-        set({ profilo: null, ateneoSelezionato: null, fotoOrario: null, lezioniEstratte: null });
+        set({
+          profilo: null,
+          ateneoSelezionato: null,
+          fotoOrario: null,
+          lezioniEstratte: null,
+          fotoLibretto: [],
+          esamiEstratti: null,
+        });
       }
     });
   },
@@ -183,6 +199,8 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   impostaAteneo: (ateneo) => set({ ateneoSelezionato: ateneo }),
   impostaFotoOrario: (foto) => set({ fotoOrario: foto }),
   impostaLezioniEstratte: (lezioni) => set({ lezioniEstratte: lezioni }),
+  impostaFotoLibretto: (foto) => set({ fotoLibretto: foto }),
+  impostaEsamiEstratti: (esami) => set({ esamiEstratti: esami }),
 
   aggiornaAccoglienza: async (patch) => {
     const { utente } = get();

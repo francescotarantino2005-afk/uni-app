@@ -63,6 +63,13 @@ export function parseDataItaliana(testo: string): string | null {
   return `${a}-${String(me).padStart(2, '0')}-${String(g).padStart(2, '0')}`;
 }
 
+/** ISO "AAAA-MM-GG" → "GG/MM/AAAA" per i campi di testo, "" se manca */
+export function isoAItaliano(iso: string | null): string {
+  if (!iso) return '';
+  const [a, m, g] = iso.split('-');
+  return a && m && g ? `${g}/${m}/${a}` : '';
+}
+
 /** Valida "HH:MM" (o "H:MM") e la normalizza a "HH:MM", null se non valida */
 export function normalizzaOra(testo: string): string | null {
   const m = testo.trim().match(/^(\d{1,2}):(\d{2})$/);

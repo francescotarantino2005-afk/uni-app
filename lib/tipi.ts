@@ -77,8 +77,10 @@ export type Esame = {
   materia: string;
   cfu: number | null;
   data_esame: string | null;
-  voto: number | null; // null = da sostenere
+  voto: number | null; // null = da sostenere (o idoneità, vedi sotto)
   lode: boolean;
+  /** superato senza voto: dà CFU ma non entra nella media (voto null). */
+  idoneita: boolean;
   professore: string | null;
   tipo_esame: TipoEsame | null;
 };
@@ -113,6 +115,7 @@ export type AccoglienzaStato =
   | 'corso'
   | 'anno'
   | 'nome_bot'
+  | 'libretto'
   | 'orario'
   | 'notifiche'
   | 'completata';

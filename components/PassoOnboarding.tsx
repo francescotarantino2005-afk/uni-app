@@ -4,9 +4,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BottonePrimario } from '@/components/BottonePrimario';
 import { MessaggioErrore } from '@/components/MessaggioErrore';
+import { useAppStore } from '@/store/useAppStore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
-const PASSI_TOTALI = 6;
+const PASSI_BASE = 6;
+
+/**
+ * Chi ha scelto "Anni successivi" ha un passo in più (foto del libretto, il 5°):
+ * i passi che vengono dopo scalano di uno.
+ */
+export function usaPassiLibretto(): { conLibretto: boolean; totali: number } {
+  const conLibretto = useAppStore((s) => s.profilo?.matricola === false);
+  return { conLibretto, totali: PASSI_BASE + (conLibretto ? 1 : 0) };
+}
 
 type Props = {
   passo: number;
@@ -40,10 +50,11 @@ export function PassoOnboarding({
   errore = null,
   children,
 }: Props) {
+  const { totali } = usaPassiLibretto();
   return (
     <SafeAreaView style={stili.schermo}>
       <View style={stili.indicatore}>
-        {Array.from({ length: PASSI_TOTALI }, (_, i) => (
+        {Array.from({ length: totali }, (_, i) => (
           <View key={i} style={[stili.puntino, i < passo && stili.puntinoAttivo]} />
         ))}
       </View>

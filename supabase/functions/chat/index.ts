@@ -70,7 +70,7 @@ async function costruisciContesto(
     admin.from('profiles').select('nome, ateneo, corso, anno, fuorisede, regione').eq('id', userId).maybeSingle(),
     admin.from('schedule_events').select('titolo, giorno, ora_inizio, ora_fine, aula').eq('user_id', userId).order('giorno').order('ora_inizio'),
     admin.from('deadlines').select('titolo, data, categoria').eq('user_id', userId).eq('completata', false).gte('data', oggi).order('data').limit(15),
-    admin.from('exams').select('materia, cfu, voto, lode, data_esame').eq('user_id', userId),
+    admin.from('exams').select('materia, cfu, voto, lode, idoneita, data_esame').eq('user_id', userId),
   ]);
 
   const p = profiloR.data ?? {};
@@ -106,18 +106,23 @@ async function costruisciContesto(
     }
   }
 
-  // Libretto: media ponderata (lode = 30), CFU, esami da sostenere
+  // Libretto: media ponderata (lode = 30), CFU, esami da sostenere.
+  // Idoneità = superato senza voto: CFU acquisiti sì, media no.
   const esami = esamiR.data ?? [];
-  const sostenuti = esami.filter((e: { voto: number | null }) => e.voto != null);
+  const superato = (e: { voto: number | null; idoneita: boolean | null }) =>
+    e.voto != null || e.idoneita === true;
+  const sostenuti = esami.filter(superato);
   let sp = 0;
   let sc = 0;
   let cfu = 0;
   let lodi = 0;
   for (const e of sostenuti) {
     if (e.cfu && e.cfu > 0) {
-      sp += e.voto * e.cfu;
-      sc += e.cfu;
       cfu += e.cfu;
+      if (e.voto != null) {
+        sp += e.voto * e.cfu;
+        sc += e.cfu;
+      }
     }
     if (e.lode && e.voto === 30) lodi++;
   }
@@ -129,11 +134,11 @@ async function costruisciContesto(
     righe.push(`Esami sostenuti: ${sostenuti.length}, CFU acquisiti: ${cfu}, media ponderata: ${media}, lodi: ${lodi}.`);
     for (const e of sostenuti) {
       righe.push(
-        `- ${e.materia}: ${e.voto}${e.lode && e.voto === 30 ? ' e lode' : ''}${e.cfu ? ` (${e.cfu} CFU)` : ''}${e.data_esame ? `, sostenuto il ${e.data_esame}` : ''}`
+        `- ${e.materia}: ${e.voto == null ? 'idoneità (senza voto, fuori media)' : e.voto}${e.lode && e.voto === 30 ? ' e lode' : ''}${e.cfu ? ` (${e.cfu} CFU)` : ''}${e.data_esame ? `, sostenuto il ${e.data_esame}` : ''}`
       );
     }
   }
-  const daSostenere = esami.filter((e: { voto: number | null }) => e.voto == null);
+  const daSostenere = esami.filter((e: { voto: number | null; idoneita: boolean | null }) => !superato(e));
   if (daSostenere.length) {
     righe.push(`Esami da sostenere: ${daSostenere.map((e: { materia: string }) => e.materia).join(', ')}.`);
   }

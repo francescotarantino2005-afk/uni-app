@@ -26,6 +26,8 @@ export default function Ingresso() {
       return <Redirect href="/onboarding/anno" />;
     case 'nome_bot':
       return <Redirect href="/onboarding/nome-bot" />;
+    case 'libretto':
+      return <Redirect href="/onboarding/foto-libretto" />;
     case 'orario':
       return <Redirect href="/onboarding/foto-orario" />;
     case 'notifiche':

@@ -5,17 +5,18 @@ import { Esame } from '@/lib/tipi';
 // - media PONDERATA sui CFU: somma(voto*cfu) / somma(cfu)
 // - la lode conta 30 nella media (ma la contiamo a parte)
 // - esame "da sostenere" (voto null) non entra nella media
+// - idoneità (superato senza voto): i CFU contano, la media no
 
 export const VOTO_MIN = 18;
 export const VOTO_MAX = 30;
 
-/** Un esame è "sostenuto" se ha un voto. */
-export function sostenuto(e: Esame): boolean {
-  return e.voto != null;
+/** Un esame è "sostenuto" se ha un voto o è un'idoneità. */
+export function sostenuto(e: Pick<Esame, 'voto' | 'idoneita'>): boolean {
+  return e.voto != null || e.idoneita;
 }
 
-/** Entra nella media solo se ha voto e CFU validi. */
-function validoPerMedia(e: Esame): boolean {
+/** Entra nella media solo se ha voto e CFU validi (le idoneità non hanno voto). */
+function validoPerMedia(e: Pick<Esame, 'voto' | 'cfu'>): boolean {
   return e.voto != null && e.cfu != null && e.cfu > 0;
 }
 
@@ -28,7 +29,10 @@ export type StatoLibretto = {
   proiezioneLaurea: number | null;
 };
 
-export function calcolaLibretto(esami: Esame[]): StatoLibretto {
+/** Campi che servono ai calcoli: anche le righe non ancora salvate li hanno. */
+type EsameCalcolo = Pick<Esame, 'voto' | 'lode' | 'cfu' | 'idoneita'>;
+
+export function calcolaLibretto(esami: EsameCalcolo[]): StatoLibretto {
   let sommaPesata = 0;
   let sommaCfu = 0;
   let cfuAcquisiti = 0;
@@ -92,9 +96,9 @@ export function votoNecessarioPerMedia(
   return { tipo: 'ok', voto: Math.ceil(necessario) };
 }
 
-/** "30 e lode" | "27" | "da sostenere" */
+/** "30 e lode" | "27" | "idoneo" | "da sostenere" */
 export function formattaVoto(e: Esame): string {
-  if (e.voto == null) return 'da sostenere';
+  if (e.voto == null) return e.idoneita ? 'idoneo' : 'da sostenere';
   if (e.lode && e.voto === VOTO_MAX) return '30 e lode';
   return String(e.voto);
 }

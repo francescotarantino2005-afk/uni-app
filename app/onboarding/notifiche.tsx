@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
-import { PassoOnboarding } from '@/components/PassoOnboarding';
+import { PassoOnboarding, usaPassiLibretto } from '@/components/PassoOnboarding';
 import { richiediPermessoNotifiche, salvaTokenPush } from '@/lib/notifiche';
 import { useAppStore } from '@/store/useAppStore';
 import { colori, spazi } from '@/lib/theme';
@@ -9,6 +9,7 @@ import { colori, spazi } from '@/lib/theme';
 export default function PassoNotifiche() {
   const utente = useAppStore((s) => s.utente);
   const completaOnboarding = useAppStore((s) => s.completaOnboarding);
+  const { conLibretto } = usaPassiLibretto();
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export default function PassoNotifiche() {
 
   return (
     <PassoOnboarding
-      passo={6}
+      passo={conLibretto ? 7 : 6}
       icona="notifications-outline"
       titolo="Il briefing del mattino"
       descrizione="Ogni mattina, all'ora che scegli tu: le lezioni di oggi, le scadenze in arrivo e cosa studiare. Attiva le notifiche per riceverlo."

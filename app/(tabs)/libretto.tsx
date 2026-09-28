@@ -55,6 +55,7 @@ export default function SchermataLibretto() {
         </Text>
         <Text style={stili.dettagli}>
           {e.cfu ? `${e.cfu} CFU` : 'CFU non indicati'}
+          {e.idoneita ? '  ·  fuori media' : ''}
           {e.data_esame ? `  ·  ${dataBreveItaliana(e.data_esame)}` : ''}
         </Text>
       </View>

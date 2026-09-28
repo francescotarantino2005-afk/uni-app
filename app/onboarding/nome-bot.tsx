@@ -11,17 +11,22 @@ export default function PassoNomeBot() {
   const [salvataggio, setSalvataggio] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
-  // Continua dopo il salvataggio (prosegue il percorso esistente: foto orario).
+  // Chi ha già esami alle spalle passa dal libretto; le matricole vanno dritte all'orario.
+  const conLibretto = profilo?.matricola === false;
+
   const salva = async (nomeBot: string) => {
     setErrore(null);
     setSalvataggio(true);
-    const err = await aggiornaAccoglienza({ nome_bot: nomeBot, accoglienza_stato: 'orario' });
+    const err = await aggiornaAccoglienza({
+      nome_bot: nomeBot,
+      accoglienza_stato: conLibretto ? 'libretto' : 'orario',
+    });
     setSalvataggio(false);
     if (err) {
       setErrore(err);
       return;
     }
-    router.push('/onboarding/foto-orario');
+    router.push(conLibretto ? '/onboarding/foto-libretto' : '/onboarding/foto-orario');
   };
 
   return (

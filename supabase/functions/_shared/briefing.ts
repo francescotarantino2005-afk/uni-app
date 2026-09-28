@@ -119,6 +119,7 @@ export async function raccogliContesto(
       .select('materia, data_esame')
       .eq('user_id', userId)
       .is('voto', null)
+      .eq('idoneita', false) // un'idoneità è già superata, non è un esame in arrivo
       .not('data_esame', 'is', null)
       .gte('data_esame', dataOggi)
       .lte('data_esame', aggiungiGiorni(dataOggi, 21))

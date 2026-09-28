@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { PassoOnboarding } from '@/components/PassoOnboarding';
+import { PassoOnboarding, usaPassiLibretto } from '@/components/PassoOnboarding';
 import { SelettoreFotoOrario } from '@/components/SelettoreFotoOrario';
 import { estraiOrarioDaFoto } from '@/lib/estrazioneOrario';
 import { useAppStore } from '@/store/useAppStore';
@@ -10,6 +10,7 @@ export default function PassoFotoOrario() {
   const impostaFotoOrario = useAppStore((s) => s.impostaFotoOrario);
   const impostaLezioniEstratte = useAppStore((s) => s.impostaLezioniEstratte);
   const aggiornaAccoglienza = useAppStore((s) => s.aggiornaAccoglienza);
+  const { conLibretto } = usaPassiLibretto();
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -44,7 +45,7 @@ export default function PassoFotoOrario() {
 
   return (
     <PassoOnboarding
-      passo={5}
+      passo={conLibretto ? 6 : 5}
       icona="camera-outline"
       titolo="Fotografa il tuo orario"
       descrizione="Una foto o uno screenshot dell'orario delle lezioni: l'AI lo trasforma nel tuo calendario personale."
