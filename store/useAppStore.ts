@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { Profilo } from '@/lib/tipi';
 import { LezioneEstratta } from '@/lib/estrazioneOrario';
 import type { EsameEstratto } from '@/lib/estrazioneLibretto';
+import { Reazione, puoMostrare } from '@/lib/reazioni';
+import { dopoTargetSuperato, profiloStudioCompleto } from '@/lib/dialogoLogica';
 
 type TokenRecupero = { access_token: string; refresh_token: string };
 
@@ -65,6 +67,18 @@ type StatoApp = {
   /** esami letti dalle foto, NON ancora salvati: si salvano solo dopo la conferma */
   esamiEstratti: EsameEstratto[] | null;
 
+  /**
+   * Reazione del personaggio a schermo (solo in memoria: all'avvio non c'è mai
+   * niente da mostrare, compare solo se è appena successo qualcosa).
+   */
+  reazione: Reazione | null;
+  reazioneChiusaAlle: number | null;
+  /** Mostra una reazione se il freno lo permette. Ritorna true se è partita. */
+  mostraReazione: (reazione: Reazione | null) => boolean;
+  chiudiReazione: () => void;
+  /** L'esame target è stato superato: azzera il target e mette in coda "qual è il prossimo?". */
+  segnaTargetSuperato: () => Promise<void>;
+
   avvia: () => Promise<void>;
   caricaProfilo: () => Promise<void>;
   impostaAteneo: (ateneo: string) => void;
@@ -97,6 +111,30 @@ export const useAppStore = create<StatoApp>((set, get) => ({
   lezioniEstratte: null,
   fotoLibretto: [],
   esamiEstratti: null,
+  reazione: null,
+  reazioneChiusaAlle: null,
+
+  mostraReazione: (reazione) => {
+    if (!reazione) return false;
+    const { reazione: attuale, reazioneChiusaAlle } = get();
+    if (!puoMostrare({ visibile: attuale != null, chiusaAlle: reazioneChiusaAlle }, Date.now())) {
+      return false;
+    }
+    set({ reazione });
+    return true;
+  },
+  chiudiReazione: () => set({ reazione: null, reazioneChiusaAlle: Date.now() }),
+
+  segnaTargetSuperato: async () => {
+    const profilo = get().profilo;
+    if (!profilo) return;
+    await get().aggiornaAccoglienza(
+      dopoTargetSuperato(
+        profiloStudioCompleto(profilo.profilo_studio),
+        Array.isArray(profilo.domande_in_coda) ? profilo.domande_in_coda : []
+      )
+    );
+  },
 
   avvia: async () => {
     try {

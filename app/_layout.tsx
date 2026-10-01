@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { useAppStore } from '@/store/useAppStore';
+import { ReazionePersonaggio } from '@/components/ReazionePersonaggio';
 import { colori } from '@/lib/theme';
 
 export default function LayoutRadice() {
@@ -101,6 +102,7 @@ export default function LayoutRadice() {
         <Stack.Screen name="piano" />
         <Stack.Screen name="sessione" />
       </Stack>
+      <ReazionePersonaggio />
     </>
   );
 }

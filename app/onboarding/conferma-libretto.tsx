@@ -16,6 +16,7 @@ import { DatiEsame, inserisciEsami } from '@/lib/esamiDb';
 import { VOTO_MAX, VOTO_MIN } from '@/lib/libretto';
 import { isoAItaliano, parseDataItaliana } from '@/lib/date';
 import { trovaSimili } from '@/lib/somiglianzaEsami';
+import { reazioneBenvenuto } from '@/lib/reazioni';
 import { useAppStore } from '@/store/useAppStore';
 import { BottonePrimario } from '@/components/BottonePrimario';
 import { CampoTesto } from '@/components/CampoTesto';
@@ -172,6 +173,8 @@ export default function ConfermaLibretto() {
     impostaEsamiEstratti(null);
     impostaFotoLibretto([]);
     router.replace('/onboarding/libretto-pronto');
+    // Primo libretto importato: l'import si fa una volta sola, nell'accoglienza.
+    setTimeout(() => useAppStore.getState().mostraReazione(reazioneBenvenuto()), 500);
   };
 
   // Nomi molto simili: si segnalano e basta, non si uniscono mai da soli.

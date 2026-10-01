@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import { eliminaEsame, salvaEsame } from '@/lib/esamiDb';
 import { Esame, TipoEsame } from '@/lib/tipi';
 import { VOTO_MAX, VOTO_MIN } from '@/lib/libretto';
 import { isoAItaliano, parseDataItaliana } from '@/lib/date';
+import { eEsameTarget, reazionePerEsame } from '@/lib/reazioni';
 import { useAppStore } from '@/store/useAppStore';
 import { BottonePrimario } from '@/components/BottonePrimario';
 import { CampoTesto } from '@/components/CampoTesto';
@@ -52,6 +53,9 @@ export default function SchermataEsame() {
   const [caricamento, setCaricamento] = useState(!!idModifica);
   const [salvataggio, setSalvataggio] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
+  // Com'era l'esame prima di questa modifica: una reazione nasce solo quando
+  // un esame DIVENTA superato, non quando se ne corregge uno già a libretto.
+  const eraSuperato = useRef(false);
 
   useEffect(() => {
     if (!idModifica) return;
@@ -63,6 +67,7 @@ export default function SchermataEsame() {
         setCfu(e.cfu != null ? String(e.cfu) : '');
         setSostenuto(e.voto != null || e.idoneita);
         setIdoneita(e.idoneita);
+        eraSuperato.current = e.voto != null || e.idoneita;
         setVoto(e.voto);
         setLode(e.lode);
         setDataTesto(isoAItaliano(e.data_esame));
@@ -128,7 +133,28 @@ export default function SchermataEsame() {
       setErrore(erroreDb);
       return;
     }
+
+    // Reazione del personaggio: al massimo una per salvataggio, e solo se
+    // l'esame è appena diventato superato.
+    const stato = useAppStore.getState();
+    const eraTarget = eEsameTarget(stato.profilo?.profilo_studio?.esame_target, {
+      id: idModifica ?? null,
+      materia: materia.trim(),
+    });
+    const reazione = sostenuto
+      ? reazionePerEsame({
+          materia: materia.trim(),
+          voto: conVoto ? voto : null,
+          lode: conVoto && voto === VOTO_MAX ? lode : false,
+          giaSuperato: eraSuperato.current,
+          eraTarget,
+        })
+      : null;
+    if (sostenuto && !eraSuperato.current && eraTarget) stato.segnaTargetSuperato();
+
     router.back();
+    // Dopo la chiusura della schermata, così compare sopra il libretto.
+    if (reazione) setTimeout(() => useAppStore.getState().mostraReazione(reazione), 450);
   };
 
   const elimina = async () => {

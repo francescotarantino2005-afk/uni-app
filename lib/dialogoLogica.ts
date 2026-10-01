@@ -112,6 +112,32 @@ export function registraRisposta(
   return profiloStudioCompleto(nuovo);
 }
 
+export const DOMANDA_PROSSIMO_ESAME = 'Qual è il prossimo esame che devi dare?';
+
+/**
+ * L'esame target è stato superato: il profilo non ha più un target (e quando e
+ * avanzamento, che parlavano di quell'esame, non valgono più), e la domanda
+ * "qual è il prossimo?" entra in coda come prima da fare.
+ */
+export function dopoTargetSuperato(
+  p: ProfiloStudio,
+  coda: DomandaInCoda[]
+): { profilo_studio: ProfiloStudio; domande_in_coda: DomandaInCoda[] } {
+  const id = 'accoglienza:esame_target';
+  return {
+    profilo_studio: {
+      ...p,
+      esame_target: { nome: null, id: null },
+      quando: { testo: null, data: null },
+      avanzamento: null,
+    },
+    domande_in_coda: [
+      ...coda.filter((d) => d.id !== id),
+      { id, testo: DOMANDA_PROSSIMO_ESAME, chiave: 'esame_target', stato: 'da_fare', priorita: 1 },
+    ],
+  };
+}
+
 /** Aggiorna la coda quando si lascia una domanda: senza risposta → "da_fare", altrimenti fuori dalla coda. */
 export function aggiornaCoda(
   coda: DomandaInCoda[],
