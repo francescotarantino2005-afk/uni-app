@@ -144,6 +144,12 @@ export type DomandaInCoda = {
   chiave: string;
   stato: 'da_fare' | 'fatta' | 'saltata';
   priorita: number;
+  /** ultimo giorno (AAAA-MM-GG) in cui il bot l'ha riproposta in chat */
+  proposta_il?: string | null;
+  /** true da quando il bot l'ha riproposta a quando lo studente scrive qualcosa */
+  in_attesa?: boolean;
+  /** quante volte lo studente ha scritto altro invece di rispondere (2 = "saltata") */
+  ignorata?: number;
 };
 
 export type Profilo = {

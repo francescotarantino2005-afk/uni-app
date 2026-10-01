@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { caricaStorico, inviaMessaggioChat } from '@/lib/chatDb';
+import { apriCoda, rispostaCoda } from '@/lib/codaDomande';
+import { useAppStore } from '@/store/useAppStore';
 import { MessaggioChat } from '@/lib/tipi';
 import { nuovoId } from '@/lib/id';
 import { colori, raggi, spazi } from '@/lib/theme';
@@ -33,12 +35,40 @@ export default function SchermataChat() {
   // Guardia contro il doppio invio mentre una richiesta è già in corso.
   const invioInCorso = useRef(false);
 
+  const storicoCaricato = useRef(false);
+  const propostaInCorso = useRef(false);
+
+  // Coda delle domande: quando lo studente apre la chat, il bot può riproporne
+  // UNA rimasta in sospeso. Se e quale lo decide il server (una al giorno, mai
+  // due di fila, niente se c'è un esame entro 48 ore); qui si evita solo la
+  // chiamata quando in coda non c'è niente da fare.
+  const proponiDomanda = useCallback(async () => {
+    if (propostaInCorso.current || invioInCorso.current) return;
+    const coda = useAppStore.getState().profilo?.domande_in_coda;
+    if (!Array.isArray(coda) || !coda.some((d) => d.stato === 'da_fare' && !d.in_attesa)) return;
+    propostaInCorso.current = true;
+    const domanda = await apriCoda();
+    propostaInCorso.current = false;
+    if (!domanda) return;
+    setMessaggi((prima) => [...prima, { id: nuovoId(), ruolo: 'assistant', contenuto: domanda }]);
+    useAppStore.getState().caricaProfilo();
+  }, []);
+
   useEffect(() => {
     (async () => {
       setMessaggi(await caricaStorico());
       setCaricamento(false);
+      storicoCaricato.current = true;
+      proponiDomanda();
     })();
-  }, []);
+  }, [proponiDomanda]);
+
+  // La tab resta montata: "aprire la chat" è ogni volta che torna in primo piano.
+  useFocusEffect(
+    useCallback(() => {
+      if (storicoCaricato.current) proponiDomanda();
+    }, [proponiDomanda])
+  );
 
   // La lista è invertita (pattern standard delle chat): il messaggio più
   // recente resta sempre in fondo senza dipendere da scrollToEnd, che con la
@@ -53,6 +83,24 @@ export default function SchermataChat() {
     if (invioInCorso.current) return;
     invioInCorso.current = true;
     setInvio(true);
+
+    // Se il bot aveva una domanda in sospeso, questo messaggio può esserne la
+    // risposta: in quel caso la salva e conferma lui, senza passare dalla chat.
+    const coda = useAppStore.getState().profilo?.domande_in_coda;
+    if (Array.isArray(coda) && coda.some((d) => d.stato === 'da_fare' && d.in_attesa)) {
+      const esitoCoda = await rispostaCoda(contenuto, id);
+      if (esitoCoda) useAppStore.getState().caricaProfilo();
+      if (esitoCoda?.tipo === 'risposta') {
+        setInvio(false);
+        invioInCorso.current = false;
+        aggiorna(id, { statoInvio: undefined, erroreRete: undefined });
+        setMessaggi((prima) => [
+          ...prima,
+          { id: nuovoId(), ruolo: 'assistant', contenuto: esitoCoda.risposta },
+        ]);
+        return;
+      }
+    }
 
     const esito = await inviaMessaggioChat(contenuto, id);
 
