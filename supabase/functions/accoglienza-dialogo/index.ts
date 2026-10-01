@@ -1,19 +1,29 @@
 // Edge Function accoglienza-dialogo: UN turno del dialogo di accoglienza.
 // Cinque domande a intenzione fissa (esame_target, quando, avanzamento, tempo,
 // ostacolo), risposta a testo libero. Per ogni turno:
-//   input  → nome_bot, numero, risposta, profilo_studio, riassunto del libretto
-//   output → { risposta_bot, chiave, valore, prossima_domanda }
+//   input  -> nome_bot, numero, risposta, profilo_studio, riassunto del libretto
+//   output -> { risposta_bot, chiave, valore, prossima_domanda }
 // Il profilo (profilo_studio, coda, stato) lo salva l'app col meccanismo
 // dell'accoglienza; qui si scrivono solo i messaggi in chat_messages (il client
-// non può), così il dialogo diventa la prima conversazione della chat.
+// non puo'), cosi' il dialogo diventa la prima conversazione della chat.
+//
+// Il modello NON scrive la battuta intera: restituisce pezzi separati (reazione,
+// domanda successiva, chiarimento, chiusura) e la battuta la compone il codice.
 // Garanzie lato codice, oltre al prompt:
+// - massimo due frasi: una di reazione e una di domanda (o la chiusura);
+// - dopo una non-risposta la domanda successiva e' il testo fisso: il bot non
+//   puo' insistere ne' ripetere la domanda;
+// - un chiarimento e' una sola frase, una volta sola, mai insieme ad altro;
 // - l'esame target viene dall'elenco passato (per indice) o dalle parole dello
-//   studente: il modello non può introdurre un nome d'esame nel profilo;
+//   studente: il modello non puo' introdurre un nome d'esame nel profilo;
 // - date e minuti sono validati; un valore non valido diventa null;
-// - dopo un chiarimento si va avanti comunque; la chiusura nomina l'esame target.
+// - la chiusura nomina l'esame target, altrimenti si usa il testo fisso;
+// - un pezzo che nomina un esame dell'elenco DIVERSO dal target (o un esame
+//   qualsiasi, se lo studente non ne ha scelto uno) viene scartato.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 
+const MODELLO = 'claude-haiku-4-5';
 const TIMEOUT_MS = 20_000;
 const MAX_RISPOSTA = 1000;
 const MAX_TESTO_BOT = 600;
@@ -48,31 +58,37 @@ const CHIAVI = ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ost
 const INTENZIONI = [
   'quale esame deve dare per primo',
   "quando deve dare quell'esame (va bene anche una risposta vaga)",
-  "a che punto è con la preparazione di quell'esame",
+  "a che punto e' con la preparazione di quell'esame",
   'quanto tempo ha di solito per studiare in un giorno',
   'cosa va storto di solito quando studia',
 ];
 
-// Testi fissi (gli stessi dell'app): usati quando il modello non formula la domanda.
+// Testi fissi (gli stessi dell'app), una frase ciascuno: usati dopo una
+// non-risposta e quando il modello non formula una domanda valida.
 const DOMANDE_FISSE = [
   'Qual è il primo esame che devi dare?',
-  'Quando lo devi dare? Va bene anche a grandi linee.',
+  'Quando lo devi dare, anche a grandi linee?',
   'A che punto sei con la preparazione?',
   'Quanto tempo riesci a dedicare allo studio in una giornata normale?',
   'Cosa va storto di solito quando ti metti a studiare?',
 ];
 
+const PASSA_OLTRE = 'Nessun problema, ci torniamo.';
+const PRESA_NOTA = 'Ok, segnato.';
+
 const STRUMENTO = {
   name: 'turno',
-  description: 'Registra il turno del dialogo: la battuta del bot e ciò che si capisce dalla risposta dello studente.',
+  description: 'Registra il turno del dialogo: i pezzi della battuta del bot e cio che si capisce dalla risposta dello studente.',
   strict: true,
   input_schema: {
     type: 'object' as const,
     additionalProperties: false,
     required: [
-      'risposta_bot',
+      'reazione',
+      'domanda_successiva',
+      'chiarimento',
+      'chiusura',
       'non_risposta',
-      'chiede_chiarimento',
       'esame_indice',
       'esame_nome',
       'data',
@@ -81,37 +97,50 @@ const STRUMENTO = {
       'ostacolo',
     ],
     properties: {
-      risposta_bot: { type: 'string', description: 'La battuta del bot: massimo due frasi, testo semplice.' },
-      non_risposta: { type: 'boolean', description: 'true se lo studente non ha risposto davvero ("boh", "non so", fuori tema).' },
-      chiede_chiarimento: { type: 'boolean', description: 'true se risposta_bot chiede un chiarimento invece di passare alla domanda successiva.' },
-      esame_indice: { type: 'integer', description: "Domanda 1: numero dell'esame nell'elenco fornito (da 1). 0 se non è nell'elenco o non è la domanda 1." },
+      reazione: { type: 'string', description: 'UNA frase che reagisce a cio che ha detto lo studente. Mai una domanda, mai un punto interrogativo.' },
+      domanda_successiva: { type: 'string', description: 'UNA frase: la domanda successiva, con un solo punto interrogativo. "" se e la quinta domanda.' },
+      chiarimento: { type: 'string', description: 'UNA frase con un solo punto interrogativo, solo se serve un chiarimento sulla risposta appena data. "" altrimenti.' },
+      chiusura: { type: 'string', description: 'Solo alla quinta domanda: UNA frase di chiusura che nomina l\'esame target. "" altrimenti.' },
+      non_risposta: { type: 'boolean', description: 'true se lo studente non ha risposto davvero alla domanda.' },
+      esame_indice: { type: 'integer', description: "Domanda 1: numero dell'esame nell'elenco fornito (da 1). 0 se non e nell'elenco o non e la domanda 1." },
       esame_nome: { type: 'string', description: 'Domanda 1: il nome dell\'esame con le PAROLE dello studente. "" altrimenti.' },
       data: { type: 'string', description: 'Domanda 2: AAAA-MM-GG solo se lo studente indica un giorno preciso. "" se vago o altra domanda.' },
       avanzamento: { type: 'string', enum: ['non_iniziato', 'a_meta', 'ripasso', 'sconosciuto'], description: 'Domanda 3. "sconosciuto" se non si capisce o altra domanda.' },
-      minuti: { type: 'integer', description: 'Domanda 4: minuti di studio al giorno se lo studente dà una quantità. 0 se vago o altra domanda.' },
-      ostacolo: { type: 'string', description: "Domanda 5: l'ostacolo in poche parole, fedele a ciò che ha detto. \"\" altrimenti." },
+      minuti: { type: 'integer', description: 'Domanda 4: minuti di studio al giorno se lo studente da una quantita. 0 se vago o altra domanda.' },
+      ostacolo: { type: 'string', description: "Domanda 5: l'ostacolo in poche parole, fedele a cio che ha detto. \"\" altrimenti." },
     },
   },
 };
 
-const SYSTEM = `Sei l'assistente di studio dentro un'app per studenti universitari italiani. Stai facendo la conoscenza dello studente con cinque domande, una alla volta. Ricevi la domanda a cui ha appena risposto e scrivi la battuta successiva con lo strumento "turno".
+const SYSTEM = `Sei l'assistente di studio dentro un'app per studenti universitari italiani. Stai facendo la conoscenza dello studente con cinque domande, una alla volta. Ricevi la domanda a cui ha appena risposto e prepari il turno successivo con lo strumento "turno".
 
-Come scrivi risposta_bot:
-- Massimo DUE frasi, in italiano, tono da compagno di corso sveglio. Testo semplice: niente markdown, niente elenchi, niente emoji.
-- Reagisci a quello che ha detto, non riassumerlo e non ripeterglielo.
-- Poi, nella stessa battuta, fai la domanda successiva con parole tue (l'intenzione ti viene indicata). Una sola domanda.
-- Se è l'ultima domanda (la quinta): nessuna domanda, solo una frase di chiusura che nomina l'esame target, se c'è.
+Come parli:
+- Italiano corretto, tono da compagno di corso sveglio. Parli in prima persona singolare (io) e dai del tu.
+- Testo semplice: niente markdown, niente elenchi, niente emoji.
+- Niente complimenti di circostanza ("ottima scelta", "perfetto", "bene", "un buon ritmo") e niente prediche.
+- Non fare calcoli sul tempo che manca o che serve (mesi, settimane, giorni) e non valutare se una data è vicina o lontana.
+- Non promettere funzioni precise dell'app.
+- Se <gia_raccolto> non ha un esame_target, lo studente non ha scelto nessun esame: non nominarne nessuno, nemmeno dall'elenco.
+
+I pezzi del turno:
+- reazione: UNA frase che reagisce a quello che ha appena detto, senza riassumerlo e senza ripeterglielo. Non è mai una domanda.
+- domanda_successiva: UNA frase, la domanda sull'intenzione successiva che ti viene indicata, con parole tue. Riguarda SOLO quell'intenzione: non tornare sulla domanda appena fatta.
+- chiarimento: quasi sempre "". Solo se la risposta è ambigua ma contiene qualcosa (per esempio indica un esame senza che si capisca quale), UNA domanda breve per chiarire. Se <chiarimento_gia_chiesto> è "sì", deve essere "".
+- chiusura: solo se è la quinta domanda. UNA frase che chiude e nomina l'esame target, se c'è.
 
 Esami — regola tassativa:
-- Puoi nominare SOLO gli esami che compaiono in <esami_da_sostenere> oppure l'esame che lo studente stesso ha scritto, con le sue parole. Non inventare, non completare, non correggere e non dedurre mai un nome d'esame. Se non hai un nome sicuro, di' "quell'esame".
+- Puoi nominare SOLO gli esami che compaiono in <esami_noti> oppure l'esame che lo studente stesso ha scritto, con le sue parole. Non inventare, non completare, non abbreviare, non correggere e non dedurre mai un nome d'esame. Se non hai un nome sicuro, di' "quell'esame".
+- <esami_noti> è un elenco PARZIALE. Se lo studente nomina un esame che non c'è, è normale: prendilo con le sue parole e vai avanti. Non dirgli che non è in elenco, non metterlo in dubbio, non chiedere chiarimenti per questo.
 - Non citare voti, medie, CFU o date che non siano in <libretto> o nelle parole dello studente.
 
-Risposte deboli:
-- Se lo studente non risponde davvero ("boh", "non so", "vedremo", fuori tema): non_risposta=true. Non insistere e non ripetere la domanda: passaci sopra con una frase leggera e fai la domanda successiva.
-- Se la risposta è ambigua ma contiene qualcosa, puoi chiedere UN chiarimento breve: chiede_chiarimento=true e risposta_bot contiene solo quel chiarimento. Se <chiarimento_gia_chiesto> è "sì", è vietato chiederne un altro: prendi quello che c'è e vai avanti.
+Non-risposte:
+- Se lo studente non risponde davvero ("boh", "non so", "non lo so, sono messo male", "vedremo", "mo vedo", "dipende", "non mi va", una provocazione, una battuta, una risposta fuori tema): non_risposta=true.
+- In quel caso la reazione è una frase leggera che ci passa sopra. Non insistere, non riproporre la domanda, non elencargli opzioni, non offenderti e non giustificarti.
+- Vale anche per una risposta che non c'entra con la domanda: se chiedi a che punto è con la preparazione e risponde con un voto o una spacconata ("30 e lode ovviamente"), è una battuta, non un'informazione. non_risposta=true e nessun dato estratto.
+- Una risposta vaga ma sincera NON è una non-risposta: "zero, non ho tempo", "poco", "a gennaio credo" sono risposte. non_risposta=false, e il dato preciso che manca resta vuoto.
 
 Cosa estrai (solo per la domanda corrente, senza indovinare):
-- Domanda 1: esame_indice = numero dell'esame in <esami_da_sostenere> se lo studente intende chiaramente quello, altrimenti 0; esame_nome = il nome come l'ha scritto lui.
+- Domanda 1: esame_indice = numero dell'esame in <esami_noti> se lo studente intende chiaramente quello, altrimenti 0; esame_nome = il nome come l'ha scritto lui.
 - Domanda 2: data solo se indica un giorno preciso (anche relativo, es. "dopodomani"); "a gennaio", "tra un po'" → "".
 - Domanda 3: non_iniziato, a_meta, ripasso; se non si capisce, sconosciuto.
 - Domanda 4: minuti al giorno solo se dà una quantità ("un paio d'ore" → 120); "dipende", "poco" → 0.
@@ -134,6 +163,46 @@ function normalizza(testo: string): string {
     .trim();
 }
 
+/** Spezza in frasi sul punto fermo, esclamativo, interrogativo o sui puntini. */
+function frasi(testo: string): string[] {
+  return testo
+    .split(/(?<=[.!?…])\s+/)
+    .map((f) => f.trim())
+    .filter(Boolean);
+}
+
+/** Una frase sola, senza punti interrogativi: altrimenti "" (si usa il testo fisso). */
+function unaAffermazione(testo: string): string {
+  const prima = frasi(testo)[0] ?? '';
+  return prima.includes('?') ? '' : prima;
+}
+
+/** Una frase sola con esattamente un punto interrogativo: altrimenti "". */
+function unaDomanda(testo: string): string {
+  const tutte = frasi(testo);
+  const ultima = tutte[tutte.length - 1] ?? '';
+  return (ultima.match(/\?/g) ?? []).length === 1 && ultima.endsWith('?') ? ultima : '';
+}
+
+/** Toglie il complimento di circostanza in testa alla frase ("Perfetto, ...", "Bene, ..."). */
+function senzaComplimento(frase: string): string {
+  const resto = frase.replace(/^(perfetto|benissimo|bene|ottimo|ottima scelta|okay|okkey|ok)[,.!]\s*/i, '');
+  return resto ? resto.charAt(0).toUpperCase() + resto.slice(1) : '';
+}
+
+/**
+ * true se il testo nomina un esame dell'elenco che NON e' il target (o un esame
+ * qualsiasi dell'elenco, se un target non c'e'): lo studente non l'ha scelto.
+ */
+function nominaAltroEsame(testo: string, esami: EsameElenco[], nomeTarget: string | null): boolean {
+  const t = ` ${normalizza(testo)} `;
+  const target = nomeTarget ? normalizza(nomeTarget) : '';
+  return esami.some((e) => {
+    const n = normalizza(e.materia);
+    return n !== target && t.includes(` ${n} `);
+  });
+}
+
 /** AAAA-MM-GG reale, da oggi a due anni: altrimenti null (mai una data indovinata). */
 function dataValida(testo: string, oggi: string): string | null {
   const m = testo.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -146,8 +215,8 @@ function dataValida(testo: string, oggi: string): string | null {
 
 function chiusuraFissa(nomeEsame: string | null): string {
   return nomeEsame
-    ? `Perfetto, ora so da dove partire: ${nomeEsame}. Ci vediamo dentro.`
-    : 'Perfetto, ora so da dove partire. Ci vediamo dentro.';
+    ? `Ora so da dove partire: ${nomeEsame}. Ci vediamo dentro.`
+    : 'Ora so da dove partire. Ci vediamo dentro.';
 }
 
 Deno.serve(async (req) => {
@@ -165,6 +234,7 @@ Deno.serve(async (req) => {
       data: { user },
     } = await clientUtente.auth.getUser();
     if (!user) return json({ errore: 'NON_AUTORIZZATO' }, 401);
+    const userId = user.id;
 
     // 2) Input.
     const corpo = await req.json().catch(() => ({}));
@@ -207,7 +277,7 @@ Deno.serve(async (req) => {
     const { data: profilo } = await admin
       .from('profiles')
       .select('accoglienza_stato')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle();
     if (!String(profilo?.accoglienza_stato ?? '').startsWith('dialogo')) {
       return json({ errore: 'NON_IN_DIALOGO' }, 409);
@@ -216,7 +286,7 @@ Deno.serve(async (req) => {
     const { count } = await admin
       .from('chat_messages')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('created_at', da);
     if ((count ?? 0) >= CAP_MESSAGGI_24H) return json({ errore: 'LIMITE_RAGGIUNTO' }, 429);
 
@@ -227,9 +297,9 @@ Deno.serve(async (req) => {
     const ultima = numero === 5;
 
     const contesto = [
-      `Ti chiami ${nomeBot}. Oggi è ${oggi}.`,
+      `Ti chiami ${nomeBot}. Oggi è ${oggi} (ti serve solo per capire le date che dice lo studente).`,
       `<libretto>media: ${typeof libretto.media === 'number' ? libretto.media.toFixed(2) : 'nessuna'}, CFU acquisiti: ${typeof libretto.cfu === 'number' ? libretto.cfu : 0}</libretto>`,
-      `<esami_da_sostenere>\n${esami.length ? esami.map((e, i) => `${i + 1}. ${e.materia}`).join('\n') : '(nessuno in elenco)'}\n</esami_da_sostenere>`,
+      `<esami_noti>\n${esami.length ? esami.map((e, i) => `${i + 1}. ${e.materia}`).join('\n') : '(nessuno in elenco)'}\n</esami_noti>`,
       `<gia_raccolto>${JSON.stringify({
         esame_target: nomeTargetPrima,
         quando: (profiloStudio.quando as { testo?: unknown } | undefined)?.testo ?? null,
@@ -240,7 +310,7 @@ Deno.serve(async (req) => {
       `<risposta_studente>${risposta}</risposta_studente>`,
       `<chiarimento_gia_chiesto>${chiarimentoFatto ? 'sì' : 'no'}</chiarimento_gia_chiesto>`,
       ultima
-        ? 'Questa è l\'ultima domanda: scrivi solo la frase di chiusura.'
+        ? 'Questa è la quinta e ultima domanda: domanda_successiva è "", scrivi reazione e chiusura.'
         : `Domanda successiva — intenzione: ${INTENZIONI[numero]}.`,
     ].join('\n');
 
@@ -253,7 +323,7 @@ Deno.serve(async (req) => {
     let out: Anthropic.Message;
     try {
       out = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
+        model: MODELLO,
         max_tokens: 400,
         system: SYSTEM,
         tools: [STRUMENTO],
@@ -268,9 +338,11 @@ Deno.serve(async (req) => {
 
     const blocco = out.content.find((b) => b.type === 'tool_use');
     const t = (blocco && 'input' in blocco ? blocco.input : null) as {
-      risposta_bot: string;
+      reazione: string;
+      domanda_successiva: string;
+      chiarimento: string;
+      chiusura: string;
       non_risposta: boolean;
-      chiede_chiarimento: boolean;
       esame_indice: number;
       esame_nome: string;
       data: string;
@@ -280,7 +352,7 @@ Deno.serve(async (req) => {
     } | null;
     if (!t) return json({ errore: 'SERVIZIO_NON_DISPONIBILE' }, 503);
 
-    // 5) Valore strutturato, validato qui. Non-risposta → null.
+    // 5) Valore strutturato, validato qui. Non-risposta -> null.
     const nonRisposta = t.non_risposta === true;
     let valore: unknown = null;
     let nomeTarget = nomeTargetPrima;
@@ -311,33 +383,40 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6) Battuta e prossima domanda. Un solo chiarimento, mai sull'ultima né su un "boh".
-    const chiarisce = t.chiede_chiarimento === true && !chiarimentoFatto && !nonRisposta && !ultima;
-    let rispostaBot = pulisci(t.risposta_bot, MAX_TESTO_BOT);
+    // 6) La battuta la compone il codice, dai pezzi del modello.
+    const lecito = (pezzo: string) => (nominaAltroEsame(pezzo, esami, nomeTarget) ? '' : pezzo);
+    const reazione = senzaComplimento(lecito(unaAffermazione(pulisci(t.reazione, 300))));
+    const chiarimento = unaDomanda(pulisci(t.chiarimento, 300));
+    let rispostaBot: string;
     let prossima: number | null;
-    if (chiarisce && rispostaBot) {
+    if (chiarimento && !chiarimentoFatto && !nonRisposta && !ultima) {
+      // Un solo chiarimento, da solo: si resta sulla stessa domanda.
+      rispostaBot = chiarimento;
       prossima = numero;
     } else if (ultima) {
       prossima = null;
-      // La chiusura nomina l'esame target: se il modello non l'ha fatto, testo fisso.
-      if (!rispostaBot || (nomeTarget && !normalizza(rispostaBot).includes(normalizza(nomeTarget)))) {
-        rispostaBot = chiusuraFissa(nomeTarget);
-      }
+      const chiusura = senzaComplimento(lecito(unaAffermazione(pulisci(t.chiusura, 300))));
+      const nominaTarget = !nomeTarget || normalizza(chiusura).includes(normalizza(nomeTarget));
+      rispostaBot =
+        chiusura && nominaTarget
+          ? [reazione, chiusura].filter(Boolean).join(' ')
+          : chiusuraFissa(nomeTarget);
     } else {
       prossima = numero + 1;
-      // Si va avanti comunque: se la battuta non contiene una domanda, si aggiunge quella fissa.
-      if (!rispostaBot.includes('?')) {
-        rispostaBot = `${rispostaBot} ${DOMANDE_FISSE[numero]}`.trim();
-      }
+      // Dopo una non-risposta la domanda successiva e' quella fissa: niente insistenza.
+      const domanda = nonRisposta
+        ? DOMANDE_FISSE[numero]
+        : lecito(unaDomanda(pulisci(t.domanda_successiva, 300))) || DOMANDE_FISSE[numero];
+      rispostaBot = `${reazione || (nonRisposta ? PASSA_OLTRE : PRESA_NOTA)} ${domanda}`;
     }
 
     // 7) Il dialogo diventa la prima conversazione della chat. Prima i turni
     // rimasti indietro (function fallita in precedenza), senza duplicare quelli
-    // già scritti; poi la risposta dello studente e la battuta del bot.
+    // gia' scritti; poi la risposta dello studente e la battuta del bot.
     const { data: recenti } = await admin
       .from('chat_messages')
       .select('ruolo, contenuto')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(30);
     const giaScritti = new Set((recenti ?? []).map((m) => `${m.ruolo}|${m.contenuto}`));
@@ -346,11 +425,11 @@ Deno.serve(async (req) => {
       { ruolo: 'user', contenuto: risposta },
       { ruolo: 'assistant', contenuto: rispostaBot },
     ];
-    // created_at espliciti e crescenti: l'ordine di rilettura è deterministico.
+    // created_at espliciti e crescenti: l'ordine di rilettura e' deterministico.
     const base = Date.now();
     const { error: erroreScrittura } = await admin.from('chat_messages').insert(
       daScrivere.map((m, i) => ({
-        user_id: user.id,
+        user_id: userId,
         ruolo: m.ruolo,
         contenuto: m.contenuto,
         created_at: new Date(base + i).toISOString(),
