@@ -1,4 +1,4 @@
-import { Esame } from '@/lib/tipi';
+import type { Esame } from '@/lib/tipi';
 
 // Calcoli del libretto secondo le convenzioni universitarie italiane.
 // - voti da 18 a 30, più "30 e lode"
