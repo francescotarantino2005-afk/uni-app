@@ -81,6 +81,15 @@ export default function Dialogo() {
   const [finito, setFinito] = useState(false);
   const opacita = useRef(new Animated.Value(1)).current;
 
+  // Chi arriva da uno stato che non esiste più ("orario", "notifiche") entra nel
+  // dialogo dalla prima domanda: lo si scrive subito, la function lo richiede.
+  useEffect(() => {
+    const stato = useAppStore.getState().profilo?.accoglienza_stato;
+    if (!String(stato ?? '').startsWith('dialogo:')) {
+      aggiornaAccoglienza({ accoglienza_stato: 'dialogo:1' });
+    }
+  }, [aggiornaAccoglienza]);
+
   useEffect(() => {
     caricaEsami().then(({ dati }) => {
       const stato = calcolaLibretto(dati);

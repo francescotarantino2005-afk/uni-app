@@ -14,16 +14,16 @@ export default function PassoFotoLibretto() {
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
-  // "Lo faccio dopo": niente libretto, si prosegue con la foto dell'orario.
+  // "Lo faccio dopo": niente libretto, si passa al dialogo.
   const salta = async () => {
     setErrore(null);
-    const err = await aggiornaAccoglienza({ accoglienza_stato: 'orario' });
+    const err = await aggiornaAccoglienza({ accoglienza_stato: 'dialogo:1' });
     if (err) {
       setErrore(err);
       return;
     }
     impostaFotoLibretto([]);
-    router.push('/onboarding/foto-orario');
+    router.replace('/onboarding/dialogo');
   };
 
   const leggi = async () => {

@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { LezioneEstratta } from '@/lib/estrazioneOrario';
@@ -21,9 +21,6 @@ import { colori, coloriLezione, raggi, spazi } from '@/lib/theme';
 
 /** Anteprima modificabile delle lezioni estratte dalla foto, prima del salvataggio. */
 export default function SchermataAnteprimaOrario() {
-  const { da } = useLocalSearchParams<{ da?: string }>();
-  const daOnboarding = da === 'onboarding';
-
   const utente = useAppStore((s) => s.utente);
   const lezioniIniziali = useAppStore((s) => s.lezioniEstratte);
   const impostaLezioniEstratte = useAppStore((s) => s.impostaLezioniEstratte);
@@ -66,16 +63,6 @@ export default function SchermataAnteprimaOrario() {
 
     setSalvataggio(true);
     try {
-      // In onboarding il profilo esiste già (creato allo step ateneo): qui
-      // avanza solo lo stato dell'accoglienza al passo successivo (notifiche).
-      if (daOnboarding) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ accoglienza_stato: 'notifiche' })
-          .eq('id', utente.id);
-        if (error) throw error;
-      }
-
       const righe = lezioni.map((l, i) => ({
         user_id: utente.id,
         titolo: l.titolo.trim(),
@@ -90,11 +77,7 @@ export default function SchermataAnteprimaOrario() {
 
       impostaLezioniEstratte(null);
       impostaFotoOrario(null);
-      if (daOnboarding) {
-        router.replace('/onboarding/notifiche');
-      } else {
-        router.back();
-      }
+      router.back();
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       setErrore(

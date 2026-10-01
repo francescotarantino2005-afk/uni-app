@@ -21,8 +21,8 @@ export default function LibrettoPronto() {
     caricaEsami().then(({ dati }) => setStato(calcolaLibretto(dati)));
   }, []);
 
-  // L'accoglienza è già avanzata a "orario" al salvataggio.
-  const continua = () => router.replace('/onboarding/foto-orario');
+  // L'accoglienza è già avanzata a "dialogo:1" al salvataggio.
+  const continua = () => router.replace('/onboarding/dialogo');
 
   return (
     <SafeAreaView style={stili.schermo}>

@@ -18,7 +18,11 @@ export default function Ingresso() {
   if (!profilo) return <Redirect href="/onboarding/ateneo" />;
 
   // Dialogo di accoglienza ("dialogo:1"…"dialogo:5"): riprende dalla domanda salvata.
-  if (profilo.accoglienza_stato?.startsWith('dialogo:')) {
+  // "orario" e "notifiche" sono passi che non esistono più: chi era fermo lì ha
+  // già fatto tutto ciò che viene prima, quindi prosegue dal dialogo (che al suo
+  // avvio riscrive lo stato in "dialogo:1").
+  const stato = profilo.accoglienza_stato;
+  if (stato?.startsWith('dialogo:') || stato === 'orario' || stato === 'notifiche') {
     return <Redirect href="/onboarding/dialogo" />;
   }
 
@@ -33,10 +37,6 @@ export default function Ingresso() {
       return <Redirect href="/onboarding/nome-bot" />;
     case 'libretto':
       return <Redirect href="/onboarding/foto-libretto" />;
-    case 'orario':
-      return <Redirect href="/onboarding/foto-orario" />;
-    case 'notifiche':
-      return <Redirect href="/onboarding/notifiche" />;
   }
 
   return <Redirect href="/oggi" />;

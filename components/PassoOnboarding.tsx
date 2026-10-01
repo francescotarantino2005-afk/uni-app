@@ -7,12 +7,11 @@ import { MessaggioErrore } from '@/components/MessaggioErrore';
 import { useAppStore } from '@/store/useAppStore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
-const PASSI_BASE = 6;
+// Passi a tocchi: ateneo, corso, anno, nome del bot. Poi il dialogo, che ha il
+// suo indicatore a cinque domande.
+const PASSI_BASE = 4;
 
-/**
- * Chi ha scelto "Anni successivi" ha un passo in più (foto del libretto, il 5°):
- * i passi che vengono dopo scalano di uno.
- */
+/** Chi ha scelto "Anni successivi" ha un passo in più: la foto del libretto, il 5°. */
 export function usaPassiLibretto(): { conLibretto: boolean; totali: number } {
   const conLibretto = useAppStore((s) => s.profilo?.matricola === false);
   return { conLibretto, totali: PASSI_BASE + (conLibretto ? 1 : 0) };

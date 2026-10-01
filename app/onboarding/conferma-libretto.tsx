@@ -162,7 +162,7 @@ export default function ConfermaLibretto() {
       }
       esamiSalvati.current = true;
     }
-    const err = await aggiornaAccoglienza({ accoglienza_stato: 'orario' });
+    const err = await aggiornaAccoglienza({ accoglienza_stato: 'dialogo:1' });
     setSalvataggio(false);
     if (err) {
       setErrore(err);

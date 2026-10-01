@@ -116,6 +116,7 @@ export type AccoglienzaStato =
   | 'anno'
   | 'nome_bot'
   | 'libretto'
+  // passi rimossi dalla catena: possono esistere su account vecchi, valgono "dialogo:1"
   | 'orario'
   | 'notifiche'
   | `dialogo:${1 | 2 | 3 | 4 | 5}`

@@ -64,6 +64,18 @@ export default function SchermataOrario() {
 
       {caricamento ? (
         <ActivityIndicator color={colori.accento} style={{ marginTop: spazi.xl }} />
+      ) : lezioni.length === 0 ? (
+        <View style={stili.invito}>
+          <Ionicons name="camera-outline" size={32} color={colori.testoSecondario} />
+          <Text style={stili.titoloInvito}>Il tuo orario è ancora vuoto</Text>
+          <Text style={stili.testoInvito}>
+            Fai una foto o uno screenshot dell'orario delle lezioni: lo leggo io e ti mostro
+            un'anteprima da confermare.
+          </Text>
+          <Pressable style={stili.bottoneInvito} onPress={() => router.push('/importa-orario')}>
+            <Text style={stili.testoBottoneInvito}>Importa l'orario da una foto</Text>
+          </Pressable>
+        </View>
       ) : (
         <FlatList
           data={delGiorno}
@@ -101,6 +113,37 @@ export default function SchermataOrario() {
 }
 
 const stili = StyleSheet.create({
+  invito: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spazi.lg,
+    gap: spazi.sm,
+  },
+  titoloInvito: {
+    color: colori.testo,
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  testoInvito: {
+    color: colori.testoSecondario,
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+  bottoneInvito: {
+    marginTop: spazi.sm,
+    backgroundColor: colori.accento,
+    borderRadius: raggi.md,
+    paddingVertical: spazi.md,
+    paddingHorizontal: spazi.lg,
+  },
+  testoBottoneInvito: {
+    color: colori.sfondo,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   schermo: {
     flex: 1,
     backgroundColor: colori.sfondo,

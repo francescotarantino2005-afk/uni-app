@@ -11,7 +11,7 @@ export default function PassoNomeBot() {
   const [salvataggio, setSalvataggio] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
-  // Chi ha già esami alle spalle passa dal libretto; le matricole vanno dritte all'orario.
+  // Chi ha già esami alle spalle passa dal libretto; le matricole vanno dritte al dialogo.
   const conLibretto = profilo?.matricola === false;
 
   const salva = async (nomeBot: string) => {
@@ -19,14 +19,15 @@ export default function PassoNomeBot() {
     setSalvataggio(true);
     const err = await aggiornaAccoglienza({
       nome_bot: nomeBot,
-      accoglienza_stato: conLibretto ? 'libretto' : 'orario',
+      accoglienza_stato: conLibretto ? 'libretto' : 'dialogo:1',
     });
     setSalvataggio(false);
     if (err) {
       setErrore(err);
       return;
     }
-    router.push(conLibretto ? '/onboarding/foto-libretto' : '/onboarding/foto-orario');
+    if (conLibretto) router.push('/onboarding/foto-libretto');
+    else router.replace('/onboarding/dialogo');
   };
 
   return (

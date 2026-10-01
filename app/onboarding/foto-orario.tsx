@@ -5,25 +5,20 @@ import { SelettoreFotoOrario } from '@/components/SelettoreFotoOrario';
 import { estraiOrarioDaFoto } from '@/lib/estrazioneOrario';
 import { useAppStore } from '@/store/useAppStore';
 
+/**
+ * FUORI dalla catena dell'accoglienza (che ora è: ateneo, corso, anno, nome del
+ * bot, libretto, dialogo). Il file resta, senza toccare lo stato
+ * dell'accoglienza: l'import dell'orario da foto si fa dal tab Orario.
+ */
 export default function PassoFotoOrario() {
   const fotoOrario = useAppStore((s) => s.fotoOrario);
   const impostaFotoOrario = useAppStore((s) => s.impostaFotoOrario);
   const impostaLezioniEstratte = useAppStore((s) => s.impostaLezioniEstratte);
-  const aggiornaAccoglienza = useAppStore((s) => s.aggiornaAccoglienza);
-  const { conLibretto } = usaPassiLibretto();
+  const { totali } = usaPassiLibretto();
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
-  // "Salto, lo farò dopo": avanza l'accoglienza e passa alle notifiche.
-  const salta = async () => {
-    setErrore(null);
-    const err = await aggiornaAccoglienza({ accoglienza_stato: 'notifiche' });
-    if (err) {
-      setErrore(err);
-      return;
-    }
-    router.push('/onboarding/notifiche');
-  };
+  const salta = () => router.back();
 
   const estrai = async () => {
     if (!fotoOrario) return;
@@ -40,12 +35,12 @@ export default function PassoFotoOrario() {
       return;
     }
     impostaLezioniEstratte(lezioni);
-    router.push('/anteprima-orario?da=onboarding');
+    router.push('/anteprima-orario?da=orario');
   };
 
   return (
     <PassoOnboarding
-      passo={conLibretto ? 6 : 5}
+      passo={totali}
       icona="camera-outline"
       titolo="Fotografa il tuo orario"
       descrizione="Una foto o uno screenshot dell'orario delle lezioni: l'AI lo trasforma nel tuo calendario personale."
