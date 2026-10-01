@@ -8,12 +8,12 @@ import { colori, spazi } from '@/lib/theme';
 
 export default function PassoNotifiche() {
   const utente = useAppStore((s) => s.utente);
-  const completaOnboarding = useAppStore((s) => s.completaOnboarding);
+  const aggiornaAccoglienza = useAppStore((s) => s.aggiornaAccoglienza);
   const { conLibretto } = usaPassiLibretto();
   const [caricamento, setCaricamento] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
-  /** Chiude l'onboarding: crea il profilo e (se richiesto) registra il token push. */
+  /** Ultimo passo a tocchi: registra il token push (se richiesto) e apre il dialogo. */
   const concludi = async (conNotifiche: boolean) => {
     setErrore(null);
     setCaricamento(true);
@@ -22,7 +22,7 @@ export default function PassoNotifiche() {
         await richiediPermessoNotifiche();
       }
 
-      const erroreProfilo = await completaOnboarding();
+      const erroreProfilo = await aggiornaAccoglienza({ accoglienza_stato: 'dialogo:1' });
       if (erroreProfilo) {
         setErrore(erroreProfilo);
         return;
@@ -32,7 +32,7 @@ export default function PassoNotifiche() {
         await salvaTokenPush(utente.id); // best effort, non blocca mai
       }
 
-      router.replace('/oggi');
+      router.replace('/onboarding/dialogo');
     } finally {
       setCaricamento(false);
     }

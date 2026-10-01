@@ -6,6 +6,7 @@ Le tre funzioni AI del progetto (vedi `docs/guida-tecnica-build.md`, FASE 4):
 |---|---|---|
 | `estrai-orario` | Foto dell'orario → JSON di eventi (Claude vision) | 1-2 |
 | `estrai-libretto` | Più foto del libretto in una chiamata → esami letti (voto, idoneità, CFU, data). Non scrive nulla: salva l'app dopo la conferma | accoglienza, tappa 2 |
+| `accoglienza-dialogo` | Un turno del dialogo di accoglienza (5 domande): battuta del bot + valore estratto; scrive il dialogo in chat_messages | accoglienza, tappa 3 |
 | `genera-briefing` | Cron notturno → briefing personalizzato + push | 3 |
 | `chat` | Assistente col contesto del profilo, cap free server-side | 5 |
 

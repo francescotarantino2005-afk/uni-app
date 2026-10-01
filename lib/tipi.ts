@@ -118,7 +118,32 @@ export type AccoglienzaStato =
   | 'libretto'
   | 'orario'
   | 'notifiche'
+  | `dialogo:${1 | 2 | 3 | 4 | 5}`
   | 'completata';
+
+/** Risposta grezza dello studente a una domanda del dialogo: resta sempre, anche se l'estrazione sbaglia. */
+export type NotaLibera = { domanda: string; risposta: string; il: string };
+
+/** Ciò che il dialogo di accoglienza raccoglie (profiles.profilo_studio). */
+export type ProfiloStudio = {
+  esame_target: { nome: string | null; id: string | null };
+  quando: { testo: string | null; data: string | null };
+  avanzamento: 'non_iniziato' | 'a_meta' | 'ripasso' | null;
+  tempo_al_giorno: { testo: string | null; minuti: number | null };
+  ostacolo: string | null;
+  note_libere: NotaLibera[];
+};
+
+export type ChiaveProfiloStudio = Exclude<keyof ProfiloStudio, 'note_libere'>;
+
+/** Domanda che il bot riproporrà più avanti (profiles.domande_in_coda). */
+export type DomandaInCoda = {
+  id: string;
+  testo: string;
+  chiave: string;
+  stato: 'da_fare' | 'fatta' | 'saltata';
+  priorita: number;
+};
 
 export type Profilo = {
   id: string;
@@ -135,9 +160,9 @@ export type Profilo = {
   nome_bot: string;
   /** bivio dell'accoglienza: true = primo anno, false = anni successivi. */
   matricola: boolean | null;
-  /** raccolto dal dialogo (tappa 3+): forma libera, nessuna query sopra. */
-  profilo_studio: Record<string, unknown>;
-  /** domande che il bot farà più avanti (tappa 3+). */
-  domande_in_coda: unknown[];
+  /** raccolto dal dialogo di accoglienza; {} finché il dialogo non parte. */
+  profilo_studio: Partial<ProfiloStudio>;
+  /** domande saltate o senza risposta, che il bot riproporrà più avanti. */
+  domande_in_coda: DomandaInCoda[];
   accoglienza_stato: AccoglienzaStato | null;
 };

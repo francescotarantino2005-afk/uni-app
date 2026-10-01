@@ -17,6 +17,11 @@ export default function Ingresso() {
   if (!utente) return <Redirect href="/auth" />;
   if (!profilo) return <Redirect href="/onboarding/ateneo" />;
 
+  // Dialogo di accoglienza ("dialogo:1"…"dialogo:5"): riprende dalla domanda salvata.
+  if (profilo.accoglienza_stato?.startsWith('dialogo:')) {
+    return <Redirect href="/onboarding/dialogo" />;
+  }
+
   // Accoglienza in corso: riprendi dal primo passo non ancora fatto.
   // (accoglienza_stato null = profilo creato prima della tappa 1 → dentro l'app.)
   switch (profilo.accoglienza_stato) {
