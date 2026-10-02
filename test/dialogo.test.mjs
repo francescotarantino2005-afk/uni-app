@@ -11,6 +11,7 @@ import {
   DOMANDE_FISSE,
   MAX_DOMANDE,
   MAX_FRASI,
+  SALTATA,
   allineaCoda,
   chiesteDalleNote,
   chiusuraFissa,
@@ -469,6 +470,62 @@ test('domanda saltata: resta vuota, non si richiede, e a fine dialogo va in coda
   assert.equal(e.prossima_chiave, 'avanzamento');
   assert.ok(!e.chieste.slice(0, -1).includes('avanzamento'));
   assert.equal(haRisposta(e.profilo, 'quando'), false);
+});
+
+test('"Salta questa domanda" conta come non-risposta: due salti di fila chiudono il dialogo con garbo', () => {
+  const p = profiloCompleto({ esame_target: { testo: 'fisica', nome: 'fisica', id: null } });
+  // primo salto: resta nelle note, si passa alla domanda dopo
+  const uno = turnoSaltato(p, ['esame_target', 'quando'], 'Quando lo devi dare?');
+  assert.equal(uno.fine, false);
+  assert.equal(uno.prossima_chiave, 'avanzamento');
+  assert.deepEqual(uno.profilo.note_libere.map((n) => [n.domanda, n.risposta, n.chiave]), [
+    ['Quando lo devi dare?', SALTATA, 'quando'],
+  ]);
+  assert.equal(nonRisposta(SALTATA), true);
+  // secondo salto di fila: si chiude, senza altre domande
+  const due = turnoSaltato(uno.profilo, uno.chieste, 'A che punto sei?');
+  assert.equal(due.fine, true);
+  assert.equal(due.prossima_chiave, null);
+  assert.equal(due.risposta_bot, CHIUSURA_GARBATA);
+  assert.deepEqual(due.chieste, ['esame_target', 'quando', 'avanzamento']);
+  // le chiavi saltate vanno in coda, quella detta no
+  assert.deepEqual(
+    allineaCoda([], due.profilo, true).map((d) => d.chiave),
+    ['quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']
+  );
+  // un salto dopo una risposta vera non chiude
+  const dopoRisposta = esegui(turno('devo dare fisica', { esame_testo: 'devo dare fisica', esame_nome: 'fisica', reazione: 'Fisica, allora.' }));
+  assert.equal(turnoSaltato(dopoRisposta.profilo, dopoRisposta.chieste, 'x?').fine, false);
+});
+
+test('il salto conta anche per la function: salto + "boh" (o "boh" + salto) chiudono', () => {
+  // "boh" e poi salto: lo decide turnoSaltato, dalle note
+  const boh = esegui(turno('boh', { reazione: 'Nessun problema.', prossima_chiave: 'tempo_al_giorno', domanda_successiva: 'Quanto tempo hai?' }));
+  assert.equal(boh.fine, false);
+  const poiSalto = turnoSaltato(boh.profilo, boh.chieste, 'Quanto tempo hai?');
+  assert.equal(poiSalto.fine, true);
+  assert.equal(poiSalto.risposta_bot, CHIUSURA_GARBATA);
+
+  // salto e poi "boh": la conversazione ricostruita dalle note porta il salto alla function
+  const salto = turnoSaltato(profiloCompleto({}), ['esame_target'], APERTURA);
+  const conversazione = [
+    ...conversazioneDalleNote(salto.profilo),
+    { ruolo: 'assistant', contenuto: salto.risposta_bot },
+    { ruolo: 'user', contenuto: 'boh' },
+  ];
+  assert.deepEqual(conversazione.filter((m) => m.ruolo === 'user').map((m) => m.contenuto), [SALTATA, 'boh']);
+  assert.equal(dueNonRisposte(conversazione), true);
+  const t = turno('boh', { reazione: 'Ci sta.', prossima_chiave: 'ostacolo', domanda_successiva: 'Cosa ti blocca?' }, {
+    conversazione, profilo: salto.profilo, chieste: salto.chieste,
+  });
+  assert.match(costruisciContesto(t.input), /<due_non_risposte_di_fila>sì</);
+  const e = esegui(t);
+  assert.equal(e.fine, true);
+  assert.equal(e.risposta_bot, CHIUSURA_GARBATA);
+  // il salto non entra mai nel profilo come risposta
+  assert.equal(haRisposta(e.profilo, 'esame_target'), false);
+  // e alla ripresa di un dialogo interrotto la domanda saltata non si richiede
+  assert.deepEqual(chiesteDalleNote(salto.profilo), ['esame_target']);
 });
 
 test('ripresa di un dialogo interrotto: chiavi chieste e conversazione si ricostruiscono dalle note', () => {

@@ -1,11 +1,11 @@
 {
   "accoglienza-dialogo": {
-    "versione": 8,
+    "versione": 9,
     "verify_jwt": true,
     "verificata_il": "2026-10-02",
     "file": {
       "accoglienza-dialogo/index.ts": "6b897d900efb215ee89162135732c496afd329fa97b680256744d30026b02d6e",
-      "accoglienza-dialogo/logica.ts": "d0de69b24a7469093170d155ebd5608a5d485f3c4c75013bab4c42760cd7b8c7",
+      "accoglienza-dialogo/logica.ts": "6958056b5d2da6353ab37b64810249a52c7cf1ae2bcc8517cafaa6dc3fe2970f",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
       "accoglienza-dialogo/servizio.ts": "2bc5588b9abc993589434596ec32c261c329bce5bb73187cda33c72c9193a606"
     }

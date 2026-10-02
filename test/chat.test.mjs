@@ -25,6 +25,14 @@ import {
   testoRisposta,
 } from '../supabase/functions/chat/logica.ts';
 import { daMostrare, impegnoFermaCoda } from '../supabase/functions/coda-domande/logica.ts';
+import {
+  ATTESA_MASSIMA_MS,
+  PASSO_CONTROLLO_MS,
+  conMessaggio,
+  faseAttesa,
+  impegnoInSospeso,
+  testoAttesa,
+} from '../lib/impegnoAttesa.ts';
 
 const TOLC = JSON.parse(readFileSync(new URL('./fixtures/chat.json', import.meta.url), 'utf8')).tolc;
 const APERTURA = 'Ciao, sono Lode. Partiamo dal concreto: qual è il primo esame che devi dare?';
@@ -190,6 +198,55 @@ test('apertura della chat: il messaggio che mantiene l\'impegno si restituisce s
   assert.equal(daMostrare('2026-10-02T17:00:09.000Z', apertura), true); // scritto dopo l'apertura
   assert.equal(daMostrare('2026-10-02T17:00:00.000Z', apertura), false); // c'era già: è nello storico
   assert.equal(daMostrare(null, apertura), false);
+});
+
+// ---------- l'attesa in chat (lato app) ----------
+
+test('attesa in chat: si aspetta solo finché l\'impegno è "da_mantenere"', () => {
+  const { profilo } = dialogoTolc();
+  assert.equal(impegnoInSospeso(profilo).testo, leggiImpegno(profilo).testo);
+  assert.equal(impegnoInSospeso({}), null);
+  assert.equal(impegnoInSospeso({ impegno: { ...IMPEGNO, stato: 'mantenuto' } }), null);
+  // niente impegno in sospeso = niente attesa e nessun controllo periodico
+  assert.equal(faseAttesa(false, null, ADESSO), 'niente');
+  assert.equal(faseAttesa(false, ADESSO - 5000, ADESSO), 'niente');
+});
+
+test('attesa in chat: personaggio che pensa per 30 secondi, poi il bottone "Inizia"', () => {
+  assert.equal(PASSO_CONTROLLO_MS, 2000);
+  assert.equal(ATTESA_MASSIMA_MS, 30_000);
+  assert.equal(faseAttesa(true, ADESSO, ADESSO), 'attesa');
+  assert.equal(faseAttesa(true, ADESSO, ADESSO + 29_999), 'attesa');
+  assert.equal(faseAttesa(true, ADESSO, ADESSO + 30_000), 'bottone');
+  assert.equal(faseAttesa(true, ADESSO, ADESSO + 10 * 60_000), 'bottone'); // mai appesa: il bottone resta
+  // premuto "Inizia" l'attesa riparte da capo
+  assert.equal(faseAttesa(true, ADESSO + 31_000, ADESSO + 32_000), 'attesa');
+});
+
+test('attesa in chat: la scritta dice cosa è stato promesso, col nome del bot', () => {
+  assert.equal(
+    testoAttesa('Lode', 'Partiamo da monomi e polinomi: ti preparo una serie di esercizi graduali.'),
+    'Lode sta preparando i tuoi esercizi…'
+  );
+  assert.equal(testoAttesa('Pico', 'Ti faccio uno schema dei prodotti notevoli.'), 'Pico sta preparando il tuo schema…');
+  assert.equal(testoAttesa('', 'Ti aiuto a organizzare il ripasso partendo da monomi.'), 'Lode sta preparando il tuo piano…');
+  assert.equal(testoAttesa('Lode', 'Partiamo da lì: ti aspetto in chat e cominciamo subito.'), 'Lode sta preparando quello che ti ha promesso…');
+});
+
+test('attesa in chat: il messaggio che mantiene l\'impegno compare una volta sola', () => {
+  const lista = [
+    { id: 'a', ruolo: 'user', contenuto: 'ciao' },
+    { id: 'b', ruolo: 'assistant', contenuto: 'chiusura' },
+  ];
+  const nuovo = { id: 'c', ruolo: 'assistant', contenuto: '1) Calcola 3a + 5a - 2a' };
+  const con = conMessaggio(lista, nuovo);
+  assert.deepEqual(con.map((m) => m.id), ['a', 'b', 'c']);
+  // già nello storico (stesso id), o già mostrato con un id locale (stesso testo): non si raddoppia
+  assert.equal(conMessaggio(con, nuovo), con);
+  const locale = [...lista, { id: 'locale-1', ruolo: 'assistant', contenuto: nuovo.contenuto }];
+  assert.equal(conMessaggio(locale, nuovo), locale);
+  // un messaggio dello studente con lo stesso testo non conta come doppione
+  assert.equal(conMessaggio([{ id: 'x', ruolo: 'user', contenuto: nuovo.contenuto }], nuovo).length, 2);
 });
 
 // ---------- la richiesta e il costo ----------

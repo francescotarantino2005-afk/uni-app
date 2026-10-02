@@ -54,6 +54,32 @@ export async function inviaMessaggioChat(messaggio: string, id: string): Promise
   }
 }
 
+export type EsitoImpegno = 'mantenuto' | 'in_corso' | 'da_mantenere' | 'nessuno' | 'errore';
+
+/**
+ * Chiede alla chat di mantenere ADESSO l'impegno preso a fine accoglienza. Il
+ * server lo fa una volta sola: se è già fatto risponde "mantenuto", se un
+ * tentativo è in corso "in_corso". Il messaggio si legge poi da chat_messages.
+ */
+export async function mantieniImpegno(): Promise<EsitoImpegno> {
+  try {
+    const { data, error } = await supabase.functions.invoke('chat', { body: { azione: 'mantieni_impegno' } });
+    if (error) return 'errore';
+    const stato = data?.stato;
+    return stato === 'mantenuto' || stato === 'in_corso' || stato === 'da_mantenere' || stato === 'nessuno'
+      ? stato
+      : 'errore';
+  } catch {
+    return 'errore';
+  }
+}
+
+/** Un messaggio della chat per id (quello che mantiene l'impegno). */
+export async function caricaMessaggio(id: string): Promise<MessaggioChat | null> {
+  const { data } = await supabase.from('chat_messages').select('id, ruolo, contenuto').eq('id', id).maybeSingle();
+  return (data as MessaggioChat) ?? null;
+}
+
 /** Traccia un evento (es. interesse Plus / referral). Best effort. */
 export async function registraEvento(evento: string, meta?: Record<string, unknown>): Promise<void> {
   try {

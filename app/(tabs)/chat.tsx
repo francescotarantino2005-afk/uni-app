@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,8 +14,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { caricaStorico, inviaMessaggioChat } from '@/lib/chatDb';
+import { caricaMessaggio, caricaStorico, inviaMessaggioChat, mantieniImpegno } from '@/lib/chatDb';
 import { apriCoda, rispostaCoda } from '@/lib/codaDomande';
+import {
+  PASSO_CONTROLLO_MS,
+  conMessaggio,
+  faseAttesa,
+  impegnoInSospeso,
+  testoAttesa,
+} from '@/lib/impegnoAttesa';
+import { leggiImpegno } from '@/lib/dialogoLogica';
+import { pose } from '@/lib/pose';
 import { useAppStore } from '@/store/useAppStore';
 import { MessaggioChat } from '@/lib/tipi';
 import { nuovoId } from '@/lib/id';
@@ -44,6 +54,8 @@ export default function SchermataChat() {
   // chiamata quando in coda non c'è niente da fare.
   const proponiDomanda = useCallback(async () => {
     if (propostaInCorso.current || invioInCorso.current) return;
+    // Prima la promessa di fine accoglienza: finché è in sospeso nessuna domanda.
+    if (impegnoInSospeso(useAppStore.getState().profilo?.profilo_studio)) return;
     const coda = useAppStore.getState().profilo?.domande_in_coda;
     if (!Array.isArray(coda) || !coda.some((d) => d.stato === 'da_fare' && !d.in_attesa)) return;
     propostaInCorso.current = true;
@@ -69,6 +81,75 @@ export default function SchermataChat() {
       if (storicoCaricato.current) proponiDomanda();
     }, [proponiDomanda])
   );
+
+  // --- L'impegno preso a fine accoglienza ---
+  // Il server scrive il messaggio che lo mantiene qualche secondo DOPO la
+  // chiusura del dialogo, quando la chat può essere già aperta. Finché
+  // profilo_studio.impegno è "da_mantenere" si mostra il personaggio che pensa
+  // e si controlla ogni due secondi (solo in questo intervallo); dopo trenta
+  // secondi l'attesa lascia il posto al bottone "Inizia".
+  const profiloStudio = useAppStore((st) => st.profilo?.profilo_studio);
+  const nomeBot = useAppStore((st) => st.profilo?.nome_bot) || 'Lode';
+  const impegno = leggiImpegno(profiloStudio);
+  const inSospeso = impegno?.stato === 'da_mantenere';
+  const idMantenuto = impegno?.stato === 'mantenuto' ? impegno.messaggio_id ?? null : null;
+  const [inizioAttesa, setInizioAttesa] = useState<number | null>(null);
+  const [adesso, setAdesso] = useState(() => Date.now());
+  const [avvioFallito, setAvvioFallito] = useState(false);
+  const attesoImpegno = useRef(false);
+  const fase = faseAttesa(inSospeso, inizioAttesa, adesso);
+
+  /** Chiede alla chat di mantenere l'impegno adesso, poi rilegge il profilo. */
+  const faiMantenere = useCallback(async (dalBottone: boolean) => {
+    const esito = await mantieniImpegno();
+    if (esito === 'in_corso') {
+      // Un tentativo è già partito sul server: si torna ad aspettarlo.
+      if (dalBottone) setInizioAttesa(Date.now());
+      return;
+    }
+    await useAppStore.getState().caricaProfilo();
+    if (dalBottone && esito !== 'mantenuto') setAvvioFallito(true);
+  }, []);
+
+  // Parte l'attesa: un primo tentativo subito (il server lo fa una volta sola e
+  // non raddoppia quello già in corso), utile se la generazione era fallita.
+  useEffect(() => {
+    if (!inSospeso) {
+      setInizioAttesa(null);
+      return;
+    }
+    attesoImpegno.current = true;
+    setAvvioFallito(false);
+    setAdesso(Date.now());
+    setInizioAttesa(Date.now());
+    faiMantenere(false);
+  }, [inSospeso, faiMantenere]);
+
+  // Il controllo ogni due secondi, SOLO finché si sta aspettando.
+  useEffect(() => {
+    if (fase !== 'attesa') return;
+    const giro = setInterval(() => {
+      setAdesso(Date.now());
+      useAppStore.getState().caricaProfilo();
+    }, PASSO_CONTROLLO_MS);
+    return () => clearInterval(giro);
+  }, [fase, inizioAttesa]);
+
+  // L'impegno è passato a "mantenuto": il messaggio compare da solo.
+  useEffect(() => {
+    if (!idMantenuto || !attesoImpegno.current) return;
+    attesoImpegno.current = false;
+    caricaMessaggio(idMantenuto).then((m) => {
+      if (m) setMessaggi((prima) => conMessaggio(prima, m));
+    });
+  }, [idMantenuto]);
+
+  const inizia = async () => {
+    setAvvioFallito(false);
+    setAdesso(Date.now());
+    setInizioAttesa(Date.now()); // torna il personaggio che pensa mentre la chat scrive
+    await faiMantenere(true);
+  };
 
   // La lista è invertita (pattern standard delle chat): il messaggio più
   // recente resta sempre in fondo senza dipendere da scrollToEnd, che con la
@@ -122,6 +203,10 @@ export default function SchermataChat() {
       ...prima,
       { id: nuovoId(), ruolo: 'assistant', contenuto: esito.risposta },
     ]);
+    // Se c'era un impegno in sospeso, questa risposta può averlo mantenuto.
+    if (impegnoInSospeso(useAppStore.getState().profilo?.profilo_studio)) {
+      useAppStore.getState().caricaProfilo();
+    }
   };
 
   const invia = (contenuto: string) => {
@@ -199,6 +284,33 @@ export default function SchermataChat() {
             renderItem={({ item }) => renderMessaggio(item)}
           />
         )}
+
+        {fase === 'attesa' && impegno ? (
+          <View style={stili.attesa}>
+            <Image source={pose.pensa} style={stili.personaggioAttesa} resizeMode="contain" />
+            <View style={stili.fumettoAttesa}>
+              <ActivityIndicator size="small" color={colori.accento} />
+              <Text style={stili.testoAttesa}>{testoAttesa(nomeBot, impegno.testo)}</Text>
+            </View>
+          </View>
+        ) : fase === 'bottone' ? (
+          <View style={stili.attesa}>
+            <Image source={pose.guarda} style={stili.personaggioAttesa} resizeMode="contain" />
+            <View style={{ flex: 1, gap: spazi.xs }}>
+              {avvioFallito ? (
+                <Text style={stili.testoErrore}>Non ci sono riuscito: riprova tra un attimo.</Text>
+              ) : null}
+              <Pressable
+                style={stili.bottoneInizia}
+                onPress={inizia}
+                accessibilityRole="button"
+                accessibilityLabel="Inizia"
+              >
+                <Text style={stili.testoInizia}>Inizia</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {invio ? (
           <View style={stili.scrivendo}>
@@ -335,6 +447,47 @@ const stili = StyleSheet.create({
   riprova: {
     color: colori.accento,
     fontSize: 12,
+    fontWeight: '700',
+  },
+  attesa: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
+    paddingHorizontal: spazi.md,
+    paddingBottom: spazi.sm,
+  },
+  personaggioAttesa: {
+    width: 72,
+    height: 72,
+  },
+  fumettoAttesa: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
+    backgroundColor: colori.superficie,
+    borderColor: colori.bordo,
+    borderWidth: 1,
+    borderRadius: raggi.lg,
+    paddingVertical: spazi.sm,
+    paddingHorizontal: spazi.md,
+  },
+  testoAttesa: {
+    flex: 1,
+    color: colori.testo,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bottoneInizia: {
+    alignSelf: 'flex-start',
+    backgroundColor: colori.accento,
+    borderRadius: raggi.pieno,
+    paddingVertical: spazi.sm,
+    paddingHorizontal: spazi.xl,
+  },
+  testoInizia: {
+    color: colori.sfondo,
+    fontSize: 15,
     fontWeight: '700',
   },
   scrivendo: {

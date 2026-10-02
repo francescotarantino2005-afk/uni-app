@@ -17,8 +17,10 @@
 // - se lo studente chiede aiuto in modo esplicito il dialogo si chiude con un
 //   impegno concreto e le chiavi mancanti vanno in coda; l'impegno si salva nel
 //   profilo ("da_mantenere") e la chat lo mantiene scrivendo lei per prima;
-// - due non-risposte di fila ("boh", "mah", "no", niente): si chiude con garbo,
-//   senza altre domande, e le chiavi mancanti vanno in coda;
+// - due non-risposte di fila ("boh", "mah", "no", niente, o una domanda saltata
+//   col tasto "Salta"): si chiude con garbo, senza altre domande, e le chiavi
+//   mancanti vanno in coda. Il salto resta nelle note come risposta SALTATA,
+//   cosi' conta anche per la function, che riceve la conversazione intera;
 // - nessuna battuta comincia con "Va bene," o un'altra formula di avvio;
 // - massimo tre frasi per battuta; mai una risposta che fa solo da ricevuta.
 
@@ -80,10 +82,13 @@ function reazionePulita(testo: string, quante: number): string {
 const NON_RISPOSTA =
   /^(boh+|bo|mah+|no+|non (lo )?so|non saprei|niente|nulla|nessuno|vedremo|dopo|non mi va|[?.\-\s]+)[\s.!?]*$/i;
 
-/** "boh", "mah", "no", una stringa vuota: lo studente non ha risposto. */
+/** Cio' che resta nelle note (e nella conversazione) quando lo studente salta la domanda. */
+export const SALTATA = '[domanda saltata]';
+
+/** "boh", "mah", "no", una stringa vuota, una domanda saltata: lo studente non ha risposto. */
 export function nonRisposta(testo: unknown): boolean {
   const t = pulisci(testo, 1000);
-  return t === '' || NON_RISPOSTA.test(t);
+  return t === '' || t === SALTATA || NON_RISPOSTA.test(t);
 }
 
 /**
@@ -553,13 +558,29 @@ export function turnoDiRipiego(input: InputTurno): EsitoTurno {
   };
 }
 
-/** Lo studente salta la domanda: nessuna risposta, si passa alla successiva. */
-export function turnoSaltato(profilo: ProfiloStudio, chieste: Chiave[]): EsitoTurno {
-  const prossima = prossimaChiave(profilo, chieste);
+/**
+ * Lo studente salta la domanda: nessuna risposta, si passa alla successiva. Il
+ * salto si segna nelle note (risposta SALTATA) e conta come non-risposta: se
+ * anche la risposta precedente era una non-risposta o un salto, il dialogo si
+ * chiude con garbo invece di fare un'altra domanda.
+ */
+export function turnoSaltato(prima: ProfiloStudio, chieste: Chiave[], domanda = ''): EsitoTurno {
+  const ultima = prima.note_libere[prima.note_libere.length - 1];
+  const basta = !!ultima && nonRisposta(ultima.risposta);
+  const profilo: ProfiloStudio = {
+    ...prima,
+    note_libere: [
+      ...prima.note_libere,
+      { domanda, risposta: SALTATA, il: new Date().toISOString(), chiave: chieste[chieste.length - 1] ?? null },
+    ],
+  };
+  const prossima = basta ? null : prossimaChiave(profilo, chieste);
   return {
     risposta_bot: prossima
       ? `Nessun problema, ci torniamo. ${DOMANDE_FISSE[prossima]}`
-      : chiusuraFissa(profilo.esame_target.nome),
+      : basta
+        ? CHIUSURA_GARBATA
+        : chiusuraFissa(profilo.esame_target.nome),
     profilo,
     chieste: prossima ? [...chieste, prossima] : chieste,
     prossima_chiave: prossima,

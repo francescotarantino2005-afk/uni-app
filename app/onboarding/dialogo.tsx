@@ -195,12 +195,12 @@ export default function Dialogo() {
     await applica(esito);
   };
 
-  /** Domanda saltata: nessuna chiamata, resta vuota e finirà in coda. */
+  /** Domanda saltata: nessuna chiamata, resta vuota e finirà in coda. Conta come non-risposta: due di fila chiudono il dialogo. */
   const salta = async () => {
     if (inAttesa || uscita) return;
     setTesto('');
     setInAttesa(true);
-    const esito = turnoSaltato(profilo.current, chieste.current);
+    const esito = turnoSaltato(profilo.current, chieste.current, testoBot);
     arretrati.current = [...arretrati.current, { ruolo: 'assistant', contenuto: esito.risposta_bot }];
     await applica(esito);
   };
