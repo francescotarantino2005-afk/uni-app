@@ -1,0 +1,86 @@
+{
+  "accoglienza-dialogo": {
+    "versione": 8,
+    "verify_jwt": true,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "accoglienza-dialogo/index.ts": "6b897d900efb215ee89162135732c496afd329fa97b680256744d30026b02d6e",
+      "accoglienza-dialogo/logica.ts": "d0de69b24a7469093170d155ebd5608a5d485f3c4c75013bab4c42760cd7b8c7",
+      "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
+      "accoglienza-dialogo/servizio.ts": "2bc5588b9abc993589434596ec32c261c329bce5bb73187cda33c72c9193a606"
+    }
+  },
+  "chat": {
+    "versione": 15,
+    "verify_jwt": false,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
+      "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
+      "chat/index.ts": "ce006c68c0ba2c8f5593c02d4c929fb99dc335aefe74017832c9bdc1c749a4ca",
+      "chat/logica.ts": "b1f9d0b6418ad5b8a2b93621045149cc43bf5c8fdcb0a9300f9340c7cc0b7772",
+      "chat/motore.ts": "6844aa801909cf246ac6685557a950e36f5b8e89999e9379e8e75d9250143a83"
+    }
+  },
+  "coda-domande": {
+    "versione": 3,
+    "verify_jwt": true,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
+      "coda-domande/index.ts": "0f7b8dcdea2f1209c9705cab9c0a3aa3f1cc6550710c1cf2e6b3f21dafeb6ba6",
+      "coda-domande/logica.ts": "c15a5de857b74adadc0529554163da5806abd7424aec55eb583553dc3b0de8bb"
+    }
+  },
+  "elimina-account": {
+    "versione": 1,
+    "verify_jwt": true,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "elimina-account/index.ts": "cb60a357df17540909402f3788adb351e82be3a6b87760e8cefff432c89bb6c2"
+    }
+  },
+  "estrai-libretto": {
+    "versione": 2,
+    "verify_jwt": true,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "estrai-libretto/index.ts": "a4bbb172ceb6a27c5e0a8c4a148ed319e217736dc61422604c817f01e8b70f7d"
+    }
+  },
+  "estrai-orario": {
+    "versione": 2,
+    "verify_jwt": true,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "estrai-orario/index.ts": "65bd0e9a6ecd8422d19cfa3d8e8c032b5ef91787706353e292388f21034c7ff9"
+    }
+  },
+  "genera-briefing": {
+    "versione": 6,
+    "verify_jwt": false,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
+      "genera-briefing/index.ts": "23fc2ddfac83db05bf997c1bea16f95b8f08ad8b71ae2078a3d8d00997d32c28"
+    }
+  },
+  "genera-piano": {
+    "versione": 5,
+    "verify_jwt": false,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
+      "genera-piano/index.ts": "18f2e799843dc0fae6f381d87b963443eb4710bfffcc933e52760e9bdd4ed9a1"
+    }
+  },
+  "invia-briefing": {
+    "versione": 5,
+    "verify_jwt": false,
+    "verificata_il": "2026-10-02",
+    "file": {
+      "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
+      "invia-briefing/index.ts": "e9dfc4444003489bc63c34c631b4869c33a6a6471c2e92f3256290a2cd4c5227"
+    }
+  }
+}
