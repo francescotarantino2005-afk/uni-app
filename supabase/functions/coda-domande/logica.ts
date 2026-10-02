@@ -101,8 +101,12 @@ export function segnaIgnorata(coda: DomandaInCoda[], id: string): DomandaInCoda[
   });
 }
 
-/** La battuta con cui il bot ripropone la domanda: testo fisso, nessuna chiamata AI. */
+/**
+ * La battuta con cui il bot ripropone la domanda: testo fisso, nessuna chiamata
+ * AI. Non dice "non te l'ho mai chiesto": una domanda in coda puo' essere gia'
+ * stata fatta nel dialogo e saltata.
+ */
 export function testoProposta(d: DomandaInCoda): string {
   const domanda = d.testo.trim();
-  return `Una cosa che non ti ho ancora chiesto: ${domanda.charAt(0).toLowerCase()}${domanda.slice(1)}`;
+  return `Una cosa che mi manca ancora: ${domanda.charAt(0).toLowerCase()}${domanda.slice(1)}`;
 }

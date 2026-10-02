@@ -8,7 +8,9 @@
 //        salva il dato in profilo_studio e la domanda passa a "fatta"; se no, e'
 //        "ignorata" (alla seconda volta "saltata") e l'app manda il messaggio
 //        alla chat normale.
-// Lo stato della coda lo scrive solo questa funzione (service role).
+// Prima di tutto il CODICE allinea la coda al profilo: una chiave che ha gia'
+// una risposta (data nel dialogo o altrove) non si chiede, e la sua domanda
+// passa a "fatta". Lo stato della coda lo scrive solo questa funzione.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import {
@@ -21,6 +23,7 @@ import {
   segnaRisposta,
   testoProposta,
 } from './logica.ts';
+import { allineaCoda, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
 
 const MODELLO = 'claude-haiku-4-5';
 const TIMEOUT_MS = 20_000;
@@ -160,7 +163,14 @@ Deno.serve(async (req) => {
     if (!profilo || (stato !== null && stato !== 'completata')) {
       return json(azione === 'apri' ? { messaggio: null } : { tipo: 'nessuna' });
     }
-    const coda = leggiCoda(profilo.domande_in_coda);
+    // Una chiave gia' piena non si chiede: la sua domanda passa a "fatta" e la
+    // coda corretta viene salvata subito, qualunque cosa succeda dopo.
+    const studio = profiloCompleto(profilo.profilo_studio);
+    const letta = leggiCoda(profilo.domande_in_coda);
+    const coda = leggiCoda(allineaCoda(letta, studio, false));
+    if (JSON.stringify(coda) !== JSON.stringify(letta)) {
+      await admin.from('profiles').update({ domande_in_coda: coda }).eq('id', user.id);
+    }
     const esami = (esamiR.data ?? []) as { id: string; materia: string; data_esame: string | null }[];
     const oggi = dataOggiRoma();
 
@@ -217,28 +227,33 @@ Deno.serve(async (req) => {
     // AI non disponibile: la domanda resta in attesa, il messaggio va alla chat normale.
     if (!t) return json({ tipo: 'errore' });
 
-    // Valore strutturato, validato qui: senza un valore valido non e' una risposta.
+    // Se risponde, la chiave salva SEMPRE le parole dello studente; data, minuti
+    // e livello sono in piu', solo quando si riescono a ricavare con certezza.
     let valore: unknown = null;
     let nomeEsame: string | null = null;
+    const testo = messaggio.slice(0, 400);
     if (t.risponde === true) {
       if (pendente.chiave === 'esame_target') {
         const scelto = esami[Number(t.esame_indice) - 1];
         const proposto = pulisci(t.esame_nome, 120);
-        if (scelto) valore = { nome: scelto.materia, id: scelto.id };
-        else if (proposto && normalizza(messaggio).includes(normalizza(proposto))) valore = { nome: proposto, id: null };
-        nomeEsame = (valore as { nome: string } | null)?.nome ?? null;
+        const scritto = proposto && normalizza(messaggio).includes(normalizza(proposto)) ? proposto : null;
+        nomeEsame = scelto ? scelto.materia : scritto;
+        valore = { testo, nome: nomeEsame, id: scelto ? scelto.id : null };
       } else if (pendente.chiave === 'quando') {
-        valore = { testo: messaggio.slice(0, 300), data: dataValida(String(t.data ?? ''), oggi) };
+        valore = { testo, data: dataValida(String(t.data ?? ''), oggi) };
       } else if (pendente.chiave === 'avanzamento') {
-        valore = ['non_iniziato', 'a_meta', 'ripasso'].includes(t.avanzamento) ? t.avanzamento : null;
+        valore = {
+          testo,
+          livello: ['non_iniziato', 'a_meta', 'ripasso'].includes(t.avanzamento) ? t.avanzamento : null,
+        };
       } else if (pendente.chiave === 'tempo_al_giorno') {
         const minuti = Number(t.minuti);
         valore = {
-          testo: messaggio.slice(0, 300),
+          testo,
           minuti: Number.isInteger(minuti) && minuti >= 5 && minuti <= 960 ? minuti : null,
         };
       } else if (pendente.chiave === 'ostacolo') {
-        valore = pulisci(t.ostacolo, 300) || messaggio.slice(0, 300);
+        valore = testo;
       }
     }
 
@@ -251,17 +266,16 @@ Deno.serve(async (req) => {
     }
 
     // Risposta valida: dato nel profilo, nota grezza sempre, domanda "fatta".
-    const studio = (profilo.profilo_studio && typeof profilo.profilo_studio === 'object'
-      ? profilo.profilo_studio
-      : {}) as Record<string, unknown>;
-    const note = Array.isArray(studio.note_libere) ? studio.note_libere : [];
     const { error: erroreProfilo } = await admin
       .from('profiles')
       .update({
         profilo_studio: {
           ...studio,
           [pendente.chiave]: valore,
-          note_libere: [...note, { domanda: pendente.testo, risposta: messaggio, il: new Date().toISOString() }],
+          note_libere: [
+            ...studio.note_libere,
+            { domanda: pendente.testo, risposta: messaggio, il: new Date().toISOString(), chiave: pendente.chiave },
+          ],
         },
         domande_in_coda: segnaRisposta(coda, pendente.id),
       })

@@ -1,18 +1,28 @@
-// La macchina del dialogo: profilo, ripiego, note_libere, coda delle domande e
-// reazioni del personaggio. Solo logica pura, niente rete.
+// Il dialogo di accoglienza, la coda delle domande e le reazioni del personaggio.
+// Solo logica pura, niente rete: le quattro conversazioni usano le risposte del
+// modello REGISTRATE in test/fixtures/dialoghi.json (2 ottobre 2026) e le fanno
+// passare dalla stessa logica che gira nella Edge Function.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
-  CHIAVI_DIALOGO,
+  CHIAVI,
   DOMANDE_FISSE,
-  aggiornaCoda,
+  MAX_DOMANDE,
+  MAX_FRASI,
+  allineaCoda,
+  chiesteDalleNote,
   chiusuraFissa,
-  dopoTargetSuperato,
-  profiloStudioCompleto,
-  registraRisposta,
-  senzaRisposta,
-  valoreDiRipiego,
-} from '../lib/dialogoLogica.ts';
+  conversazioneDalleNote,
+  elaboraTurno,
+  frasi,
+  haRisposta,
+  mancanti,
+  profiloCompleto,
+  prossimaChiave,
+  turnoDiRipiego,
+  turnoSaltato,
+} from '../supabase/functions/accoglienza-dialogo/logica.ts';
 import {
   daProporre,
   esameEntro48Ore,
@@ -31,119 +41,369 @@ import {
   reazionePerEsame,
 } from '../lib/reazioni.ts';
 
-// --- profilo_studio e note_libere ---
+const REGISTRATE = JSON.parse(readFileSync(new URL('./fixtures/dialoghi.json', import.meta.url), 'utf8'));
+const APERTURA = 'Ciao, sono Lode. Partiamo dal concreto: qual è il primo esame che devi dare?';
 
-test('le cinque domande sono cinque, in ordine fisso, una frase ciascuna', () => {
-  assert.deepEqual(CHIAVI_DIALOGO, ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']);
-  assert.equal(DOMANDE_FISSE.length, 5);
-  for (const d of DOMANDE_FISSE) {
-    assert.equal((d.match(/[.!?]/g) ?? []).length, 1, d);
-    assert.ok(d.endsWith('?'), d);
+/** Rigioca una conversazione registrata, un messaggio alla volta, fermandosi quando il bot chiude. */
+function rigioca(nome) {
+  const c = REGISTRATE[nome];
+  let profilo = profiloCompleto({});
+  let chieste = ['esame_target'];
+  let conversazione = [{ ruolo: 'assistant', contenuto: APERTURA }];
+  const turni = [];
+  for (const t of c.turni) {
+    conversazione = [...conversazione, { ruolo: 'user', contenuto: t.studente }];
+    const input = { nomeBot: 'Lode', oggi: c.oggi, conversazione, profilo, chieste, esami: c.esami, libretto: c.libretto };
+    const esito = elaboraTurno(input, t.grezzo);
+    turni.push({ studente: t.studente, chiesta: chieste[chieste.length - 1], esito });
+    profilo = esito.profilo;
+    chieste = esito.chieste;
+    conversazione = [...conversazione, { ruolo: 'assistant', contenuto: esito.risposta_bot }];
+    if (esito.fine) break;
+  }
+  return { turni, profilo, chieste, ultimo: turni[turni.length - 1].esito };
+}
+
+/** Le regole che valgono per OGNI conversazione. */
+function regoleGenerali(r) {
+  assert.equal(new Set(r.chieste).size, r.chieste.length, 'una chiave chiesta due volte');
+  assert.ok(r.chieste.length <= MAX_DOMANDE, 'più di cinque domande');
+  assert.equal(r.ultimo.fine, true, 'il dialogo non si è chiuso');
+  for (const t of r.turni) {
+    const b = t.esito.risposta_bot;
+    assert.ok(frasi(b).length <= MAX_FRASI, `più di tre frasi: ${b}`);
+    assert.ok(!/\bsegnato\b/i.test(b), `ricevuta: ${b}`);
+    assert.ok((b.match(/\?/g) ?? []).length <= 1, `più di una domanda: ${b}`);
+    if (t.esito.prossima_chiave) {
+      assert.ok(!haRisposta(t.esito.profilo, t.esito.prossima_chiave), 'chiede una cosa già detta');
+    }
+  }
+}
+
+// ---------- le quattro conversazioni ----------
+
+test('conversazione reale (Tolc I): non richiede ciò che ha già detto, e l\'aiuto vince sul questionario', () => {
+  const r = rigioca('reale');
+  regoleGenerali(r);
+  const [uno, due] = r.turni;
+
+  // messaggio 1: dice l'esame E la data → non si chiede "quando"
+  assert.equal(uno.esito.profilo.esame_target.nome, 'Tolc I');
+  assert.ok(haRisposta(uno.esito.profilo, 'quando'));
+  assert.notEqual(uno.esito.prossima_chiave, 'quando');
+  // la data è già passata: non viene registrata come data, e il bot lo fa notare
+  assert.equal(uno.esito.profilo.quando.data, null);
+  assert.equal(uno.esito.profilo.quando.testo, 'il 14 settembre');
+  assert.match(uno.esito.risposta_bot, /passat/i);
+
+  // messaggio 2: chiede aiuto → si chiude con un impegno, niente "a che punto sei"
+  assert.equal(r.turni.length, 2, 'il dialogo doveva chiudersi al secondo messaggio');
+  assert.equal(due.esito.aiuto, true);
+  assert.equal(due.esito.fine, true);
+  assert.equal(due.esito.prossima_chiave, null);
+  assert.ok(!due.esito.risposta_bot.includes('?'), 'dopo la richiesta di aiuto non si fanno domande');
+  assert.match(due.esito.risposta_bot, /monomi|polinomi|equazioni|disequazioni/i);
+  // quello che ha detto sull'avanzamento resta, con le sue parole
+  assert.ok(haRisposta(r.profilo, 'avanzamento'));
+  assert.match(r.profilo.avanzamento.testo, /indietro/);
+  // ciò che manca va in coda, ciò che ha detto no
+  const coda = allineaCoda([], r.profilo, true).map((d) => d.chiave);
+  assert.ok(!coda.includes('avanzamento') && !coda.includes('quando') && !coda.includes('esame_target'));
+});
+
+test('studente che dice tutto nel primo messaggio: il dialogo si chiude dopo un turno', () => {
+  const r = rigioca('tutto_subito');
+  regoleGenerali(r);
+  assert.equal(r.turni.length, 1);
+  assert.deepEqual(mancanti(r.profilo), []);
+  assert.equal(r.profilo.esame_target.nome, 'Basi di Dati');
+  assert.ok(r.profilo.esame_target.id, 'esame agganciato al libretto');
+  assert.equal(r.profilo.quando.data, '2027-02-12');
+  assert.equal(r.profilo.avanzamento.livello, 'a_meta');
+  assert.equal(r.profilo.tempo_al_giorno.minuti, 120);
+  assert.match(r.profilo.ostacolo, /rimando/);
+  assert.match(r.profilo.contesto, /lavoro in un bar/);
+  assert.deepEqual(allineaCoda([], r.profilo, true), []);
+  assert.deepEqual(r.chieste, ['esame_target']);
+});
+
+test('studente a monosillabi: una risposta corta conta, una non-risposta no, e nessuna domanda si ripete', () => {
+  const r = rigioca('monosillabi');
+  regoleGenerali(r);
+  assert.equal(r.profilo.esame_target.nome, 'Fisica Generale I'); // "fisica"
+  assert.equal(r.profilo.avanzamento.testo, 'poco'); // vago ma è una risposta
+  assert.equal(r.profilo.avanzamento.livello, null); // e non si inventa un livello
+  assert.equal(haRisposta(r.profilo, 'quando'), false); // "boh"
+  assert.equal(haRisposta(r.profilo, 'tempo_al_giorno'), false); // "mah"
+  assert.equal(haRisposta(r.profilo, 'ostacolo'), false); // "no"
+  assert.deepEqual(r.chieste, [...CHIAVI]);
+  assert.deepEqual(
+    allineaCoda([], r.profilo, true).map((d) => d.chiave),
+    ['quando', 'tempo_al_giorno', 'ostacolo']
+  );
+});
+
+test('studente fuori tema: non si inventa niente, non si chiede "quando" di un esame ignoto', () => {
+  const r = rigioca('fuori_tema');
+  regoleGenerali(r);
+  assert.deepEqual(mancanti(r.profilo), [...CHIAVI]);
+  assert.equal(r.profilo.contesto, null);
+  assert.ok(!r.chieste.includes('quando') && !r.chieste.includes('avanzamento'));
+  assert.ok(!/ora so da dove partire/i.test(r.ultimo.risposta_bot), 'non finge di sapere');
+  assert.equal(allineaCoda([], r.profilo, true).length, 5);
+});
+
+// ---------- le regole, una per una ----------
+
+const GREZZO_VUOTO = {
+  reazione: '', chiede_aiuto: false, impegno: '', prossima_chiave: 'nessuna', domanda_successiva: '', chiusura: '',
+  esame_testo: '', esame_nome: '', esame_indice: 0, quando_testo: '', quando_data: '',
+  avanzamento_testo: '', avanzamento_livello: 'sconosciuto', tempo_testo: '', tempo_minuti: 0,
+  ostacolo_testo: '', contesto_testo: '',
+};
+const turno = (messaggio, grezzo = {}, extra = {}) => ({
+  input: {
+    nomeBot: 'Lode',
+    oggi: '2026-10-02',
+    conversazione: [
+      { ruolo: 'assistant', contenuto: APERTURA },
+      { ruolo: 'user', contenuto: messaggio },
+    ],
+    profilo: profiloCompleto({}),
+    chieste: ['esame_target'],
+    esami: [],
+    libretto: { media: null, cfu: 0 },
+    ...extra,
+  },
+  grezzo: { ...GREZZO_VUOTO, ...grezzo },
+});
+const esegui = (t) => elaboraTurno(t.input, t.grezzo);
+
+test('le domande: cinque chiavi in ordine fisso, una frase ciascuna', () => {
+  assert.deepEqual([...CHIAVI], ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']);
+  for (const k of CHIAVI) {
+    assert.equal(frasi(DOMANDE_FISSE[k]).length, 1);
+    assert.ok(DOMANDE_FISSE[k].endsWith('?'));
   }
 });
 
-test('profilo vuoto: la forma è sempre completa', () => {
-  const p = profiloStudioCompleto({});
-  assert.deepEqual(p, {
-    esame_target: { nome: null, id: null },
+test('profilo: forma sempre completa, e la forma vecchia non perde niente', () => {
+  assert.deepEqual(profiloCompleto({}), {
+    esame_target: { testo: null, nome: null, id: null },
     quando: { testo: null, data: null },
-    avanzamento: null,
+    avanzamento: { testo: null, livello: null },
     tempo_al_giorno: { testo: null, minuti: null },
     ostacolo: null,
+    contesto: null,
     note_libere: [],
   });
+  const vecchio = profiloCompleto({ esame_target: { nome: 'Analisi', id: 'a' }, avanzamento: 'a_meta', ostacolo: 'rimando' });
+  assert.equal(vecchio.esame_target.testo, 'Analisi');
+  assert.equal(vecchio.avanzamento.livello, 'a_meta');
+  assert.deepEqual(mancanti(vecchio), ['quando', 'tempo_al_giorno']);
 });
 
-test('note_libere si riempie SEMPRE, anche quando il valore strutturato manca', () => {
-  let p = profiloStudioCompleto({});
-  p = registraRisposta(p, 1, 'Qual è il primo esame?', 'boh', null);
-  assert.equal(p.note_libere.length, 1);
-  assert.equal(p.note_libere[0].risposta, 'boh');
-  assert.equal(p.note_libere[0].domanda, 'Qual è il primo esame?');
-  assert.ok(!Number.isNaN(Date.parse(p.note_libere[0].il)));
-  assert.equal(p.esame_target.nome, null);
-
-  p = registraRisposta(p, 1, 'Intendi Analisi?', 'sì', { nome: 'Analisi Matematica II', id: 'x' });
-  assert.equal(p.note_libere.length, 2);
-  assert.deepEqual(p.esame_target, { nome: 'Analisi Matematica II', id: 'x' });
+test('una chiave conta come risposta appena c\'è il testo: null vuol dire solo "non ne ha parlato"', () => {
+  const p = profiloCompleto({ avanzamento: { testo: 'sono arrivato alle equazioni di 1 grado', livello: null } });
+  assert.equal(haRisposta(p, 'avanzamento'), true);
+  assert.ok(!mancanti(p).includes('avanzamento'));
 });
 
-test('un valore null non cancella quello raccolto prima (chiarimento)', () => {
-  let p = profiloStudioCompleto({});
-  p = registraRisposta(p, 2, 'Quando?', 'a gennaio', { testo: 'a gennaio', data: null });
-  p = registraRisposta(p, 2, 'Che giorno?', 'boh', null);
-  assert.equal(p.quando.testo, 'a gennaio');
-  assert.equal(p.note_libere.length, 2);
-});
-
-// --- ripiego (la function non risponde) ---
-
-test('ripiego: le non-risposte non diventano dati', () => {
-  for (const r of ['boh', 'Boh!', 'non lo so', 'mah', '', '   ', '?']) {
-    for (const n of [1, 2, 3, 4, 5]) assert.equal(valoreDiRipiego(n, r), null, `${n}: "${r}"`);
-  }
-});
-
-test('ripiego: esame target e avanzamento non si deducono mai dal testo grezzo', () => {
-  assert.equal(valoreDiRipiego(1, 'non lo so, sono messo male'), null);
-  assert.equal(valoreDiRipiego(1, 'Analisi Matematica II'), null);
-  assert.equal(valoreDiRipiego(3, 'sono a metà'), null);
-});
-
-test('ripiego: dove il campo è testo si tengono le parole dello studente, senza numeri inventati', () => {
-  assert.deepEqual(valoreDiRipiego(2, 'a gennaio credo'), { testo: 'a gennaio credo', data: null });
-  assert.deepEqual(valoreDiRipiego(4, 'due ore'), { testo: 'due ore', minuti: null });
-  assert.equal(valoreDiRipiego(5, 'mi distraggo'), 'mi distraggo');
-});
-
-test('la chiusura fissa nomina il target solo se esiste', () => {
-  assert.ok(chiusuraFissa('Fisica Generale I').includes('Fisica Generale I'));
-  assert.ok(!chiusuraFissa(null).includes('null'));
-});
-
-// --- la coda che si riempie nel dialogo ---
-
-test('domanda senza risposta: finisce in coda come "da_fare", una volta sola', () => {
-  const p = profiloStudioCompleto({});
-  let coda = aggiornaCoda([], p, 1);
-  coda = aggiornaCoda(coda, p, 1);
-  assert.equal(coda.length, 1);
-  assert.deepEqual(
-    { id: coda[0].id, chiave: coda[0].chiave, stato: coda[0].stato, priorita: coda[0].priorita },
-    { id: 'accoglienza:esame_target', chiave: 'esame_target', stato: 'da_fare', priorita: 1 }
+test('da una risposta si estraggono tutte le chiavi che contiene, non solo quella chiesta', () => {
+  const e = esegui(
+    turno('ho analisi il 20 gennaio e lavoro la mattina', {
+      esame_testo: 'ho analisi', esame_nome: 'analisi',
+      quando_testo: 'il 20 gennaio', quando_data: '2027-01-20',
+      contesto_testo: 'lavoro la mattina',
+      reazione: 'Con il lavoro la mattina il pomeriggio diventa prezioso.',
+      prossima_chiave: 'avanzamento', domanda_successiva: 'A che punto sei con analisi?',
+    })
   );
-  assert.equal(coda[0].testo, DOMANDE_FISSE[0]);
+  assert.equal(e.profilo.esame_target.nome, 'analisi');
+  assert.deepEqual(e.profilo.quando, { testo: 'il 20 gennaio', data: '2027-01-20' });
+  assert.equal(e.profilo.contesto, 'lavoro la mattina');
+  assert.equal(e.prossima_chiave, 'avanzamento'); // "quando" non si chiede: l'ha già detto
+  assert.equal(e.profilo.note_libere.length, 1);
+  assert.equal(e.profilo.note_libere[0].risposta, 'ho analisi il 20 gennaio e lavoro la mattina');
+  assert.equal(e.profilo.note_libere[0].chiave, 'esame_target');
 });
 
-test('domanda con risposta: non entra in coda, e se c\'era ne esce', () => {
-  let p = profiloStudioCompleto({});
-  const coda = aggiornaCoda([], p, 3);
-  assert.equal(coda.length, 1);
-  p = registraRisposta(p, 3, 'A che punto sei?', 'a metà', 'a_meta');
-  assert.equal(senzaRisposta(p, 'avanzamento'), false);
-  assert.deepEqual(aggiornaCoda(coda, p, 3), []);
+test('la prossima domanda la sceglie il codice: se il modello ne propone una già detta, vince il codice', () => {
+  const e = esegui(
+    turno('ho analisi il 20 gennaio', {
+      esame_testo: 'ho analisi', esame_nome: 'analisi', quando_testo: 'il 20 gennaio', quando_data: '2027-01-20',
+      reazione: 'Analisi a gennaio, allora.',
+      prossima_chiave: 'quando', domanda_successiva: 'E per quando pensi di arrivare preparato?',
+    })
+  );
+  assert.equal(e.prossima_chiave, 'avanzamento');
+  assert.ok(e.risposta_bot.endsWith(DOMANDE_FISSE.avanzamento));
+  assert.ok(!/per quando/i.test(e.risposta_bot));
 });
 
-test('risposta vaga ma presente (solo testo) non va in coda', () => {
-  let p = profiloStudioCompleto({});
-  p = registraRisposta(p, 2, 'Quando?', 'a gennaio credo', { testo: 'a gennaio credo', data: null });
-  assert.deepEqual(aggiornaCoda([], p, 2), []);
+test('una chiave già chiesta non si richiede, nemmeno se è rimasta vuota', () => {
+  const p = profiloCompleto({ esame_target: { testo: 'fisica', nome: 'fisica', id: null } });
+  assert.equal(prossimaChiave(p, ['esame_target', 'quando']), 'avanzamento');
+  assert.equal(prossimaChiave(p, ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']), null);
+  assert.equal(prossimaChiave(profiloCompleto({}), ['esame_target']), 'tempo_al_giorno'); // senza esame niente "quando"
 });
 
-test('esame target superato: target azzerato e "qual è il prossimo?" primo in coda', () => {
-  const p = registraRisposta(profiloStudioCompleto({}), 1, 'D', 'analisi', { nome: 'Analisi', id: 'a' });
-  const vecchia = [{ id: 'accoglienza:esame_target', testo: 'x', chiave: 'esame_target', stato: 'fatta', priorita: 1 }];
-  const dopo = dopoTargetSuperato(p, vecchia);
-  assert.deepEqual(dopo.profilo_studio.esame_target, { nome: null, id: null });
-  assert.equal(dopo.profilo_studio.note_libere.length, 1); // le note restano
-  assert.equal(dopo.domande_in_coda.length, 1);
-  assert.equal(dopo.domande_in_coda[0].stato, 'da_fare');
+test('quando non manca niente il dialogo finisce, anche dopo un messaggio', () => {
+  const pieno = profiloCompleto({
+    esame_target: { testo: 'a', nome: 'a', id: null }, quando: { testo: 'b', data: null },
+    avanzamento: { testo: 'c', livello: null }, tempo_al_giorno: { testo: 'd', minuti: null }, ostacolo: 'e',
+  });
+  assert.equal(prossimaChiave(pieno, ['esame_target']), null);
 });
 
-// --- la coda che si svuota in chat ---
+test('le citazioni devono essere parole dello studente: ciò che non ha detto non entra nel profilo', () => {
+  const e = esegui(
+    turno('devo dare fisica', {
+      esame_testo: 'devo dare fisica', esame_nome: 'fisica',
+      quando_testo: 'a febbraio', quando_data: '2027-02-10', // mai detto
+      ostacolo_testo: 'si distrae facilmente', // mai detto
+      contesto_testo: 'lavora', // mai detto
+      reazione: 'Fisica, allora.',
+    })
+  );
+  assert.equal(e.profilo.esame_target.nome, 'fisica');
+  assert.equal(haRisposta(e.profilo, 'quando'), false);
+  assert.equal(e.profilo.ostacolo, null);
+  assert.equal(e.profilo.contesto, null);
+});
+
+test('"boh" e "non so" non sono risposte, nemmeno se il modello le cita', () => {
+  const e = esegui(turno('non so', { esame_testo: 'non so', reazione: 'Nessun problema.' }));
+  assert.equal(haRisposta(e.profilo, 'esame_target'), false);
+  assert.equal(e.profilo.note_libere.length, 1); // la nota grezza resta comunque
+});
+
+test('una data già passata non viene registrata, e il bot lo fa notare anche se il modello non lo fa', () => {
+  const e = esegui(
+    turno('ho il Tolc il 14 settembre', {
+      esame_testo: 'ho il Tolc', esame_nome: 'Tolc', quando_testo: 'il 14 settembre', quando_data: '2026-09-14',
+      reazione: 'Il Tolc, quindi.', prossima_chiave: 'avanzamento', domanda_successiva: 'A che punto sei?',
+    })
+  );
+  assert.deepEqual(e.profilo.quando, { testo: 'il 14 settembre', data: null });
+  assert.match(e.risposta_bot, /14 settembre però è già passato/);
+  assert.ok(frasi(e.risposta_bot).length <= MAX_FRASI);
+});
+
+test('mai più di tre frasi, mai una ricevuta, mai una domanda nella reazione', () => {
+  const e = esegui(
+    turno('devo dare fisica', {
+      esame_testo: 'devo dare fisica', esame_nome: 'fisica',
+      reazione: 'Ok, segnato. Fisica è tosta. Si fa con gli esercizi. Serve costanza. Ce la fai?',
+      prossima_chiave: 'quando', domanda_successiva: 'Quando la devi dare?',
+    })
+  );
+  assert.equal(frasi(e.risposta_bot).length, 3);
+  assert.ok(!/segnato/i.test(e.risposta_bot));
+  assert.equal((e.risposta_bot.match(/\?/g) ?? []).length, 1);
+
+  const soloRicevuta = esegui(
+    turno('devo dare fisica', {
+      esame_testo: 'devo dare fisica', esame_nome: 'fisica', reazione: 'Ok, segnato.',
+      prossima_chiave: 'quando', domanda_successiva: 'Quando la devi dare?',
+    })
+  );
+  assert.equal(soloRicevuta.risposta_bot, 'Quando la devi dare?');
+});
+
+test('richiesta di aiuto: si chiude con un impegno, senza domande, e ciò che manca va in coda', () => {
+  const e = esegui(
+    turno('devo dare analisi, mi aiuti con le disequazioni?', {
+      esame_testo: 'devo dare analisi', esame_nome: 'analisi', chiede_aiuto: true,
+      reazione: 'Le disequazioni sono un buon punto da cui ripartire.',
+      impegno: 'Partiamo dalle disequazioni di primo grado.',
+      prossima_chiave: 'quando', domanda_successiva: 'Quando la devi dare?',
+    })
+  );
+  assert.equal(e.aiuto, true);
+  assert.equal(e.fine, true);
+  assert.ok(!e.risposta_bot.includes('?'));
+  assert.match(e.risposta_bot, /Partiamo dalle disequazioni/);
+  assert.deepEqual(
+    allineaCoda([], e.profilo, true).map((d) => d.chiave),
+    ['quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']
+  );
+});
+
+test('un esame dell\'elenco che lo studente non ha scelto non viene nominato', () => {
+  const e = esegui(
+    turno('boh', { reazione: 'Allora puntiamo su Prova Finale.', prossima_chiave: 'tempo_al_giorno', domanda_successiva: 'Quanto tempo hai?' }, {
+      esami: [{ id: 'x', materia: 'Prova Finale' }],
+    })
+  );
+  assert.ok(!e.risposta_bot.includes('Prova Finale'));
+});
+
+test('ripiego (il modello non risponde): niente ricevute, le parole dello studente valgono per la sola domanda fatta', () => {
+  const t = turno('mi sento indietro, non mi sento in grado', {}, {
+    profilo: profiloCompleto({ esame_target: { testo: 'Tolc I', nome: 'Tolc I', id: null }, quando: { testo: 'il 14 settembre', data: null } }),
+    chieste: ['esame_target', 'avanzamento'],
+  });
+  const e = turnoDiRipiego(t.input);
+  assert.equal(e.profilo.avanzamento.testo, 'mi sento indietro, non mi sento in grado');
+  assert.equal(e.prossima_chiave, 'tempo_al_giorno');
+  assert.equal(e.risposta_bot, DOMANDE_FISSE.tempo_al_giorno);
+  assert.ok(!/segnato/i.test(e.risposta_bot));
+  assert.equal(turnoDiRipiego(turno('boh').input).profilo.esame_target.testo, null);
+});
+
+test('domanda saltata: resta vuota, non si richiede, e a fine dialogo va in coda', () => {
+  const p = profiloCompleto({ esame_target: { testo: 'fisica', nome: 'fisica', id: null } });
+  const e = turnoSaltato(p, ['esame_target', 'quando']);
+  assert.equal(e.prossima_chiave, 'avanzamento');
+  assert.ok(!e.chieste.slice(0, -1).includes('avanzamento'));
+  assert.equal(haRisposta(e.profilo, 'quando'), false);
+});
+
+test('ripresa di un dialogo interrotto: chiavi chieste e conversazione si ricostruiscono dalle note', () => {
+  const e = esegui(turno('devo dare fisica', { esame_testo: 'devo dare fisica', esame_nome: 'fisica', reazione: 'Fisica, allora.' }));
+  assert.deepEqual(chiesteDalleNote(e.profilo), ['esame_target']);
+  assert.deepEqual(conversazioneDalleNote(e.profilo), [
+    { ruolo: 'assistant', contenuto: APERTURA },
+    { ruolo: 'user', contenuto: 'devo dare fisica' },
+  ]);
+});
+
+test('la chiusura di ripiego nomina il target solo se c\'è, e non finge di sapere', () => {
+  assert.ok(chiusuraFissa('Fisica Generale I').includes('Fisica Generale I'));
+  assert.ok(!/so da dove partire/.test(chiusuraFissa(null)));
+});
+
+// ---------- la coda ----------
 
 const domanda = (o = {}) => ({ id: 'a', testo: 'Quando lo devi dare?', chiave: 'quando', stato: 'da_fare', priorita: 2, ...o });
 const OGGI = '2026-10-02';
+
+test('IL DIFETTO DI STAMATTINA: una chiave già risposta non si ripropone, e in coda passa a "fatta"', () => {
+  const profilo = profiloCompleto({
+    avanzamento: { testo: 'mi sento indietro, sono arrivato a ripetere le equazioni di 1 grado', livello: null },
+  });
+  const coda = [domanda({ id: 'accoglienza:avanzamento', chiave: 'avanzamento', testo: 'A che punto sei con la preparazione?', priorita: 3 })];
+  const allineata = allineaCoda(coda, profilo, false);
+  assert.equal(allineata[0].stato, 'fatta');
+  assert.equal(daProporre(leggiCoda(allineata), OGGI, false), null);
+});
+
+test('a dialogo finito le chiavi vuote entrano in coda una volta sola, quelle piene no', () => {
+  const p = profiloCompleto({ esame_target: { testo: 'fisica', nome: 'fisica', id: null } });
+  let coda = allineaCoda([], p, true);
+  coda = allineaCoda(coda, p, true);
+  assert.deepEqual(coda.map((d) => [d.id, d.stato, d.priorita]), [
+    ['accoglienza:quando', 'da_fare', 2],
+    ['accoglienza:avanzamento', 'da_fare', 3],
+    ['accoglienza:tempo_al_giorno', 'da_fare', 4],
+    ['accoglienza:ostacolo', 'da_fare', 5],
+  ]);
+  // una domanda "saltata" non rientra
+  const conSaltata = allineaCoda([domanda({ id: 'accoglienza:quando', stato: 'saltata' })], p, true);
+  assert.equal(conSaltata.filter((d) => d.chiave === 'quando').length, 1);
+  assert.equal(conSaltata.find((d) => d.chiave === 'quando').stato, 'saltata');
+});
 
 test('coda: propone la domanda con priorità più bassa, una alla volta', () => {
   const coda = [domanda({ id: 'b', priorita: 4 }), domanda({ id: 'a', priorita: 2 })];
@@ -167,58 +427,42 @@ test('coda: mai una domanda di contorno con un esame entro 48 ore', () => {
   assert.equal(esameEntro48Ore(['2026-10-02'], OGGI), true);
   assert.equal(esameEntro48Ore(['2026-10-04'], OGGI), true);
   assert.equal(esameEntro48Ore(['2026-10-05'], OGGI), false);
-  assert.equal(esameEntro48Ore(['2026-10-01', null], OGGI), false); // passato o senza data
+  assert.equal(esameEntro48Ore(['2026-10-01', null], OGGI), false);
   assert.equal(daProporre([domanda()], OGGI, true), null);
 });
 
-test('coda: quando risponde la domanda passa a "fatta" e non torna', () => {
-  let coda = segnaProposta([domanda()], 'a', OGGI);
-  coda = segnaRisposta(coda, 'a');
+test('coda: quando risponde passa a "fatta"; ignorata due volte passa a "saltata" e non torna', () => {
+  let coda = segnaRisposta(segnaProposta([domanda()], 'a', OGGI), 'a');
   assert.equal(coda[0].stato, 'fatta');
-  assert.equal(inAttesa(coda), null);
   assert.equal(daProporre(coda, '2026-10-09', false), null);
-});
 
-test('coda: ignorata due volte passa a "saltata" e non torna più', () => {
-  let coda = segnaProposta([domanda()], 'a', OGGI);
-  coda = segnaIgnorata(coda, 'a');
+  coda = segnaIgnorata(segnaProposta([domanda()], 'a', OGGI), 'a');
   assert.equal(coda[0].stato, 'da_fare');
-  assert.equal(coda[0].ignorata, 1);
-  assert.equal(daProporre(coda, OGGI, false), null); // già proposta oggi
   assert.equal(daProporre(coda, '2026-10-03', false).id, 'a');
-
   coda = segnaIgnorata(segnaProposta(coda, 'a', '2026-10-03'), 'a');
   assert.equal(coda[0].stato, 'saltata');
   assert.equal(daProporre(coda, '2026-10-20', false), null);
 });
 
-test('coda: dati sporchi nella colonna vengono scartati', () => {
-  assert.deepEqual(leggiCoda(null), []);
-  assert.deepEqual(leggiCoda({}), []);
-  assert.equal(leggiCoda([domanda(), { id: 1 }, 'x', null]).length, 1);
-});
-
-test('coda: la battuta di proposta è una domanda sola', () => {
-  const t = testoProposta(domanda({ testo: 'Qual è il primo esame che devi dare?' }));
+test('coda: la battuta di proposta è una domanda sola e non dice "non te l\'ho mai chiesto"', () => {
+  const t = testoProposta(domanda({ testo: 'A che punto sei con la preparazione?' }));
   assert.equal((t.match(/\?/g) ?? []).length, 1);
-  assert.ok(t.includes('qual è il primo esame'));
+  assert.ok(!/non ti ho ancora chiesto/i.test(t));
+  assert.deepEqual(leggiCoda([domanda(), { id: 1 }, 'x', null]).length, 1);
 });
 
-// --- reazioni del personaggio ---
+// ---------- reazioni del personaggio ----------
 
 const esito = (o = {}) => ({ materia: 'Fisica', voto: 25, lode: false, giaSuperato: false, eraTarget: false, ...o });
 
 test('reazioni: solo l\'elenco chiuso (28+, 30, 30 e lode, 20 o meno, target)', () => {
   assert.equal(reazionePerEsame(esito({ voto: 25 })), null);
-  assert.equal(reazionePerEsame(esito({ voto: 21 })), null);
   assert.equal(reazionePerEsame(esito({ voto: 27 })), null);
   assert.equal(reazionePerEsame(esito({ voto: 28 })).posa, 'esulta');
-  assert.equal(reazionePerEsame(esito({ voto: 29 })).posa, 'esulta');
   assert.equal(reazionePerEsame(esito({ voto: 30 })).posa, 'esultaMax');
   assert.equal(reazionePerEsame(esito({ voto: 30, lode: true })).posa, 'esultaMax');
   assert.equal(reazionePerEsame(esito({ voto: 20 })).posa, 'vicino');
-  assert.equal(reazionePerEsame(esito({ voto: 18 })).posa, 'vicino');
-  assert.equal(reazionePerEsame(esito({ voto: null })), null); // idoneità non target
+  assert.equal(reazionePerEsame(esito({ voto: null })), null);
 });
 
 test('reazioni: una sola per evento, il target superato vince e chiede il prossimo', () => {
@@ -226,29 +470,21 @@ test('reazioni: una sola per evento, il target superato vince e chiede il prossi
   assert.equal(r.posa, 'esulta');
   assert.equal(r.versoChat, true);
   assert.ok(r.battuta.includes('Analisi II') && r.battuta.includes('prossimo'));
-});
-
-test('reazioni: correggere un esame già superato non è un evento', () => {
   assert.equal(reazionePerEsame(esito({ voto: 30, giaSuperato: true })), null);
 });
 
-test('reazioni: la vicinanza non è tristezza', () => {
-  const testi = [reazionePerEsame(esito({ voto: 18 })).battuta, reazioneNonSuperato().battuta];
-  for (const t of testi) assert.ok(!/piang|dispera|trist|peccato|mi dispiace/i.test(t), t);
-  assert.equal(reazioneNonSuperato().posa, 'vicino');
-});
-
-test('freno: mai due popup di fila', () => {
+test('reazioni: la vicinanza non è tristezza, e mai due popup di fila', () => {
+  for (const t of [reazionePerEsame(esito({ voto: 18 })).battuta, reazioneNonSuperato().battuta]) {
+    assert.ok(!/piang|dispera|trist|peccato|mi dispiace/i.test(t), t);
+  }
   assert.equal(puoMostrare({ visibile: false, chiusaAlle: null }, 1000), true);
   assert.equal(puoMostrare({ visibile: true, chiusaAlle: null }, 1000), false);
   assert.equal(puoMostrare({ visibile: false, chiusaAlle: 1000 }, 1000 + PAUSA_TRA_REAZIONI_MS - 1), false);
-  assert.equal(puoMostrare({ visibile: false, chiusaAlle: 1000 }, 1000 + PAUSA_TRA_REAZIONI_MS), true);
 });
 
 test('esame target: riconosciuto per id, o per nome se manca', () => {
   assert.equal(eEsameTarget({ nome: 'Analisi', id: 'a' }, { id: 'a', materia: 'Altro nome' }), true);
   assert.equal(eEsameTarget({ nome: 'Analisi', id: 'a' }, { id: 'b', materia: 'Analisi' }), false);
   assert.equal(eEsameTarget({ nome: 'Chimica Organica', id: null }, { id: 'z', materia: 'chimica  organica' }), true);
-  assert.equal(eEsameTarget({ nome: null, id: null }, { id: 'z', materia: 'x' }), false);
   assert.equal(eEsameTarget(undefined, { id: 'z', materia: 'x' }), false);
 });

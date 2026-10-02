@@ -17,192 +17,192 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { caricaEsami } from '@/lib/esamiDb';
 import { calcolaLibretto, sostenuto } from '@/lib/libretto';
+import { turnoDialogo } from '@/lib/dialogoAccoglienza';
 import {
+  Chiave,
   DOMANDE_FISSE,
-  MessaggioDialogo,
-  NUMERO_DOMANDE,
+  EsitoTurno,
+  MAX_DOMANDE,
+  Messaggio,
+  ProfiloStudio,
   RiassuntoLibretto,
-  aggiornaCoda,
+  allineaCoda,
   apertura,
-  chiusuraFissa,
-  profiloStudioCompleto,
-  registraRisposta,
-  turnoDialogo,
-  valoreDiRipiego,
-} from '@/lib/dialogoAccoglienza';
-import { AccoglienzaStato, DomandaInCoda, ProfiloStudio } from '@/lib/tipi';
+  chiesteDalleNote,
+  conversazioneDalleNote,
+  profiloCompleto,
+  prossimaChiave,
+  turnoDiRipiego,
+  turnoSaltato,
+} from '@/lib/dialogoLogica';
+import { pose } from '@/lib/pose';
+import { AccoglienzaStato, DomandaInCoda } from '@/lib/tipi';
 import { useAppStore } from '@/store/useAppStore';
 import { colori, raggi, spazi } from '@/lib/theme';
 
-// Solo la testa: l'immagine a corpo intero non è ancora tra gli asset (726x702).
-const MASCOTTE = require('@/assets/images/lode-bot-testa.png');
-const RAPPORTO = 702 / 726;
-const LARGHEZZA_MASCOTTE = 190;
+const LARGHEZZA_PERSONAGGIO = 210;
+const PAUSA_CHIUSURA_MS = 3200;
 
-const PAUSA_CHIUSURA_MS = 2800;
+function dataOggi(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
-function numeroDaStato(stato: AccoglienzaStato | null | undefined): number {
-  const m = String(stato ?? '').match(/^dialogo:([1-5])$/);
-  return m ? Number(m[1]) : 1;
+/** Da dove riparte il dialogo: dall'apertura, o dalla prima cosa che manca ancora. */
+function inizio(profilo: ProfiloStudio, nomeBot: string): { chieste: Chiave[]; testo: string | null } {
+  if (profilo.note_libere.length === 0) {
+    return { chieste: ['esame_target'], testo: apertura(nomeBot) };
+  }
+  const gia = chiesteDalleNote(profilo);
+  const prossima = prossimaChiave(profilo, gia);
+  return prossima
+    ? { chieste: [...gia, prossima], testo: `Rieccoci. ${DOMANDE_FISSE[prossima]}` }
+    : { chieste: gia, testo: null }; // non manca niente da chiedere: il dialogo è finito
 }
 
 /**
- * Il dialogo di accoglienza: una domanda alla volta, risposta a testo libero.
- * Si salva dopo OGNI risposta (stesso meccanismo degli altri passi: stato in
- * profiles.accoglienza_stato, "dialogo:1"…"dialogo:5" → "completata").
- * Non si blocca mai: se la function non risponde si usa il testo fisso e la
- * risposta resta grezza in note_libere.
+ * Il dialogo di accoglienza. Non è un questionario: da ogni risposta si prende
+ * tutto quello che contiene, si chiede solo ciò che manca, e si chiude appena
+ * non manca niente (o se lo studente chiede aiuto). Le regole stanno nella
+ * logica condivisa con la Edge Function; qui c'è lo schermo.
+ * Si salva dopo OGNI risposta (stato in profiles.accoglienza_stato, "dialogo:N"
+ * poi "completata"). Non si blocca mai: se la function non risponde si usa il
+ * ripiego a testi fissi e le parole dello studente restano nel profilo.
  */
 export default function Dialogo() {
-  const profilo = useAppStore((s) => s.profilo);
+  const profiloUtente = useAppStore((s) => s.profilo);
   const aggiornaAccoglienza = useAppStore((s) => s.aggiornaAccoglienza);
-  const nomeBot = profilo?.nome_bot || 'Lode';
+  const nomeBot = profiloUtente?.nome_bot || 'Lode';
 
   // Stato accumulato in memoria: ogni salvataggio manda tutto, così un
   // salvataggio fallito si recupera da solo al successivo.
-  const numeroIniziale = useRef(numeroDaStato(profilo?.accoglienza_stato)).current;
-  const profiloStudio = useRef<ProfiloStudio>(profiloStudioCompleto(profilo?.profilo_studio));
+  const profilo = useRef<ProfiloStudio>(profiloCompleto(profiloUtente?.profilo_studio));
+  const partenza = useRef(inizio(profilo.current, nomeBot)).current;
+  const chieste = useRef<Chiave[]>(partenza.chieste);
   const coda = useRef<DomandaInCoda[]>(
-    Array.isArray(profilo?.domande_in_coda) ? profilo!.domande_in_coda : []
+    Array.isArray(profiloUtente?.domande_in_coda) ? profiloUtente!.domande_in_coda : []
   );
-  const testoIniziale = useRef(
-    numeroIniziale === 1 ? apertura(nomeBot) : `Rieccoci. ${DOMANDE_FISSE[numeroIniziale - 1]}`
-  ).current;
   // Battute mostrate ma non ancora scritte in chat (il client non può scriverle):
   // partono con la prossima chiamata riuscita.
-  const arretrati = useRef<MessaggioDialogo[]>([{ ruolo: 'assistant', contenuto: testoIniziale }]);
+  const arretrati = useRef<Messaggio[]>(
+    partenza.testo ? [{ ruolo: 'assistant', contenuto: partenza.testo }] : []
+  );
   const libretto = useRef<RiassuntoLibretto>({ media: null, cfu: 0, da_sostenere: [] });
 
-  const [numero, setNumero] = useState(numeroIniziale);
-  const [testoBot, setTestoBot] = useState(testoIniziale);
-  const [inChiarimento, setInChiarimento] = useState(false);
+  const [nChieste, setNChieste] = useState(partenza.chieste.length);
+  const [testoBot, setTestoBot] = useState(partenza.testo ?? '');
   const [testo, setTesto] = useState('');
   const [inAttesa, setInAttesa] = useState(false);
-  const [finito, setFinito] = useState(false);
+  // null = dialogo in corso; poi la destinazione a dialogo finito
+  const [uscita, setUscita] = useState<'/oggi' | '/chat' | null>(null);
   const opacita = useRef(new Animated.Value(1)).current;
 
-  // Chi arriva da uno stato che non esiste più ("orario", "notifiche") entra nel
-  // dialogo dalla prima domanda: lo si scrive subito, la function lo richiede.
-  useEffect(() => {
-    const stato = useAppStore.getState().profilo?.accoglienza_stato;
-    if (!String(stato ?? '').startsWith('dialogo:')) {
-      aggiornaAccoglienza({ accoglienza_stato: 'dialogo:1' });
-    }
-  }, [aggiornaAccoglienza]);
+  /** Salva profilo, coda e stato. L'esito non ferma il dialogo: si riprova al turno dopo. */
+  const salva = async (fine: boolean) => {
+    coda.current = allineaCoda(coda.current, profilo.current, fine) as DomandaInCoda[];
+    const stato: AccoglienzaStato = fine
+      ? 'completata'
+      : (`dialogo:${Math.min(MAX_DOMANDE, Math.max(1, chieste.current.length))}` as AccoglienzaStato);
+    await aggiornaAccoglienza({
+      profilo_studio: profilo.current,
+      domande_in_coda: coda.current,
+      accoglienza_stato: stato,
+    });
+  };
 
   useEffect(() => {
+    // Chi arriva da uno stato che non esiste più ("orario", "notifiche") entra nel
+    // dialogo: lo si scrive subito, la function lo richiede.
+    const stato = useAppStore.getState().profilo?.accoglienza_stato;
+    if (partenza.testo === null) {
+      // Ripreso un dialogo a cui non mancava più niente: si chiude senza altre domande.
+      salva(true).then(() => router.replace('/oggi'));
+    } else if (!String(stato ?? '').startsWith('dialogo:')) {
+      aggiornaAccoglienza({ accoglienza_stato: 'dialogo:1' });
+    }
     caricaEsami().then(({ dati }) => {
-      const stato = calcolaLibretto(dati);
+      const s = calcolaLibretto(dati);
       libretto.current = {
-        media: stato.media,
-        cfu: stato.cfuAcquisiti,
+        media: s.media,
+        cfu: s.cfuAcquisiti,
         da_sostenere: dati.filter((e) => !sostenuto(e)).map((e) => ({ id: e.id, materia: e.materia })),
       };
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // La fine: nessuna schermata di traguardo. Il bot chiude e l'app compare.
+  // La fine: nessuna schermata di traguardo. Il bot chiude e l'app compare; se
+  // lo studente ha chiesto aiuto si apre direttamente la chat, già su quello.
   useEffect(() => {
-    if (!finito) return;
+    if (!uscita) return;
     const attesa = setTimeout(() => {
       Animated.timing(opacita, { toValue: 0, duration: 600, useNativeDriver: true }).start(() =>
-        router.replace('/oggi')
+        router.replace(uscita)
       );
     }, PAUSA_CHIUSURA_MS);
     return () => clearTimeout(attesa);
-  }, [finito, opacita]);
+  }, [uscita, opacita]);
 
-  /** Chiude la domanda corrente (o resta su di essa per un chiarimento) e salva. */
-  const avanza = async (battuta: string, prossima: number | null, resta: boolean) => {
-    if (resta) {
-      setInChiarimento(true);
-      await aggiornaAccoglienza({ profilo_studio: profiloStudio.current });
-    } else {
-      coda.current = aggiornaCoda(coda.current, profiloStudio.current, numero);
-      const stato: AccoglienzaStato = prossima
-        ? (`dialogo:${prossima}` as AccoglienzaStato)
-        : 'completata';
-      // L'esito del salvataggio non ferma il dialogo: si riprova al turno dopo.
-      await aggiornaAccoglienza({
-        profilo_studio: profiloStudio.current,
-        domande_in_coda: coda.current,
-        accoglienza_stato: stato,
-      });
-      setInChiarimento(false);
-      if (prossima) setNumero(prossima);
-      else setFinito(true);
-    }
-    setTestoBot(battuta);
+  /** Applica l'esito di un turno (dal modello, dal ripiego o da un salto) e salva. */
+  const applica = async (esito: EsitoTurno) => {
+    profilo.current = esito.profilo;
+    chieste.current = esito.chieste;
+    await salva(esito.fine);
+    setNChieste(esito.chieste.length);
+    setTestoBot(esito.risposta_bot);
     setInAttesa(false);
+    if (esito.fine) setUscita(esito.aiuto ? '/chat' : '/oggi');
   };
 
   const invia = async () => {
     const risposta = testo.trim();
-    if (!risposta || inAttesa || finito) return;
+    if (!risposta || inAttesa || uscita) return;
     setTesto('');
     setInAttesa(true);
 
-    const turno = await turnoDialogo({
-      nome_bot: nomeBot,
-      numero,
-      risposta,
-      domanda_testo: testoBot,
-      chiarimento: inChiarimento,
-      profilo_studio: profiloStudio.current,
-      libretto: libretto.current,
-      arretrati: arretrati.current,
-    });
+    const input = {
+      nomeBot,
+      oggi: dataOggi(),
+      conversazione: [
+        ...conversazioneDalleNote(profilo.current),
+        { ruolo: 'assistant' as const, contenuto: testoBot },
+        { ruolo: 'user' as const, contenuto: risposta },
+      ],
+      profilo: profilo.current,
+      chieste: chieste.current,
+      esami: libretto.current.da_sostenere,
+      libretto: { media: libretto.current.media, cfu: libretto.current.cfu },
+    };
 
+    const turno = await turnoDialogo(input, arretrati.current);
     if (turno) {
-      profiloStudio.current = registraRisposta(
-        profiloStudio.current,
-        numero,
-        testoBot,
-        risposta,
-        turno.valore
-      );
-      const scambio: MessaggioDialogo[] = [
+      const scambio: Messaggio[] = [
         { ruolo: 'user', contenuto: risposta },
-        { ruolo: 'assistant', contenuto: turno.risposta_bot },
+        { ruolo: 'assistant', contenuto: turno.esito.risposta_bot },
       ];
       arretrati.current = turno.messaggi_salvati ? [] : [...arretrati.current, ...scambio];
-      const resta = turno.prossima_domanda === numero && !inChiarimento;
-      const prossima = resta ? numero : numero < NUMERO_DOMANDE ? numero + 1 : null;
-      await avanza(turno.risposta_bot, prossima, resta);
+      await applica(turno.esito);
       return;
     }
 
-    // La function non ha risposto: testo fisso, risposta grezza, si va avanti.
-    profiloStudio.current = registraRisposta(
-      profiloStudio.current,
-      numero,
-      testoBot,
-      risposta,
-      valoreDiRipiego(numero, risposta)
-    );
-    const prossima = numero < NUMERO_DOMANDE ? numero + 1 : null;
-    const battuta = prossima
-      ? `Ok, segnato. ${DOMANDE_FISSE[prossima - 1]}`
-      : chiusuraFissa(profiloStudio.current.esame_target.nome);
+    // La function non ha risposto: testi fissi, le parole dello studente restano.
+    const esito = turnoDiRipiego(input);
     arretrati.current = [
       ...arretrati.current,
       { ruolo: 'user', contenuto: risposta },
-      { ruolo: 'assistant', contenuto: battuta },
+      { ruolo: 'assistant', contenuto: esito.risposta_bot },
     ];
-    await avanza(battuta, prossima, false);
+    await applica(esito);
   };
 
-  /** Domanda saltata: nessuna chiamata, finisce in coda come "da_fare". */
+  /** Domanda saltata: nessuna chiamata, resta vuota e finirà in coda. */
   const salta = async () => {
-    if (inAttesa || finito) return;
+    if (inAttesa || uscita) return;
     setTesto('');
     setInAttesa(true);
-    const prossima = numero < NUMERO_DOMANDE ? numero + 1 : null;
-    const battuta = prossima
-      ? `Nessun problema, ci torniamo. ${DOMANDE_FISSE[prossima - 1]}`
-      : chiusuraFissa(profiloStudio.current.esame_target.nome);
-    arretrati.current = [...arretrati.current, { ruolo: 'assistant', contenuto: battuta }];
-    await avanza(battuta, prossima, false);
+    const esito = turnoSaltato(profilo.current, chieste.current);
+    arretrati.current = [...arretrati.current, { ruolo: 'assistant', contenuto: esito.risposta_bot }];
+    await applica(esito);
   };
 
   return (
@@ -213,16 +213,17 @@ export default function Dialogo() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={stili.indicatore}>
-            {Array.from({ length: NUMERO_DOMANDE }, (_, i) => (
-              <View key={i} style={[stili.puntino, i < numero && stili.puntinoAttivo]} />
+            {Array.from({ length: MAX_DOMANDE }, (_, i) => (
+              <View key={i} style={[stili.puntino, i < nChieste && stili.puntinoAttivo]} />
             ))}
           </View>
 
-          <ScrollView
-            contentContainerStyle={stili.contenuto}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Image source={MASCOTTE} style={stili.mascotte} resizeMode="contain" />
+          <ScrollView contentContainerStyle={stili.contenuto} keyboardShouldPersistTaps="handled">
+            <Image
+              source={inAttesa ? pose.pensa : pose.ascolta}
+              style={stili.personaggio}
+              resizeMode="contain"
+            />
             <View style={stili.fumetto}>
               {inAttesa ? (
                 <ActivityIndicator color={colori.accento} />
@@ -232,7 +233,7 @@ export default function Dialogo() {
             </View>
           </ScrollView>
 
-          {!finito ? (
+          {!uscita ? (
             <View style={stili.pie}>
               <View style={stili.rigaInput}>
                 <TextInput
@@ -291,11 +292,12 @@ const stili = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spazi.lg,
-    gap: spazi.lg,
+    gap: spazi.md,
   },
-  mascotte: {
-    width: LARGHEZZA_MASCOTTE,
-    height: LARGHEZZA_MASCOTTE * RAPPORTO,
+  personaggio: {
+    // le pose sono quadrate (1024x1024) e allineate tra loro
+    width: LARGHEZZA_PERSONAGGIO,
+    height: LARGHEZZA_PERSONAGGIO,
   },
   fumetto: {
     alignSelf: 'stretch',
@@ -309,8 +311,8 @@ const stili = StyleSheet.create({
   },
   testoBot: {
     color: colori.testo,
-    fontSize: 19,
-    lineHeight: 27,
+    fontSize: 18,
+    lineHeight: 26,
     fontWeight: '600',
     textAlign: 'center',
   },

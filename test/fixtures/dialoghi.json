@@ -1,0 +1,347 @@
+{
+ "reale": {
+  "oggi": "2026-10-02",
+  "esami": [],
+  "libretto": {
+   "media": null,
+   "cfu": 0
+  },
+  "turni": [
+   {
+    "studente": "devo ancora iniziare il corso, ho il Tolc I il 14 settembre",
+    "grezzo": {
+     "esame_testo": "ho il Tolc I il 14 settembre",
+     "esame_nome": "Tolc I",
+     "esame_indice": 0,
+     "quando_testo": "il 14 settembre",
+     "quando_data": "2026-09-14",
+     "avanzamento_testo": "devo ancora iniziare il corso",
+     "avanzamento_livello": "non_iniziato",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Il 14 settembre di quest'anno è già passato, quindi forse ti riferisci a un'altra data o a un altro appello: te lo chiedo senza fretta. Intanto, che tu non abbia ancora iniziato il corso vuol dire che si parte da zero e si può impostare bene fin dall'inizio.",
+     "impegno": "",
+     "prossima_chiave": "tempo_al_giorno",
+     "domanda_successiva": "Quanto tempo riesci a dedicare allo studio ogni giorno?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "non so, sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni, un aiuto mi sarebbe utile",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "sono abbastanza indietro con la matematica",
+     "contesto_testo": "",
+     "chiede_aiuto": true,
+     "reazione": "Ripartire dalle basi e rifare gli esercizi è esattamente il modo giusto per recuperare la matematica: con monomi, polinomi e prodotti notevoli ben solidi, equazioni e disequazioni diventano molto più facili.",
+     "impegno": "Partiamo da monomi e polinomi: ti preparo una serie di esercizi graduali e, quando sbagli, ti spiego il passaggio che non torna prima di passare ai prodotti notevoli.",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": ""
+    }
+   }
+  ]
+ },
+ "tutto_subito": {
+  "oggi": "2026-10-02",
+  "esami": [
+   {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "materia": "Analisi Matematica II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "materia": "Fisica Generale I"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "materia": "Programmazione II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "materia": "Basi di Dati"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "materia": "Prova Finale"
+   }
+  ],
+  "libretto": {
+   "media": 25.4,
+   "cfu": 87
+  },
+  "turni": [
+   {
+    "studente": "Devo dare Basi di Dati il 12 febbraio, sono più o meno a metà del programma. Studio un paio d'ore la sera perché di giorno lavoro in un bar, e il mio problema è che rimando sempre tutto all'ultima settimana.",
+    "grezzo": {
+     "esame_testo": "Devo dare Basi di Dati",
+     "esame_nome": "Basi di Dati",
+     "esame_indice": 4,
+     "quando_testo": "il 12 febbraio",
+     "quando_data": "2027-02-12",
+     "avanzamento_testo": "sono più o meno a metà del programma",
+     "avanzamento_livello": "a_meta",
+     "tempo_testo": "Studio un paio d'ore la sera",
+     "tempo_minuti": 120,
+     "ostacolo_testo": "rimando sempre tutto all'ultima settimana",
+     "contesto_testo": "di giorno lavoro in un bar",
+     "chiede_aiuto": false,
+     "reazione": "Lavorare al bar tutto il giorno e poi studiare due ore la sera non è poco, e il fatto che tu sia già a metà del programma conta. Rimandare tutto all'ultima settimana, poi, lo conosci bene: è una cosa che si può spezzare.",
+     "impegno": "",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": "Partiamo dalla seconda metà del programma di Basi di Dati, in piccoli pezzi per le tue sere, così l'ultima settimana resta solo per il ripasso."
+    }
+   }
+  ]
+ },
+ "monosillabi": {
+  "oggi": "2026-10-02",
+  "esami": [
+   {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "materia": "Analisi Matematica II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "materia": "Fisica Generale I"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "materia": "Programmazione II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "materia": "Basi di Dati"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "materia": "Prova Finale"
+   }
+  ],
+  "libretto": {
+   "media": 23.1,
+   "cfu": 42
+  },
+  "turni": [
+   {
+    "studente": "fisica",
+    "grezzo": {
+     "esame_testo": "fisica",
+     "esame_nome": "fisica",
+     "esame_indice": 2,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Fisica Generale I, allora: è un esame che di solito si regge su pochi concetti ben chiari e tanti esercizi.",
+     "impegno": "",
+     "prossima_chiave": "quando",
+     "domanda_successiva": "Per quando devi darlo?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "boh",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Va bene, la data non è chiara e non c'è fretta di fissarla adesso: si sistema più avanti.",
+     "impegno": "",
+     "prossima_chiave": "avanzamento",
+     "domanda_successiva": "Intanto, con Fisica a che punto sei: hai già iniziato a studiare o devi ancora partire?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "poco",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "poco",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Poco vuol dire che qualcosa hai già visto, e per Fisica partire da lì è meglio che partire da zero. Si ricomincia dai concetti che ti sono rimasti.",
+     "impegno": "",
+     "prossima_chiave": "tempo_al_giorno",
+     "domanda_successiva": "Quanto tempo riesci a dedicare allo studio ogni giorno, più o meno?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "mah",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Va bene, anche non saperlo è una risposta: il tempo che hai si vede meglio studiando che immaginandolo.",
+     "impegno": "",
+     "prossima_chiave": "ostacolo",
+     "domanda_successiva": "Quando ti metti a studiare Fisica, cos'è che ti fa inceppare di più?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "no",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Va bene, un no secco è una risposta come un'altra e non ti rincorro. Le domande le abbiamo finite qui: il resto lo vediamo studiando.",
+     "impegno": "",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": "Partiamo da Fisica Generale I: riprendiamo i concetti che ti sono rimasti e da lì costruiamo il resto."
+    }
+   }
+  ]
+ },
+ "fuori_tema": {
+  "oggi": "2026-10-02",
+  "esami": [
+   {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "materia": "Analisi Matematica II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "materia": "Fisica Generale I"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "materia": "Programmazione II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "materia": "Basi di Dati"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "materia": "Prova Finale"
+   }
+  ],
+  "libretto": {
+   "media": 27,
+   "cfu": 60
+  },
+  "turni": [
+   {
+    "studente": "ma tu sei tipo chatgpt?",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Sono Lode, un assistente di studio basato su un modello di intelligenza artificiale, quindi di famiglia ci siamo, ma qui il mio lavoro è aiutarti a preparare i tuoi esami, non a chiacchierare di tutto.",
+     "impegno": "",
+     "prossima_chiave": "quando",
+     "domanda_successiva": "Intanto dimmi: per quando hai in mente di dare il tuo prossimo esame?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "quanto costa questa app?",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Sul prezzo non ho informazioni certe e non voglio dirti una cifra a caso, quindi meglio controllare i dettagli direttamente nell'app o sul sito.",
+     "impegno": "",
+     "prossima_chiave": "quando",
+     "domanda_successiva": "Se mi dici quale esame hai davanti, per primo, cominciamo a metterlo a fuoco: qual è?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "che tempo fa domani a Bari?",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Del meteo di domani a Bari non so dirti nulla, non ho modo di controllarlo da qui. Per tre domande di fila hai evitato il discorso studio, nessun problema, ma non posso aiutarti senza partire da qualcosa.",
+     "impegno": "",
+     "prossima_chiave": "quando",
+     "domanda_successiva": "Se non vuoi dirmi ancora quale esame, dimmi almeno: ce n'è uno con una data che si avvicina?",
+     "chiusura": ""
+    }
+   }
+  ]
+ }
+}

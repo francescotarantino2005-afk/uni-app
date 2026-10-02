@@ -6,7 +6,7 @@ import { Profilo } from '@/lib/tipi';
 import { LezioneEstratta } from '@/lib/estrazioneOrario';
 import type { EsameEstratto } from '@/lib/estrazioneLibretto';
 import { Reazione, puoMostrare } from '@/lib/reazioni';
-import { dopoTargetSuperato, profiloStudioCompleto } from '@/lib/dialogoLogica';
+import { dopoTargetSuperato, profiloCompleto } from '@/lib/dialogoLogica';
 
 type TokenRecupero = { access_token: string; refresh_token: string };
 
@@ -130,7 +130,7 @@ export const useAppStore = create<StatoApp>((set, get) => ({
     if (!profilo) return;
     await get().aggiornaAccoglienza(
       dopoTargetSuperato(
-        profiloStudioCompleto(profilo.profilo_studio),
+        profiloCompleto(profilo.profilo_studio),
         Array.isArray(profilo.domande_in_coda) ? profilo.domande_in_coda : []
       )
     );

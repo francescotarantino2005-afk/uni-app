@@ -1,57 +1,60 @@
 import { supabase } from '@/lib/supabase';
-import type { ChiaveProfiloStudio, ProfiloStudio } from '@/lib/tipi';
 import {
-  CHIAVI_DIALOGO,
-  MessaggioDialogo,
-  NUMERO_DOMANDE,
-  RiassuntoLibretto,
+  CHIAVI,
+  type Chiave,
+  type EsitoTurno,
+  type InputTurno,
+  type Messaggio,
+  profiloCompleto,
 } from '@/lib/dialogoLogica';
 
-// La parte con la rete del dialogo di accoglienza. Costanti e logica pura
-// stanno in lib/dialogoLogica.ts.
-export * from '@/lib/dialogoLogica';
+// La parte con la rete del dialogo di accoglienza: un turno con la Edge Function
+// accoglienza-dialogo. Regole e ripiego stanno in lib/dialogoLogica.ts.
 
-export type TurnoDialogo = {
-  risposta_bot: string;
-  chiave: ChiaveProfiloStudio;
-  valore: unknown;
-  prossima_domanda: number | null;
-  messaggi_salvati: boolean;
-};
-
-const ATTESA_MASSIMA_MS = 25_000;
+const ATTESA_MASSIMA_MS = 30_000;
 
 /**
- * Un turno con la Edge Function accoglienza-dialogo. Ritorna null per QUALSIASI
- * problema (rete, timeout, errore del server): chi chiama passa al testo fisso,
- * il dialogo non si blocca mai.
+ * Un turno con la function. Ritorna null per QUALSIASI problema (rete, timeout,
+ * errore del server, risposta malformata): chi chiama passa al ripiego a testi
+ * fissi, il dialogo non si blocca mai.
  */
-export async function turnoDialogo(input: {
-  nome_bot: string;
-  numero: number;
-  risposta: string;
-  domanda_testo: string;
-  chiarimento: boolean;
-  profilo_studio: ProfiloStudio;
-  libretto: RiassuntoLibretto;
-  arretrati: MessaggioDialogo[];
-}): Promise<TurnoDialogo | null> {
+export async function turnoDialogo(
+  input: InputTurno,
+  arretrati: Messaggio[]
+): Promise<{ esito: EsitoTurno; messaggi_salvati: boolean } | null> {
   try {
-    const chiamata = supabase.functions.invoke('accoglienza-dialogo', { body: input });
+    const chiamata = supabase.functions.invoke('accoglienza-dialogo', {
+      body: {
+        nome_bot: input.nomeBot,
+        conversazione: input.conversazione,
+        profilo_studio: input.profilo,
+        chieste: input.chieste,
+        libretto: { media: input.libretto.media, cfu: input.libretto.cfu, da_sostenere: input.esami },
+        arretrati,
+      },
+    });
     const scadenza = new Promise<null>((risolvi) => setTimeout(() => risolvi(null), ATTESA_MASSIMA_MS));
-    const esito = await Promise.race([chiamata, scadenza]);
-    if (!esito || esito.error) return null;
-    const d = esito.data as Partial<TurnoDialogo> | null;
+    const risposta = await Promise.race([chiamata, scadenza]);
+    if (!risposta || risposta.error) return null;
+    const d = risposta.data as Record<string, unknown> | null;
     if (!d || typeof d.risposta_bot !== 'string' || !d.risposta_bot.trim()) return null;
-    const prossima = d.prossima_domanda;
+
+    const chieste = (Array.isArray(d.chieste) ? d.chieste : []).filter((k): k is Chiave =>
+      (CHIAVI as readonly unknown[]).includes(k)
+    );
+    const prossima = (CHIAVI as readonly unknown[]).includes(d.prossima_chiave)
+      ? (d.prossima_chiave as Chiave)
+      : null;
+    if (chieste.length === 0) return null;
     return {
-      risposta_bot: d.risposta_bot.trim(),
-      chiave: CHIAVI_DIALOGO[input.numero - 1],
-      valore: d.valore ?? null,
-      prossima_domanda:
-        typeof prossima === 'number' && prossima >= input.numero && prossima <= NUMERO_DOMANDE
-          ? prossima
-          : null,
+      esito: {
+        risposta_bot: d.risposta_bot.trim(),
+        profilo: profiloCompleto(d.profilo_studio),
+        chieste,
+        prossima_chiave: prossima,
+        fine: d.fine === true || prossima === null,
+        aiuto: d.aiuto === true,
+      },
       messaggi_salvati: d.messaggi_salvati === true,
     };
   } catch {

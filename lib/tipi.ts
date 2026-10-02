@@ -122,20 +122,14 @@ export type AccoglienzaStato =
   | `dialogo:${1 | 2 | 3 | 4 | 5}`
   | 'completata';
 
-/** Risposta grezza dello studente a una domanda del dialogo: resta sempre, anche se l'estrazione sbaglia. */
-export type NotaLibera = { domanda: string; risposta: string; il: string };
-
-/** Ciò che il dialogo di accoglienza raccoglie (profiles.profilo_studio). */
-export type ProfiloStudio = {
-  esame_target: { nome: string | null; id: string | null };
-  quando: { testo: string | null; data: string | null };
-  avanzamento: 'non_iniziato' | 'a_meta' | 'ripasso' | null;
-  tempo_al_giorno: { testo: string | null; minuti: number | null };
-  ostacolo: string | null;
-  note_libere: NotaLibera[];
-};
-
-export type ChiaveProfiloStudio = Exclude<keyof ProfiloStudio, 'note_libere'>;
+// Il profilo di studio raccolto dal dialogo (profiles.profilo_studio): la forma
+// è definita in un posto solo, la logica condivisa con la Edge Function.
+import type { ProfiloStudio } from '../supabase/functions/accoglienza-dialogo/logica';
+export type {
+  NotaLibera,
+  ProfiloStudio,
+  Chiave as ChiaveProfiloStudio,
+} from '../supabase/functions/accoglienza-dialogo/logica';
 
 /** Domanda che il bot riproporrà più avanti (profiles.domande_in_coda). */
 export type DomandaInCoda = {
