@@ -1,14 +1,16 @@
-// Le pose del personaggio: UNICA mappa, in un unico file.
-// Per ora puntano tutte all'immagine attuale (la testa col cappello): quando
-// arrivano le pose vere a figura intera basta cambiare UNA riga per posa, qui,
-// senza toccare nient'altro.
+// Le pose del personaggio: UNICA mappa, in un unico file. Per cambiarne una
+// basta cambiare la sua riga qui, senza toccare nient'altro.
+// Immagini a figura intera, sfondo trasparente, 1024x1024, allineate tra loro
+// (la visiera sta nello stesso punto in tutte).
 export const pose = {
-  esulta: require('@/assets/images/lode-bot-testa.png'),
-  esultaMax: require('@/assets/images/lode-bot-testa.png'),
-  vicino: require('@/assets/images/lode-bot-testa.png'),
-  ascolta: require('@/assets/images/lode-bot-testa.png'),
-  guarda: require('@/assets/images/lode-bot-testa.png'),
-  pensa: require('@/assets/images/lode-bot-testa.png'),
+  esulta: require('@/assets/images/pose/esulta.png'),
+  // non c'è ancora un'immagine dedicata: usa quella dell'esultanza
+  esultaMax: require('@/assets/images/pose/esulta.png'),
+  // PROVVISORIA: verrà sostituita
+  vicino: require('@/assets/images/pose/vicino.png'),
+  ascolta: require('@/assets/images/pose/ascolta.png'),
+  guarda: require('@/assets/images/pose/guarda.png'),
+  pensa: require('@/assets/images/pose/pensa.png'),
 };
 
 export type Posa = keyof typeof pose;

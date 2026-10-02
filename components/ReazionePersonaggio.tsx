@@ -8,8 +8,8 @@ import { colori, raggi, spazi } from '@/lib/theme';
 
 const DURATA_MS = 4500; // poi si chiude da sola
 const FUORI_SCHERMO = 420; // spostamento verso il basso per entrare e uscire
-const LARGHEZZA = 170;
-const RAPPORTO = 702 / 726; // dell'immagine attuale; con le pose a figura intera va aggiornato qui
+const LARGHEZZA = 230;
+const RAPPORTO = 1; // le pose sono quadrate (1024x1024)
 
 /**
  * Il personaggio in sovrimpressione con una battuta corta. Entra dal basso con
