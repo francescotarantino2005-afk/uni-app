@@ -6,6 +6,7 @@ import { Profilo } from '@/lib/tipi';
 import { LezioneEstratta } from '@/lib/estrazioneOrario';
 import type { EsameEstratto } from '@/lib/estrazioneLibretto';
 import { Reazione, puoMostrare } from '@/lib/reazioni';
+import { daProporreNotifiche } from '@/lib/notifiche';
 import { dopoTargetSuperato, profiloCompleto } from '@/lib/dialogoLogica';
 
 type TokenRecupero = { access_token: string; refresh_token: string };
@@ -76,6 +77,14 @@ type StatoApp = {
   /** Mostra una reazione se il freno lo permette. Ritorna true se è partita. */
   mostraReazione: (reazione: Reazione | null) => boolean;
   chiudiReazione: () => void;
+  /** true mentre il bot sta spiegando perché servono le notifiche (prima scadenza aggiunta). */
+  richiestaNotifiche: boolean;
+  /**
+   * Da chiamare dopo aver aggiunto una scadenza: se era la PRIMA e il permesso
+   * non è mai stato chiesto, fa comparire la spiegazione del bot. Mai prima.
+   */
+  scadenzaAggiunta: (eraLaPrima: boolean) => Promise<void>;
+  chiudiRichiestaNotifiche: () => void;
   /** L'esame target è stato superato: azzera il target e mette in coda "qual è il prossimo?". */
   segnaTargetSuperato: () => Promise<void>;
 
@@ -124,6 +133,13 @@ export const useAppStore = create<StatoApp>((set, get) => ({
     return true;
   },
   chiudiReazione: () => set({ reazione: null, reazioneChiusaAlle: Date.now() }),
+
+  richiestaNotifiche: false,
+  scadenzaAggiunta: async (eraLaPrima) => {
+    if (!eraLaPrima) return;
+    if (await daProporreNotifiche()) set({ richiestaNotifiche: true });
+  },
+  chiudiRichiestaNotifiche: () => set({ richiestaNotifiche: false }),
 
   segnaTargetSuperato: async () => {
     const profilo = get().profilo;

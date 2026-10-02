@@ -48,7 +48,7 @@ export default function SchermataPreferenze() {
 
     if (!notificheOk) {
       setInfo(
-        `Orario salvato (${ora}). Per ricevere la notifica del mattino, attiva i permessi delle notifiche dalle impostazioni del telefono.`
+        `Orario salvato (${ora}). Le notifiche non sono ancora attive: te le propongo quando aggiungi la tua prima scadenza, oppure le attivi dalle impostazioni del telefono.`
       );
       return;
     }

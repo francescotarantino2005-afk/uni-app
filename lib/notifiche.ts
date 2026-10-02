@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
 
 const ID_BRIEFING_LOCALE = 'briefing-quotidiano';
@@ -15,6 +16,40 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+// Il permesso si chiede in UN solo momento: quando lo studente aggiunge la sua
+// prima scadenza, dopo che il bot ha spiegato a cosa serve (RichiestaNotifiche).
+// Mai prima: né nell'accoglienza né nelle Preferenze.
+
+const CHIAVE_PROPOSTA = 'notifiche_proposte';
+
+/** Il permesso è già stato concesso? Non mostra nessuna richiesta. */
+export async function permessoNotificheConcesso(): Promise<boolean> {
+  try {
+    if (!Device.isDevice) return false;
+    return (await Notifications.getPermissionsAsync()).granted;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * true se è il momento di proporre le notifiche: dispositivo vero, permesso mai
+ * chiesto dal sistema, proposta mai fatta prima. Segna subito la proposta come
+ * fatta, così compare una volta sola anche se lo studente dice "non adesso".
+ */
+export async function daProporreNotifiche(): Promise<boolean> {
+  try {
+    if (Platform.OS === 'web' || !Device.isDevice) return false;
+    const stato = await Notifications.getPermissionsAsync();
+    if (stato.granted || !stato.canAskAgain) return false;
+    if ((await SecureStore.getItemAsync(CHIAVE_PROPOSTA)) === '1') return false;
+    await SecureStore.setItemAsync(CHIAVE_PROPOSTA, '1');
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Chiede il permesso per le notifiche. Ritorna true se concesso. */
 export async function richiediPermessoNotifiche(): Promise<boolean> {
@@ -58,8 +93,14 @@ export async function salvaTokenPush(userId: string): Promise<void> {
  * apre l'app sul briefing, che viene poi mostrato dai dati già scaricati.
  */
 export async function programmaBriefingLocale(oraHHMM: string): Promise<boolean> {
-  const permesso = await richiediPermessoNotifiche();
-  if (!permesso) return false;
+  // Non chiede il permesso: programma solo se è già stato concesso.
+  if (!(await permessoNotificheConcesso())) return false;
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Briefing e avvisi',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  }
 
   const [ore, minuti] = oraHHMM.split(':').map(Number);
   await annullaBriefingLocale();

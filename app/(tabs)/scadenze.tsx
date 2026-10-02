@@ -65,6 +65,8 @@ export default function SchermataScadenze() {
       return;
     }
 
+    // È la prima scadenza in assoluto? Solo in quel caso il bot propone le notifiche.
+    const eraLaPrima = scadenze.length === 0;
     setSalvataggio(true);
     const { errore: erroreDb } = await aggiungiScadenza(utente.id, {
       titolo: titolo.trim(),
@@ -82,6 +84,7 @@ export default function SchermataScadenze() {
     setCategoria('altro');
     setFormAperto(false);
     await carica();
+    useAppStore.getState().scadenzaAggiunta(eraLaPrima);
   };
 
   const commuta = async (scadenza: Scadenza) => {

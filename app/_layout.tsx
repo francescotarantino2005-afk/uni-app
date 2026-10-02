@@ -6,6 +6,7 @@ import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { useAppStore } from '@/store/useAppStore';
 import { ReazionePersonaggio } from '@/components/ReazionePersonaggio';
+import { RichiestaNotifiche } from '@/components/RichiestaNotifiche';
 import { colori } from '@/lib/theme';
 
 export default function LayoutRadice() {
@@ -103,6 +104,7 @@ export default function LayoutRadice() {
         <Stack.Screen name="sessione" />
       </Stack>
       <ReazionePersonaggio />
+      <RichiestaNotifiche />
     </>
   );
 }

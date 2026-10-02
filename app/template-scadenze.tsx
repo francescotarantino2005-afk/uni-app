@@ -48,6 +48,8 @@ export default function SchermataTemplateScadenze() {
     }
     setErrore(null);
     setInCorso(t.id);
+    // "aggiunte" contiene tutte le scadenze già presenti: vuoto = questa è la prima.
+    const eraLaPrima = aggiunte.size === 0;
     const { errore: erroreDb } = await aggiungiDaTemplate(utente.id, t);
     setInCorso(null);
     if (erroreDb) {
@@ -55,6 +57,7 @@ export default function SchermataTemplateScadenze() {
       return;
     }
     setAggiunte((prima) => new Set(prima).add(chiave(t)));
+    useAppStore.getState().scadenzaAggiunta(eraLaPrima);
   };
 
   const riga = (t: TemplateScadenza) => {
