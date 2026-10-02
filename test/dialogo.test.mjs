@@ -1,5 +1,5 @@
 // Il dialogo di accoglienza, la coda delle domande e le reazioni del personaggio.
-// Solo logica pura, niente rete: le quattro conversazioni usano le risposte del
+// Solo logica pura, niente rete: le conversazioni registrate usano le risposte del
 // modello REGISTRATE in test/fixtures/dialoghi.json (2 ottobre 2026) e le fanno
 // passare dalla stessa logica che gira nella Edge Function.
 import { test } from 'node:test';
@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   CHIAVI,
+  CHIUSURA_GARBATA,
   DOMANDE_FISSE,
   MAX_DOMANDE,
   MAX_FRASI,
@@ -14,12 +15,16 @@ import {
   chiesteDalleNote,
   chiusuraFissa,
   conversazioneDalleNote,
+  costruisciContesto,
+  dueNonRisposte,
   elaboraTurno,
   frasi,
   haRisposta,
   mancanti,
+  nonRisposta,
   profiloCompleto,
   prossimaChiave,
+  senzaAvvio,
   turnoDiRipiego,
   turnoSaltato,
 } from '../supabase/functions/accoglienza-dialogo/logica.ts';
@@ -74,6 +79,7 @@ function regoleGenerali(r) {
     assert.ok(frasi(b).length <= MAX_FRASI, `più di tre frasi: ${b}`);
     assert.ok(!/\bsegnato\b/i.test(b), `ricevuta: ${b}`);
     assert.ok((b.match(/\?/g) ?? []).length <= 1, `più di una domanda: ${b}`);
+    assert.ok(!/^(va bene|ok|okay|d'accordo|certo|allora)\b[\s,.!:;]/i.test(b), `comincia con una formula: ${b}`);
     if (t.esito.prossima_chiave) {
       assert.ok(!haRisposta(t.esito.profilo, t.esito.prossima_chiave), 'chiede una cosa già detta');
     }
@@ -151,6 +157,28 @@ test('studente fuori tema: non si inventa niente, non si chiede "quando" di un e
   assert.ok(!r.chieste.includes('quando') && !r.chieste.includes('avanzamento'));
   assert.ok(!/ora so da dove partire/i.test(r.ultimo.risposta_bot), 'non finge di sapere');
   assert.equal(allineaCoda([], r.profilo, true).length, 5);
+});
+
+test('studente che non vuole rispondere: dopo due non-risposte di fila il dialogo chiude con garbo', () => {
+  const r = rigioca('non_risponde');
+  regoleGenerali(r);
+  // "fisica", "boh", "mah": al secondo vuoto di fila si chiude, senza arrivare a cinque domande
+  assert.equal(r.turni.length, 3);
+  assert.deepEqual(r.chieste, ['esame_target', 'quando', 'avanzamento']);
+  assert.equal(r.ultimo.fine, true);
+  assert.equal(r.ultimo.aiuto, false);
+  assert.equal(r.ultimo.prossima_chiave, null);
+  assert.ok(!r.ultimo.risposta_bot.includes('?'), 'chiude senza altre domande');
+  assert.equal(frasi(r.ultimo.risposta_bot).length, 1);
+  assert.ok(!/non (hai|mi hai) risposto|peccato|come vuoi/i.test(r.ultimo.risposta_bot), 'nessun rimprovero');
+  // quello che ha detto resta, e le chiavi mancanti vanno tutte in coda
+  assert.equal(r.profilo.esame_target.nome, 'Fisica Generale I');
+  assert.deepEqual(
+    allineaCoda([], r.profilo, true).map((d) => d.chiave),
+    ['quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']
+  );
+  // nessun impegno: non ha chiesto aiuto
+  assert.ok(!('impegno' in r.profilo));
 });
 
 // ---------- le regole, una per una ----------
@@ -328,6 +356,89 @@ test('richiesta di aiuto: si chiude con un impegno, senza domande, e ciò che ma
     allineaCoda([], e.profilo, true).map((d) => d.chiave),
     ['quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo']
   );
+});
+
+test('non-risposte: "boh", "mah", "no" e la stringa vuota; una risposta corta non lo è', () => {
+  for (const t of ['boh', 'Boh.', 'mah', 'no', 'No!', 'non so', '', '   ', '...', undefined]) {
+    assert.equal(nonRisposta(t), true, String(t));
+  }
+  for (const t of ['poco', 'fisica', 'a gennaio', 'no, lavoro tutto il giorno', 'non so se riesco a darlo a febbraio']) {
+    assert.equal(nonRisposta(t), false, t);
+  }
+});
+
+test('due non-risposte DI FILA chiudono; una sola, o due separate da una risposta, no', () => {
+  const conv = (...sue) => [
+    { ruolo: 'assistant', contenuto: APERTURA },
+    ...sue.flatMap((c) => [{ ruolo: 'user', contenuto: c }, { ruolo: 'assistant', contenuto: 'x?' }]).slice(0, -1),
+  ];
+  assert.equal(dueNonRisposte(conv('boh')), false);
+  assert.equal(dueNonRisposte(conv('boh', 'mah')), true);
+  assert.equal(dueNonRisposte(conv('fisica', 'boh', 'no')), true);
+  assert.equal(dueNonRisposte(conv('boh', 'poco', 'mah')), false);
+  assert.equal(dueNonRisposte(conv('boh', 'fisica')), false);
+  // il modello viene avvisato, così la chiusura la scrive lui
+  const t = turno('mah', {}, { conversazione: conv('boh', 'mah') });
+  assert.match(costruisciContesto(t.input), /<due_non_risposte_di_fila>sì<\/due_non_risposte_di_fila>/);
+  assert.match(costruisciContesto(turno('boh').input), /<due_non_risposte_di_fila>no<\/due_non_risposte_di_fila>/);
+});
+
+test('due non-risposte di fila: niente altra domanda nemmeno se il modello la propone, e la chiusura c\'è sempre', () => {
+  const conversazione = [
+    { ruolo: 'assistant', contenuto: APERTURA },
+    { ruolo: 'user', contenuto: 'boh' },
+    { ruolo: 'assistant', contenuto: DOMANDE_FISSE.tempo_al_giorno },
+    { ruolo: 'user', contenuto: 'no' },
+  ];
+  const extra = { conversazione, chieste: ['esame_target', 'tempo_al_giorno'] };
+  // il modello insiste: vince il codice, con la chiusura fissa
+  const insiste = esegui(turno('no', { reazione: 'Un no ci sta.', prossima_chiave: 'ostacolo', domanda_successiva: 'Cosa ti blocca?' }, extra));
+  assert.equal(insiste.fine, true);
+  assert.equal(insiste.prossima_chiave, null);
+  assert.equal(insiste.risposta_bot, CHIUSURA_GARBATA);
+  assert.deepEqual(insiste.chieste, ['esame_target', 'tempo_al_giorno']);
+  assert.equal(allineaCoda([], insiste.profilo, true).length, 5);
+  // il modello chiude lui: si usa la sua frase, senza reazione al "no"
+  const chiude = esegui(turno('no', { reazione: 'Un no ci sta.', chiusura: 'Ci fermiamo qui: quando vuoi mi trovi in chat.' }, extra));
+  assert.equal(chiude.risposta_bot, 'Ci fermiamo qui: quando vuoi mi trovi in chat.');
+  // anche il ripiego (modello assente) chiude invece di fare la terza domanda
+  const ripiego = turnoDiRipiego(turno('no', {}, extra).input);
+  assert.equal(ripiego.fine, true);
+  assert.equal(ripiego.risposta_bot, CHIUSURA_GARBATA);
+  // la richiesta di aiuto vince comunque
+  const aiuto = esegui(turno('no', { chiede_aiuto: true, impegno: 'Partiamo dalle frazioni.' }, extra));
+  assert.equal(aiuto.aiuto, true);
+});
+
+test('nessuna battuta comincia con "Va bene," o un\'altra formula di avvio', () => {
+  assert.equal(senzaAvvio('Va bene, la data non è chiara.'), 'La data non è chiara.');
+  assert.equal(senzaAvvio('Ok. Allora, fisica è tosta.'), 'Fisica è tosta.');
+  assert.equal(senzaAvvio('Bene così non va.'), 'Bene così non va.'); // senza virgola non è una formula
+  assert.equal(senzaAvvio('Certo che lavorare e studiare pesa.'), 'Certo che lavorare e studiare pesa.');
+  const e = esegui(
+    turno('devo dare fisica', {
+      esame_testo: 'devo dare fisica', esame_nome: 'fisica',
+      reazione: 'Va bene, fisica si prepara con gli esercizi.',
+      prossima_chiave: 'quando', domanda_successiva: 'Quando la devi dare?',
+    })
+  );
+  assert.equal(e.risposta_bot, 'Fisica si prepara con gli esercizi. Quando la devi dare?');
+});
+
+test('richiesta di aiuto: l\'impegno detto allo studente viene salvato nel profilo, "da_mantenere"', () => {
+  const e = esegui(
+    turno('devo dare analisi, mi aiuti con le disequazioni?', {
+      esame_testo: 'devo dare analisi', esame_nome: 'analisi', chiede_aiuto: true,
+      reazione: 'Le disequazioni sono un buon punto da cui ripartire.',
+      impegno: 'Partiamo dalle disequazioni di primo grado.',
+    })
+  );
+  assert.equal(e.profilo.impegno.testo, 'Partiamo dalle disequazioni di primo grado.');
+  assert.equal(e.profilo.impegno.stato, 'da_mantenere');
+  assert.ok(!Number.isNaN(Date.parse(e.profilo.impegno.il)));
+  // senza richiesta di aiuto non nasce nessun impegno
+  const senza = esegui(turno('devo dare fisica', { esame_testo: 'devo dare fisica', esame_nome: 'fisica', reazione: 'Fisica, allora.' }));
+  assert.ok(!('impegno' in senza.profilo));
 });
 
 test('un esame dell\'elenco che lo studente non ha scelto non viene nominato', () => {

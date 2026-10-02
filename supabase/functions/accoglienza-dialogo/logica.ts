@@ -15,7 +15,11 @@
 //   chiave conta come risposta. Null vuol dire solo "non ne ha parlato" o "ha
 //   saltato la domanda";
 // - se lo studente chiede aiuto in modo esplicito il dialogo si chiude con un
-//   impegno concreto e le chiavi mancanti vanno in coda;
+//   impegno concreto e le chiavi mancanti vanno in coda; l'impegno si salva nel
+//   profilo ("da_mantenere") e la chat lo mantiene scrivendo lei per prima;
+// - due non-risposte di fila ("boh", "mah", "no", niente): si chiude con garbo,
+//   senza altre domande, e le chiavi mancanti vanno in coda;
+// - nessuna battuta comincia con "Va bene," o un'altra formula di avvio;
 // - massimo tre frasi per battuta; mai una risposta che fa solo da ricevuta.
 
 export const MODELLO = 'claude-sonnet-5-5';
@@ -27,6 +31,7 @@ import {
   DOMANDE_FISSE,
   type Chiave,
   type EsameElenco,
+  type Impegno,
   type Livello,
   type Messaggio,
   type ProfiloStudio,
@@ -73,7 +78,36 @@ function reazionePulita(testo: string, quante: number): string {
 }
 
 const NON_RISPOSTA =
-  /^(boh+|bo|mah+|non (lo )?so|non saprei|niente|nulla|nessuno|vedremo|dopo|non mi va|[?.\-\s]+)[\s.!?]*$/i;
+  /^(boh+|bo|mah+|no+|non (lo )?so|non saprei|niente|nulla|nessuno|vedremo|dopo|non mi va|[?.\-\s]+)[\s.!?]*$/i;
+
+/** "boh", "mah", "no", una stringa vuota: lo studente non ha risposto. */
+export function nonRisposta(testo: unknown): boolean {
+  const t = pulisci(testo, 1000);
+  return t === '' || NON_RISPOSTA.test(t);
+}
+
+/**
+ * Due non-risposte di fila (questa e la precedente dello studente): non si
+ * insiste, il dialogo si chiude. Si decide dalla conversazione, prima ancora di
+ * chiamare il modello.
+ */
+export function dueNonRisposte(conversazione: Messaggio[]): boolean {
+  const sue = conversazione.filter((m) => m.ruolo === 'user');
+  return (
+    sue.length >= 2 &&
+    nonRisposta(sue[sue.length - 1].contenuto) &&
+    nonRisposta(sue[sue.length - 2].contenuto)
+  );
+}
+
+/** Formule di avvio che non dicono niente: una battuta comincia dalla cosa detta dallo studente. */
+const AVVIO = /^(va bene|ok|okay|d'accordo|certo|capito|ho capito|bene|perfetto|allora)\s*[,.!:;]+\s*/i;
+
+export function senzaAvvio(testo: string): string {
+  let t = testo.trim();
+  for (let i = 0; i < 3 && AVVIO.test(t); i++) t = t.replace(AVVIO, '');
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+}
 
 // ---------- profilo ----------
 
@@ -122,6 +156,9 @@ export function chiusuraFissa(nomeEsame: string | null): string {
 }
 
 const IMPEGNO_FISSO = 'Partiamo da lì: ti aspetto in chat e cominciamo subito.';
+
+/** Chiusura dopo due non-risposte di fila: nessun rimprovero, la porta resta aperta. */
+export const CHIUSURA_GARBATA = 'Le domande le lasciamo qui: quando ti va, scrivimi in chat da cosa vuoi partire.';
 
 // ---------- date ----------
 
@@ -234,6 +271,7 @@ LA BATTUTA
 - reazione: una o due frasi che rispondono a quello che ha APPENA detto. Deve riprendere una cosa precisa del suo messaggio, con naturalezza. Non è mai una domanda.
 - Prima si ascolta. Se dice di essere in difficoltà, di non sentirsi capace, di avere paura, di lavorare, di avere pochissimo tempo: la reazione risponde a QUELLO, non alla casella del questionario. Niente pacche sulle spalle e niente prediche: prendi sul serio quello che dice e digli una cosa utile o vera.
 - Vietate le ricevute: "Ok", "Ok, segnato", "Capito", "Perfetto", "Bene" e ogni frase che potrebbe andare bene per qualunque risposta.
+- La battuta comincia dalla cosa che ha detto lui, non da una formula: mai aprire con "Va bene,", "Ok,", "D'accordo,", "Certo,", "Allora,".
 - Non attribuirgli MAI cose che non ha detto: niente date, voti, esami, numeri o stati d'animo che non siano nelle sue parole. Non fare calcoli sul tempo che manca.
 - Se indica una data già passata rispetto a oggi, faglielo notare con gentilezza nella reazione, senza prenderla per buona e senza fargli il terzo grado.
 - Italiano corretto, tono da compagno di corso sveglio, prima persona singolare, dai del tu. Testo semplice: niente markdown, elenchi, emoji.
@@ -248,6 +286,9 @@ LA DOMANDA SUCCESSIVA
 SE CHIEDE AIUTO
 - Se nell'ultimo messaggio chiede aiuto in modo esplicito ("mi serve una mano", "un aiuto mi sarebbe utile", "mi aiuti?"), l'aiuto vince sul questionario: chiede_aiuto=true, prossima_chiave="nessuna", niente domanda.
 - impegno: UNA frase con un impegno concreto e preciso, costruito su quello che ha detto lui (per esempio l'argomento da cui ripartire). Niente promesse vaghe e niente funzioni dell'app inventate.
+
+SE NON VUOLE RISPONDERE
+- Se <due_non_risposte_di_fila> è "sì", lo studente ha dato due non-risposte una dopo l'altra: non si insiste. prossima_chiave="nessuna", niente domanda, reazione "" e chiusura = UNA frase gentile che chiude le domande e lascia la porta aperta, senza rimprovero, senza ironia e senza dire che non ha risposto.
 
 LA CHIUSURA
 - Se prossima_chiave è "nessuna" e non ha chiesto aiuto: chiusura è UNA frase che dice da dove si parte, scegliendo la cosa più importante. Non è un riassunto e non elenca tutto.
@@ -280,6 +321,7 @@ export function costruisciContesto(input: InputTurno): string {
     `<mancanti_prima_di_questo_messaggio>${mancanti(p).join(', ') || 'nessuna'}</mancanti_prima_di_questo_messaggio>`,
     `<gia_chieste>${input.chieste.join(', ') || 'nessuna'}</gia_chieste>`,
     `<domande_rimaste>${rimaste}</domande_rimaste>`,
+    `<due_non_risposte_di_fila>${dueNonRisposte(input.conversazione) ? 'sì' : 'no'}</due_non_risposte_di_fila>`,
     `<conversazione>\n${testoConversazione(input.conversazione)}\n</conversazione>`,
     `<ultimo_messaggio_dello_studente>${ultimo}</ultimo_messaggio_dello_studente>`,
   ].join('\n');
@@ -432,7 +474,9 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
 
   // 2) Cosa viene dopo: lo decide il codice sul profilo aggiornato.
   const aiuto = g.chiede_aiuto === true;
-  const prossima = aiuto ? null : prossimaChiave(profilo, input.chieste);
+  // Due non-risposte di fila: non si fanno altre domande a chi non vuole rispondere.
+  const basta = !aiuto && dueNonRisposte(input.conversazione);
+  const prossima = aiuto || basta ? null : prossimaChiave(profilo, input.chieste);
 
   // 3) La battuta: reazione + (domanda | impegno | chiusura), mai piu' di tre frasi.
   const nomeTarget = profilo.esame_target.nome;
@@ -448,6 +492,13 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
   let coda: string;
   if (aiuto) {
     coda = lecito(reazionePulita(pulisci(g.impegno, 300), 1)) || IMPEGNO_FISSO;
+    // La promessa si salva: la chat la mantiene scrivendo lei il primo messaggio.
+    const impegno: Impegno = { testo: coda, stato: 'da_mantenere', il: new Date().toISOString() };
+    profilo.impegno = impegno;
+  } else if (basta) {
+    // Niente reazione a un "boh": solo la chiusura, del modello se e' pulita.
+    reazione = '';
+    coda = lecito(reazionePulita(pulisci(g.chiusura, 300), 1)) || CHIUSURA_GARBATA;
   } else if (prossima) {
     const delModello = g.prossima_chiave === prossima ? lecito(unaDomanda(pulisci(g.domanda_successiva, 300))) : '';
     coda = delModello || DOMANDE_FISSE[prossima];
@@ -455,7 +506,8 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
     coda = lecito(reazionePulita(pulisci(g.chiusura, 300), 1)) || chiusuraFissa(nomeTarget);
   }
   const spazio = MAX_FRASI - frasi(coda).length;
-  const risposta_bot = [primeFrasi(reazione, Math.max(0, spazio)), coda].filter(Boolean).join(' ');
+  const risposta_bot =
+    senzaAvvio([primeFrasi(reazione, Math.max(0, spazio)), coda].filter(Boolean).join(' ')) || coda;
 
   return {
     risposta_bot,
@@ -485,9 +537,14 @@ export function turnoDiRipiego(input: InputTurno): EsitoTurno {
     else p.ostacolo = testo;
   }
   const profilo = conNota(p, input, messaggio);
-  const prossima = prossimaChiave(profilo, input.chieste);
+  const basta = dueNonRisposte(input.conversazione);
+  const prossima = basta ? null : prossimaChiave(profilo, input.chieste);
   return {
-    risposta_bot: prossima ? DOMANDE_FISSE[prossima] : chiusuraFissa(profilo.esame_target.nome),
+    risposta_bot: prossima
+      ? DOMANDE_FISSE[prossima]
+      : basta
+        ? CHIUSURA_GARBATA
+        : chiusuraFissa(profilo.esame_target.nome),
     profilo,
     chieste: prossima ? [...input.chieste, prossima] : input.chieste,
     prossima_chiave: prossima,

@@ -343,5 +343,102 @@
     }
    }
   ]
+ },
+ "non_risponde": {
+  "oggi": "2026-10-02",
+  "esami": [
+   {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "materia": "Analisi Matematica II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "materia": "Fisica Generale I"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "materia": "Programmazione II"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "materia": "Basi di Dati"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "materia": "Prova Finale"
+   }
+  ],
+  "libretto": {
+   "media": 23.1,
+   "cfu": 42
+  },
+  "turni": [
+   {
+    "studente": "fisica",
+    "grezzo": {
+     "esame_testo": "fisica",
+     "esame_nome": "fisica",
+     "esame_indice": 2,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Fisica Generale I, quindi parto da lì: è un esame che richiede parecchio esercizio sui problemi, non solo teoria.",
+     "impegno": "",
+     "prossima_chiave": "quando",
+     "domanda_successiva": "Per quando è l'appello di fisica che vuoi dare?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "boh",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Un boh sulla data ci sta, magari l'appello non è ancora uscito o non hai deciso, e per ora la lascio in sospeso.",
+     "impegno": "",
+     "prossima_chiave": "avanzamento",
+     "domanda_successiva": "Su Fisica Generale I, a che punto sei con la preparazione?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "mah",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "",
+     "impegno": "",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": "Per ora fermiamo qui le domande: parto da Fisica Generale I e, quando ti va di dirmi qualcosa in più, ci sono."
+    }
+   }
+  ]
  }
 }

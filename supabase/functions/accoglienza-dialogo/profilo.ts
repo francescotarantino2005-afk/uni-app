@@ -36,6 +36,24 @@ export type ProfiloStudio = {
   /** lavora, pendolare, fuorisede...: si estrae se ne parla, non si chiede mai */
   contesto: string | null;
   note_libere: NotaLibera[];
+  /** la promessa con cui il dialogo ha chiuso (solo se lo studente ha chiesto aiuto) */
+  impegno?: Impegno | null;
+};
+
+/**
+ * L'impegno preso dal bot a fine dialogo. Nasce "da_mantenere"; la chat lo
+ * mantiene UNA volta (scrive lei il primo messaggio) e passa a "mantenuto".
+ */
+export type Impegno = {
+  testo: string;
+  stato: 'da_mantenere' | 'mantenuto';
+  /** quando e' stato preso (ISO) */
+  il: string;
+  /** un tentativo di mantenerlo e' partito a quest'ora (ISO): evita i doppioni */
+  tentativo_il?: string | null;
+  mantenuto_il?: string | null;
+  /** id del messaggio in chat_messages che lo mantiene */
+  messaggio_id?: string | null;
 };
 
 export type Messaggio = { ruolo: 'user' | 'assistant'; contenuto: string };
@@ -78,6 +96,21 @@ export function oggetto(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
 
+/** Legge profilo_studio.impegno in modo difensivo. Null se manca o non e' valido. */
+export function leggiImpegno(valore: unknown): Impegno | null {
+  const i = oggetto(oggetto(valore).impegno);
+  const testo = stringa(i.testo);
+  if (!testo || (i.stato !== 'da_mantenere' && i.stato !== 'mantenuto')) return null;
+  return {
+    testo,
+    stato: i.stato,
+    il: stringa(i.il) ?? '',
+    tentativo_il: stringa(i.tentativo_il),
+    mantenuto_il: stringa(i.mantenuto_il),
+    messaggio_id: stringa(i.messaggio_id),
+  };
+}
+
 /**
  * Completa la forma di profilo_studio. Sul database parte da {} e puo' avere la
  * forma vecchia (avanzamento come stringa, esame_target senza "testo"): si
@@ -94,6 +127,7 @@ export function profiloCompleto(valore: unknown): ProfiloStudio {
     : null;
   const minuti = typeof tempo.minuti === 'number' ? tempo.minuti : null;
   const nome = stringa(esame.nome);
+  const impegno = leggiImpegno(p);
   return {
     esame_target: {
       testo: stringa(esame.testo) ?? nome,
@@ -106,6 +140,8 @@ export function profiloCompleto(valore: unknown): ProfiloStudio {
     ostacolo: stringa(p.ostacolo),
     contesto: stringa(p.contesto),
     note_libere: Array.isArray(p.note_libere) ? (p.note_libere as NotaLibera[]) : [],
+    // l'impegno non si perde quando il profilo viene riscritto (la chiave c'e' solo se esiste)
+    ...(impegno ? { impegno } : {}),
   };
 }
 
