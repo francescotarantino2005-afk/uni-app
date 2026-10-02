@@ -2,7 +2,9 @@
 // rimaste in profiles.domande_in_coda. Due azioni:
 //   { azione: 'apri' }                      -> lo studente ha aperto la chat: se le
 //        regole lo permettono (logica.ts) scrive la domanda come messaggio del bot.
-//        Nessuna chiamata AI.
+//        Nessuna chiamata AI. Prima pero' viene la promessa di fine accoglienza:
+//        se l'impegno e' ancora da mantenere lo fa mantenere alla chat (o
+//        aspetta il tentativo gia' in corso) e restituisce QUEL messaggio.
 //   { azione: 'risposta', messaggio, id }   -> lo studente ha scritto mentre una
 //        domanda era in attesa: UNA chiamata AI decide se e' una risposta. Se si',
 //        salva il dato in profilo_studio e la domanda passa a "fatta"; se no, e'
@@ -14,8 +16,10 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import {
+  daMostrare,
   daProporre,
   esameEntro48Ore,
+  impegnoFermaCoda,
   inAttesa,
   leggiCoda,
   segnaIgnorata,
@@ -23,12 +27,15 @@ import {
   segnaRisposta,
   testoProposta,
 } from './logica.ts';
-import { allineaCoda, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
+import { allineaCoda, leggiImpegno, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
 
 const MODELLO = 'claude-haiku-4-5';
 const TIMEOUT_MS = 20_000;
 const MAX_MESSAGGIO = 2000;
 const CONFERMA_FISSA = 'Segnato, grazie.';
+// Quanto si aspetta, all'apertura della chat, un impegno che si sta mantenendo.
+const ATTESA_IMPEGNO_MS = 25_000;
+const PASSO_ATTESA_MS = 700;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const corsHeaders = {
@@ -50,6 +57,15 @@ function dataOggiRoma(): string {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
+}
+
+function giornoRoma(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
 }
 
 function pulisci(testo: unknown, max: number): string {
@@ -126,10 +142,12 @@ Deno.serve(async (req) => {
 
   try {
     // 1) Solo utenti loggati.
+    const arrivo = Date.now();
+    const autorizzazione = req.headers.get('Authorization') ?? '';
     const clientUtente = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
+      { global: { headers: { Authorization: autorizzazione } } }
     );
     const {
       data: { user },
@@ -174,8 +192,47 @@ Deno.serve(async (req) => {
     const esami = (esamiR.data ?? []) as { id: string; materia: string; data_esame: string | null }[];
     const oggi = dataOggiRoma();
 
-    // --- APRI: proporre o tacere, senza AI ---
+    // --- APRI: prima la promessa di fine accoglienza, poi (un altro giorno) le domande ---
     if (azione === 'apri') {
+      let impegno = leggiImpegno(profilo.profilo_studio);
+      if (impegno?.stato === 'da_mantenere') {
+        // La chat lo mantiene adesso; se un tentativo e' gia' in corso (quello
+        // partito alla chiusura del dialogo) risponde "in_corso" e lo si aspetta.
+        try {
+          const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/chat`, {
+            method: 'POST',
+            headers: {
+              Authorization: autorizzazione,
+              apikey: Deno.env.get('SUPABASE_ANON_KEY')!,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({ azione: 'mantieni_impegno' }),
+          });
+          if (!r.ok) console.error('Impegno: chat ha risposto', r.status);
+          else await r.body?.cancel();
+        } catch (e) {
+          console.error('Impegno: chiamata alla chat fallita', e);
+        }
+        const fine = arrivo + ATTESA_IMPEGNO_MS;
+        for (;;) {
+          const { data } = await admin.from('profiles').select('profilo_studio').eq('id', user.id).maybeSingle();
+          impegno = leggiImpegno(data?.profilo_studio);
+          if (impegno?.stato !== 'da_mantenere' || !impegno.tentativo_il || Date.now() >= fine) break;
+          await new Promise((res) => setTimeout(res, PASSO_ATTESA_MS));
+        }
+        // Mantenuto mentre la chat era aperta: l'app non lo ha nello storico, glielo si da'.
+        if (impegno?.stato === 'mantenuto' && impegno.messaggio_id && daMostrare(impegno.mantenuto_il, arrivo)) {
+          const { data: m } = await admin
+            .from('chat_messages')
+            .select('contenuto')
+            .eq('id', impegno.messaggio_id)
+            .maybeSingle();
+          return json({ messaggio: m?.contenuto ?? null });
+        }
+        return json({ messaggio: null });
+      }
+      if (impegnoFermaCoda(impegno, oggi, giornoRoma)) return json({ messaggio: null });
+
       const domanda = daProporre(coda, oggi, esameEntro48Ore(esami.map((e) => e.data_esame), oggi));
       if (!domanda) return json({ messaggio: null });
       const testo = testoProposta(domanda);

@@ -1,0 +1,72 @@
+{
+ "tolc": {
+  "registrata_il": "2026-10-02",
+  "modello": "claude-sonnet-5-5",
+  "oggi": "2026-10-02",
+  "dialogo": [
+   {
+    "studente": "devo ancora iniziare il corso, ho il Tolc I il 14 settembre",
+    "grezzo": {
+     "esame_testo": "ho il Tolc I il 14 settembre",
+     "esame_nome": "Tolc I",
+     "esame_indice": 0,
+     "quando_testo": "il 14 settembre",
+     "quando_data": "2026-09-14",
+     "avanzamento_testo": "devo ancora iniziare il corso",
+     "avanzamento_livello": "non_iniziato",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "chiede_aiuto": false,
+     "reazione": "Il Tolc I il 14 settembre risulta già passato rispetto a oggi, quindi forse parli di un'altra data o di una sessione successiva, magari me lo chiarisci dopo. Intanto, che tu non abbia ancora iniziato il corso vuol dire che parti da zero, e questo è un punto di partenza chiaro.",
+     "impegno": "",
+     "prossima_chiave": "tempo_al_giorno",
+     "domanda_successiva": "Quanto tempo al giorno riesci a dedicare allo studio in questo periodo?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "non so, sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni, un aiuto mi sarebbe utile",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "sono abbastanza indietro con la matematica",
+     "contesto_testo": "",
+     "chiede_aiuto": true,
+     "reazione": "Riprendere la matematica dalle basi, con monomi, polinomi e prodotti notevoli, è il modo giusto per costruire qualcosa che regge, e il fatto che tu ti eserciti già conta parecchio.",
+     "impegno": "Ripartiamo da monomi e polinomi, che sono la base di tutto il resto, e da lì ti seguo passo passo fino alle disequazioni.",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": ""
+    }
+   }
+  ],
+  "dati": {
+   "testo": "Oggi è venerdì (2026-10-02).\n--- Profilo ---\nAteneo: Alma Mater Studiorum - Università di Bologna\nCorso: Ingegneria Informatica\n--- Cosa ha detto all'inizio (parole sue) ---\nEsame o prova che ha davanti: Tolc I\nQuando: \"il 14 settembre\"\nA che punto è: \"sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni\"\nCosa lo ostacola: \"sono abbastanza indietro con la matematica\"\n--- Orario settimanale ---\nNessuna lezione inserita.\n--- Prossime scadenze ---\nNessuna scadenza in arrivo.\n--- Libretto ---\nNessun esame verbalizzato.",
+   "senzaVoti": true
+  },
+  "primo_messaggio": "Ecco i primi cinque esercizi su monomi e polinomi, in ordine di difficoltà crescente:\n\n1) Calcola 3a + 5a - 2a\n2) Calcola (2x^2) * (4x^3)\n3) Calcola (6x^3y) / (2xy)\n4) Semplifica (3x + 2) + (5x - 7) - (2x - 1)\n5) Calcola (x + 2)(x - 3)\n\nMandami i tuoi risultati, anche uno alla volta: li rifaccio io passaggio per passaggio e ti dico dove sei solido e dove no.",
+  "uso_primo_messaggio": {
+   "input_tokens": 792,
+   "output_tokens": 203,
+   "cache_read_input_tokens": 0,
+   "cache_creation_input_tokens": 3717
+  },
+  "risposta_sbagliata": "il primo fa 10a",
+  "correzione": "No, 10a non torna. Il conto giusto è 3a + 5a - 2a = (3 + 5 - 2)a = 6a. Il tuo 10a viene da 3 + 5 + 2: il segno meno davanti al 2a è stato letto come un più. Quando sommi monomi simili, sommi i coefficienti tenendo il loro segno, e qui il coefficiente di quel termine è -2, quindi 3 + 5 - 2 = 6.\n\nRifallo con uno gemello: 7b - 4b + b. Poi passa pure al 2) se ti va.",
+  "uso_correzione": {
+   "input_tokens": 639,
+   "output_tokens": 197,
+   "cache_read_input_tokens": 3717,
+   "cache_creation_input_tokens": 0
+  }
+ }
+}

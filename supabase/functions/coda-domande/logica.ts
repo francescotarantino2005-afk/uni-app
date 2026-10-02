@@ -7,7 +7,9 @@
 //   propone un'altra;
 // - mai una domanda di contorno se c'e' un esame entro 48 ore;
 // - quando lo studente risponde la domanda passa a "fatta";
-// - se la ignora due volte passa a "saltata" e non torna piu'.
+// - se la ignora due volte passa a "saltata" e non torna piu';
+// - finche' c'e' un impegno da mantenere (la promessa di fine accoglienza), o
+//   nel giorno in cui la chat l'ha mantenuto, nessuna domanda: prima la promessa.
 
 export type DomandaInCoda = {
   id: string;
@@ -109,4 +111,30 @@ export function segnaIgnorata(coda: DomandaInCoda[], id: string): DomandaInCoda[
 export function testoProposta(d: DomandaInCoda): string {
   const domanda = d.testo.trim();
   return `Una cosa che mi manca ancora: ${domanda.charAt(0).toLowerCase()}${domanda.slice(1)}`;
+}
+
+/** Cio' che serve dell'impegno di fine accoglienza (profilo_studio.impegno). */
+export type ImpegnoCoda = { stato: 'da_mantenere' | 'mantenuto'; mantenuto_il?: string | null } | null;
+
+/**
+ * L'impegno ferma la coda? Si' finche' e' da mantenere, e per tutto il giorno
+ * (fuso italiano) in cui e' stato mantenuto: il primo messaggio della chat sono
+ * gli esercizi promessi, non una domanda di contorno subito dopo.
+ */
+export function impegnoFermaCoda(impegno: ImpegnoCoda, oggi: string, giornoDi: (iso: string) => string): boolean {
+  if (!impegno) return false;
+  if (impegno.stato === 'da_mantenere') return true;
+  return !!impegno.mantenuto_il && giornoDi(impegno.mantenuto_il) === oggi;
+}
+
+/**
+ * Il messaggio che mantiene l'impegno va restituito all'app perche' lo mostri?
+ * Solo se e' stato scritto DOPO l'apertura della chat (meno un margine): se
+ * c'era gia', l'app lo ha letto con lo storico e mostrarlo di nuovo lo
+ * raddoppierebbe.
+ */
+export const MARGINE_STORICO_MS = 1000;
+export function daMostrare(creatoIl: string | null | undefined, aperturaMs: number): boolean {
+  const t = creatoIl ? Date.parse(creatoIl) : NaN;
+  return Number.isFinite(t) && t >= aperturaMs - MARGINE_STORICO_MS;
 }

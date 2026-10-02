@@ -1,0 +1,234 @@
+// La chat: la promessa di fine accoglienza va mantenuta. Solo logica pura,
+// niente rete: il caso Tolc usa le risposte del modello REGISTRATE in
+// test/fixtures/chat.json (2 ottobre 2026) e le fa passare dalla stessa logica
+// che gira nelle Edge Functions accoglienza-dialogo e chat.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import {
+  allineaCoda,
+  elaboraTurno,
+  leggiImpegno,
+  profiloCompleto,
+} from '../supabase/functions/accoglienza-dialogo/logica.ts';
+import {
+  MODELLO_CHAT,
+  TENTATIVO_VALE_MS,
+  TURNO_APERTURA,
+  conImpegno,
+  costoUSD,
+  impegnoDaMantenere,
+  istruzioneImpegno,
+  messaggiModello,
+  richiestaChat,
+  righeAccoglienza,
+  testoRisposta,
+} from '../supabase/functions/chat/logica.ts';
+import { daMostrare, impegnoFermaCoda } from '../supabase/functions/coda-domande/logica.ts';
+
+const TOLC = JSON.parse(readFileSync(new URL('./fixtures/chat.json', import.meta.url), 'utf8')).tolc;
+const APERTURA = 'Ciao, sono Lode. Partiamo dal concreto: qual è il primo esame che devi dare?';
+
+/** Il dialogo del Tolc, rigiocato con le risposte registrate del modello. */
+function dialogoTolc() {
+  let profilo = profiloCompleto({});
+  let chieste = ['esame_target'];
+  let conversazione = [{ ruolo: 'assistant', contenuto: APERTURA }];
+  let esito = null;
+  for (const t of TOLC.dialogo) {
+    conversazione = [...conversazione, { ruolo: 'user', contenuto: t.studente }];
+    esito = elaboraTurno(
+      { nomeBot: 'Lode', oggi: TOLC.oggi, conversazione, profilo, chieste, esami: [], libretto: { media: null, cfu: 0 } },
+      t.grezzo
+    );
+    profilo = esito.profilo;
+    chieste = esito.chieste;
+    conversazione = [...conversazione, { ruolo: 'assistant', contenuto: esito.risposta_bot }];
+  }
+  return { esito, profilo, conversazione };
+}
+
+/** Le righe "1) ...", "2) ..." di un messaggio: gli esercizi scritti per esteso. */
+function esercizi(testo) {
+  return testo
+    .split('\n')
+    .map((r) => r.trim())
+    .filter((r) => /^\d+\)\s+\S/.test(r));
+}
+/** Un esercizio vero ha dentro dell'algebra, non solo parole. */
+const conAlgebra = (riga) => /[0-9]*[a-z](\^\d)?\s*[+\-*/)(]|\(.*[a-z].*\)/i.test(riga.replace(/^\d+\)\s+/, ''));
+
+// ---------- il caso Tolc, dall'inizio alla fine ----------
+
+test('caso Tolc: il dialogo chiude con un impegno, e l\'impegno resta nel profilo "da_mantenere"', () => {
+  const { esito, profilo } = dialogoTolc();
+  assert.equal(esito.aiuto, true);
+  assert.equal(esito.fine, true);
+  const impegno = leggiImpegno(profilo);
+  assert.ok(impegno, 'l\'impegno non è stato salvato');
+  assert.equal(impegno.stato, 'da_mantenere');
+  assert.ok(esito.risposta_bot.endsWith(impegno.testo), 'l\'impegno salvato è la promessa detta allo studente');
+  assert.match(impegno.testo, /monomi|polinomi/i);
+  // non si perde quando il profilo viene riletto o riscritto
+  assert.deepEqual(leggiImpegno(profiloCompleto(JSON.parse(JSON.stringify(profilo)))), impegno);
+  // e non entra in coda come domanda
+  assert.ok(allineaCoda([], profilo, true).every((d) => d.chiave !== 'impegno'));
+});
+
+test('caso Tolc: la richiesta alla chat obbliga a mantenere la promessa, con il livello dichiarato nei dati', () => {
+  const { profilo, conversazione } = dialogoTolc();
+  const impegno = leggiImpegno(profilo);
+  const dati = { testo: righeAccoglienza(profilo).join('\n'), senzaVoti: true };
+  const r = richiestaChat(dati, [], conversazione, TURNO_APERTURA, istruzioneImpegno(impegno.testo, false));
+
+  assert.equal(r.model, MODELLO_CHAT);
+  assert.equal(r.model, 'claude-sonnet-5-5');
+  // parte stabile in cache (istruzioni + dati dello studente), istruzione del momento fuori
+  assert.equal(r.system.length, 3);
+  assert.deepEqual(r.system[0].cache_control, { type: 'ephemeral' });
+  assert.deepEqual(r.system[1].cache_control, { type: 'ephemeral' });
+  assert.equal(r.system[2].cache_control, undefined);
+  assert.ok(r.system[2].text.includes(impegno.testo));
+  assert.match(r.system[2].text, /esercizi veri/);
+  // il livello dichiarato dallo studente arriva al modello con le sue parole
+  assert.match(r.system[1].text, /indietro con la matematica/);
+  assert.match(r.system[1].text, /Tolc I/);
+  // la conversazione parte da un messaggio dello studente e finisce con l'apertura della chat
+  assert.equal(r.messages[0].role, 'user');
+  assert.equal(r.messages[r.messages.length - 1].content, TURNO_APERTURA);
+  assert.equal(r.messages[r.messages.length - 2].role, 'assistant'); // la battuta di chiusura
+});
+
+test('caso Tolc: il PRIMO messaggio della chat contiene esercizi veri, coerenti con la promessa e col livello', () => {
+  const { profilo } = dialogoTolc();
+  const m = TOLC.primo_messaggio;
+  const righe = esercizi(m);
+  assert.ok(righe.length >= 3 && righe.length <= 5, `servono da tre a cinque esercizi, trovati ${righe.length}`);
+  for (const r of righe) assert.ok(conAlgebra(r), `non è un esercizio: ${r}`);
+  // coerenti con la promessa: l'argomento è quello da cui si era detto di partire
+  assert.match(leggiImpegno(profilo).testo, /monomi/i);
+  assert.match(m, /monomi|polinomi/i);
+  // coerenti col livello ("partendo dalle basi"): il primo è una somma di monomi simili, senza potenze né parentesi
+  assert.ok(!/[\^()]/.test(righe[0].replace(/^\d+\)/, '')), `il primo esercizio non è di base: ${righe[0]}`);
+  // niente soluzioni insieme agli esercizi, e niente "sei pronto?"
+  for (const r of righe) assert.ok(!r.includes('='), `soluzione insieme all'esercizio: ${r}`);
+  assert.ok(!/sei pronto|vuoi (che )?(cominci|inizi)|iniziamo\?/i.test(m), 'annuncia invece di cominciare');
+  assert.ok(!m.includes('?'), 'il primo messaggio non rimanda con una domanda');
+  // testo semplice: niente markdown
+  assert.ok(!/\*\*|^#|^[-*] /m.test(m));
+});
+
+test('caso Tolc: sull\'errore spiega il passaggio sbagliato, non dà solo la soluzione giusta', () => {
+  const c = TOLC.correzione;
+  assert.equal(TOLC.risposta_sbagliata, 'il primo fa 10a');
+  assert.match(c, /6a/, 'il risultato giusto c\'è');
+  assert.match(c, /10a/, 'riprende il risultato dello studente');
+  // dice DA DOVE viene l'errore e qual è il passaggio rotto (il segno del -2a)
+  assert.match(c, /3 \+ 5 \+ 2/, 'ricostruisce il conto sbagliato');
+  assert.match(c, /segno|meno/i, 'nomina il passaggio sbagliato');
+  // spiega la regola, e fa riprovare
+  assert.match(c, /coefficient/i);
+  assert.ok(c.replace(/\s+/g, ' ').length > 'Il risultato giusto è 6a.'.length * 4, 'è solo la soluzione');
+  assert.match(c, /rifa|riprova|gemello/i);
+});
+
+// ---------- l'impegno: una volta sola, e non si perde ----------
+
+const IMPEGNO = { testo: 'Partiamo da monomi e polinomi.', stato: 'da_mantenere', il: '2026-10-02T17:00:00.000Z' };
+const ADESSO = Date.parse('2026-10-02T17:00:10.000Z');
+
+test('impegno: va mantenuto se è "da_mantenere" e nessun tentativo è in corso', () => {
+  assert.equal(impegnoDaMantenere(IMPEGNO, ADESSO), true);
+  assert.equal(impegnoDaMantenere(null, ADESSO), false);
+  // un tentativo appena partito blocca i doppioni...
+  const inCorso = { ...IMPEGNO, tentativo_il: new Date(ADESSO - 5_000).toISOString() };
+  assert.equal(impegnoDaMantenere(inCorso, ADESSO), false);
+  // ...ma se è rimasto appeso (function morta a metà) non blocca per sempre
+  const appeso = { ...IMPEGNO, tentativo_il: new Date(ADESSO - TENTATIVO_VALE_MS - 1).toISOString() };
+  assert.equal(impegnoDaMantenere(appeso, ADESSO), true);
+});
+
+test('impegno: una volta "mantenuto" non si mantiene più', () => {
+  const fatto = { ...IMPEGNO, stato: 'mantenuto', mantenuto_il: '2026-10-02T17:00:08.000Z', messaggio_id: 'x' };
+  assert.equal(impegnoDaMantenere(fatto, ADESSO), false);
+  assert.equal(impegnoDaMantenere(fatto, ADESSO + 10 * 24 * 3600 * 1000), false);
+});
+
+test('impegno: se la generazione fallisce resta "da_mantenere" e lo mantiene la risposta al primo messaggio', () => {
+  // fallimento = il tentativo viene liberato, lo stato non cambia
+  const dopoFallimento = { ...IMPEGNO, tentativo_il: null };
+  assert.equal(impegnoDaMantenere(dopoFallimento, ADESSO), true);
+  const r = richiestaChat({ testo: 'x', senzaVoti: true }, [], [], 'ciao, ci sei?', istruzioneImpegno(IMPEGNO.testo, true));
+  assert.match(r.system[2].text, /Rispondi a quello che ha appena scritto e, nello stesso messaggio, mantienila/);
+  assert.equal(r.messages[r.messages.length - 1].content, 'ciao, ci sei?');
+});
+
+test('impegno: scriverlo nel profilo non tocca il resto, e un profilo riscritto dall\'app vecchia lo riottiene', () => {
+  const profilo = { esame_target: { testo: 'Tolc I', nome: 'Tolc I', id: null }, ostacolo: 'x' };
+  const con = conImpegno(profilo, IMPEGNO);
+  assert.deepEqual(con.esame_target, profilo.esame_target);
+  assert.deepEqual(leggiImpegno(con), { ...IMPEGNO, tentativo_il: null, mantenuto_il: null, messaggio_id: null });
+  // l'app già installata salva il profilo senza la chiave: leggiImpegno dà null e il server la rimette
+  assert.equal(leggiImpegno(profilo), null);
+  assert.equal(leggiImpegno({ impegno: { testo: '', stato: 'da_mantenere' } }), null);
+  assert.equal(leggiImpegno({ impegno: { testo: 'x', stato: 'boh' } }), null);
+  // un profilo senza impegno resta senza la chiave (la forma non cambia)
+  assert.ok(!('impegno' in profiloCompleto({})));
+});
+
+test('impegno e coda: prima la promessa, e nel giorno in cui è mantenuta nessuna domanda di contorno', () => {
+  const giorno = (iso) => iso.slice(0, 10);
+  assert.equal(impegnoFermaCoda(null, '2026-10-02', giorno), false);
+  assert.equal(impegnoFermaCoda({ stato: 'da_mantenere' }, '2026-10-02', giorno), true);
+  const fatto = { stato: 'mantenuto', mantenuto_il: '2026-10-02T17:00:08.000Z' };
+  assert.equal(impegnoFermaCoda(fatto, '2026-10-02', giorno), true);
+  assert.equal(impegnoFermaCoda(fatto, '2026-10-03', giorno), false);
+});
+
+test('apertura della chat: il messaggio che mantiene l\'impegno si restituisce solo se l\'app non può averlo già', () => {
+  const apertura = Date.parse('2026-10-02T17:00:05.000Z');
+  assert.equal(daMostrare('2026-10-02T17:00:09.000Z', apertura), true); // scritto dopo l'apertura
+  assert.equal(daMostrare('2026-10-02T17:00:00.000Z', apertura), false); // c'era già: è nello storico
+  assert.equal(daMostrare(null, apertura), false);
+});
+
+// ---------- la richiesta e il costo ----------
+
+test('chat: la conversazione mandata al modello comincia sempre da un messaggio dello studente', () => {
+  const m = messaggiModello(
+    [
+      { ruolo: 'assistant', contenuto: 'a' },
+      { ruolo: 'assistant', contenuto: 'b' },
+      { ruolo: 'user', contenuto: 'c' },
+      { ruolo: 'assistant', contenuto: 'd' },
+    ],
+    'e'
+  );
+  assert.deepEqual(m.map((x) => x.content), ['c', 'd', 'e']);
+  assert.deepEqual(messaggiModello([{ ruolo: 'assistant', contenuto: 'a' }], 'e').map((x) => x.role), ['user']);
+});
+
+test('chat: senza istruzione del momento i blocchi di sistema sono due, tutti e due in cache', () => {
+  const r = richiestaChat({ testo: 'Oggi è venerdì.', senzaVoti: false }, [{ categoria: 'obiettivi', contenuto: 'laurearsi a luglio' }], [], 'ciao');
+  assert.equal(r.system.length, 2);
+  assert.ok(r.system.every((b) => b.cache_control?.type === 'ephemeral'));
+  assert.ok(!r.system[0].text.includes('Oggi è venerdì'), 'i dati dello studente non stanno nel blocco uguale per tutti');
+  assert.match(r.system[1].text, /laurearsi a luglio/);
+  assert.match(r.system[1].text, /<dati_reali_utente>\nOggi è venerdì\.\n<\/dati_reali_utente>/);
+});
+
+test('chat: testo della risposta, e niente testo se il modello rifiuta', () => {
+  assert.equal(testoRisposta({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: ' ciao ' }] }), 'ciao');
+  assert.equal(testoRisposta({ stop_reason: 'refusal', content: [{ type: 'text', text: 'x' }] }), '');
+  assert.equal(testoRisposta(null), '');
+});
+
+test('costo: dai token reali, con lettura e scrittura della cache al loro prezzo', () => {
+  // 1M di token per voce: 2 + 10 + 0,20 + 2,50 dollari su Sonnet
+  const u = { input_tokens: 1e6, output_tokens: 1e6, cache_read_input_tokens: 1e6, cache_creation_input_tokens: 1e6 };
+  assert.equal(Number(costoUSD('claude-sonnet-5-5', u).toFixed(2)), 14.7);
+  assert.equal(Number(costoUSD('claude-haiku-4-5', u).toFixed(2)), 7.35);
+  // i token registrati nel caso Tolc: il secondo messaggio legge dalla cache quello che il primo ha scritto
+  assert.equal(TOLC.uso_correzione.cache_read_input_tokens, TOLC.uso_primo_messaggio.cache_creation_input_tokens);
+  assert.ok(costoUSD(MODELLO_CHAT, TOLC.uso_correzione) < costoUSD(MODELLO_CHAT, TOLC.uso_primo_messaggio));
+});
