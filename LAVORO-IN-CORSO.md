@@ -21,5 +21,5 @@
   3. `npm test` verde, commit, push.
   Nuovi file nel pacchetto di `chat`: `_shared/aiuto.ts`, `chat/controlli.ts`, `chat/interrogazione.ts`; in `accoglienza-dialogo`: `_shared/aiuto.ts`.
 - [x] (fatto, vedi punto 5) Scegliere la cache (5 minuti o 1 ora) col risultato di `cache-esito.json` e, se 1 ora, mettere `ttl: '1h'` nei `cache_control` di `sistema()` in `chat/logica.ts` PRIMA di pubblicare (una sola pubblicazione).
-- [ ] Spegnere `prova-modello` (ora è un tramite attivo con segreto): ridistribuire la versione 410, oppure cancellarla dalla dashboard (il connettore non ha un comando per cancellare le function).
+- [x] `prova-modello` SPENTA (410), segreto cancellato. Resta da cancellare dalla dashboard (nome esatto: `prova-modello`; il connettore non ha il comando).
 - [ ] "1 attività in esecuzione": non è un processo del repo (`Get-Process` mostra solo la misura della cache, `node`, avviata da me). Se resta dopo la fine della misura, è una scheda del terminale dell'app: si chiude da lì.
