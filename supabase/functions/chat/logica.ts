@@ -247,7 +247,7 @@ const normalizza = (t: string) =>
   t
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{M}/gu, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 

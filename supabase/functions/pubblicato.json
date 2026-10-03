@@ -1,25 +1,30 @@
 {
   "accoglienza-dialogo": {
-    "versione": 11,
+    "versione": 12,
     "verify_jwt": true,
     "verificata_il": "2026-10-03",
     "file": {
+      "_shared/manuale-testo.ts": "efc15e7e023a38526d7558cfae3313aa19e29c71a18d1de1cc0fd4ed45d35196",
+      "_shared/manuale.ts": "56645cccd1c3754ab1903b0efa0cfa8cf34b27a6159c7beb22ee3560ab3f1d12",
       "accoglienza-dialogo/index.ts": "6b897d900efb215ee89162135732c496afd329fa97b680256744d30026b02d6e",
-      "accoglienza-dialogo/logica.ts": "d248c5b11d005cbff4e20f3ce0f9b1e81b1d79c00fa377c6dbf3eecd18e61a64",
+      "accoglienza-dialogo/logica.ts": "fa8effb4d872a9d580cf818787b464387be2ec7ec7d585c387a828b1cdf9603f",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
       "accoglienza-dialogo/servizio.ts": "b5a61ae562faeacf4719d443bf261e9dcd2535014967358aeebf8af2feb61995"
     }
   },
   "chat": {
-    "versione": 16,
+    "versione": 17,
     "verify_jwt": false,
     "verificata_il": "2026-10-03",
     "file": {
       "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
+      "_shared/manuale-testo.ts": "efc15e7e023a38526d7558cfae3313aa19e29c71a18d1de1cc0fd4ed45d35196",
+      "_shared/manuale.ts": "56645cccd1c3754ab1903b0efa0cfa8cf34b27a6159c7beb22ee3560ab3f1d12",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
-      "chat/index.ts": "ce006c68c0ba2c8f5593c02d4c929fb99dc335aefe74017832c9bdc1c749a4ca",
-      "chat/logica.ts": "2fb108158d9d21bac6bea893bcf093a1ac17955c2e037df27cddcffbecea8368",
-      "chat/motore.ts": "6844aa801909cf246ac6685557a950e36f5b8e89999e9379e8e75d9250143a83"
+      "chat/index.ts": "784a42cb6260d4459f5f5c4c6ca2b868e32067e59a2a18378970c8f6bb855791",
+      "chat/logica.ts": "62255bbc571e34a19565972b6a55001ea8359cf77f285362cb2935509d24a5ce",
+      "chat/memoria.ts": "18ce5c23cfbf048748e50e1794e5f635e743910d329372b621c11c6d730116c3",
+      "chat/motore.ts": "d9b896f5c92bfaa32a713932308c8b11cb96009033305403257bb87581a38c98"
     }
   },
   "coda-domande": {
