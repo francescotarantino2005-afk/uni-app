@@ -3,6 +3,7 @@
 // istruzioni tecniche dell'app), il contesto dello studente, la forma della
 // richiesta al modello (con il prompt caching sulla parte stabile), le regole
 // dell'impegno preso a fine accoglienza e il conto del costo di una chiamata.
+import { TELEFONO_AMICO } from '../_shared/aiuto.ts';
 import { manualeCompleto } from '../_shared/manuale.ts';
 import { type Impegno, oggetto, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
 
@@ -15,16 +16,25 @@ export const TENTATIVO_VALE_MS = 90_000;
 // >>> DA VERIFICARE PRIMA DELLA PUBBLICAZIONE (numeri segnalati all'utente).
 const RIF_COUNSELING =
   'il servizio di counseling psicologico del tuo ateneo (quasi tutte le università italiane lo offrono gratis agli iscritti)';
-const RIF_TELEFONO_AMICO =
-  'Telefono Amico Italia al 02 2327 2327 (tutti i giorni 10-24), oppure su WhatsApp al 324 011 7252 (18-21)';
-const RIF_EMERGENZA = 'il 112, numero unico di emergenza';
+const RIF_TELEFONO_AMICO = TELEFONO_AMICO;
+const RIF_EMERGENZA = 'al 112 (numero unico di emergenza)';
 
-export const ISTRUZIONI_TECNICHE = `ISTRUZIONI TECNICHE DELL'APP
+/** Come l'app mostra i messaggi: testo semplice (build attuali) o Markdown leggero (app nuova). */
+export type Formato = 'testo' | 'markdown';
+
+const FORMATO_TESTO = `Formato del testo (la chat dell'app mostra testo semplice, non markdown):
+- Niente markdown: niente **grassetto**, niente #titoli, niente elenchi con - o *, niente formule tra $...$. Separa con frasi e con a capo. Questo vale al posto delle indicazioni di formattazione della sezione 9 del manuale.
+- Potenze, radici e simboli in Unicode anche in testo semplice: x², x³, √, ≤, ≥, ≠, ·, −, ×, π; mai ^ o *. Frazioni con /, prodotti scritti di seguito (3ab). Il codice è testo semplice, una riga per riga.`;
+
+const FORMATO_MARKDOWN = `Formato del testo (la chat dell'app mostra Markdown leggero):
+- Grassetto (**…**) solo per i concetti chiave; titoletti (## …) solo nei messaggi lunghi come simulazioni e piani; elenchi con -. Niente tabelle.
+- Formule tra $...$ in notazione Unicode (3², x³, √, −, ·, ≤); mai ^ o *. Il codice va in blocchi di codice.`;
+
+/** Le istruzioni tecniche dell'app: hanno la precedenza sul manuale. Il formato dipende dalla versione dell'app. */
+export const istruzioniTecniche = (formato: Formato = 'testo') => `ISTRUZIONI TECNICHE DELL'APP
 Questa parte ha la PRECEDENZA sul manuale: dove i due si contraddicono (formato del testo, impegni presi, dati dello studente) vale quello che leggi qui. Per tutto il resto — come si insegna, come si interroga, come si sta accanto allo studente — vale il manuale.
 
-Formato del testo (la chat dell'app mostra testo semplice, non markdown):
-- Niente markdown: niente **grassetto**, niente #titoli, niente elenchi con - o *, niente formule tra $...$. Separa con frasi e con a capo. Questo vale al posto delle indicazioni di formattazione della sezione 9 del manuale.
-- Le formule in testo semplice: potenze con ^ (x^2), frazioni con /, prodotti scritti di seguito (3ab). Il codice è testo semplice, una riga per riga.
+${formato === 'markdown' ? FORMATO_MARKDOWN : FORMATO_TESTO}
 - Risposta multipla: la domanda, poi ogni opzione su una riga sua (A), B), C)...).
 - Dai SEMPRE del tu, anche quando interroghi: il manuale scrive "Mi parli di…" ma tu dici "Parlami di…", "Dimmi…", "Spiegami…"; mai "mi dica", "lei", "ha detto" riferito a lui.
 - Italiano completo e corretto: parole intere, mai troncate o abbreviate. Al massimo UNA emoji, nessuna quando l'argomento è serio.
@@ -62,11 +72,14 @@ Procrastinare, distrarsi col telefono, rimandare, il calo di motivazione, l'ansi
 
 SOLO se lo studente esprime in modo esplicito e diretto un disagio grave che va oltre l'esame ("non ce la faccio più con tutto", disperazione, isolamento) — o parla di farsi del male — smetti di fare il professore, come dice la sezione 7 del manuale: NESSUN esercizio, nessun piano, nessuna domanda di studio, nemmeno se c'è un impegno da mantenere. Rispondi con calma e calore, prendendo sul serio quello che dice, senza diagnosi, e indica un riferimento in una o due frasi:
 - disagio grave dichiarato apertamente: ${RIF_COUNSELING}; e ${RIF_TELEFONO_AMICO};
-- se parla di farsi del male: di' chiaramente che non sei lo strumento giusto e indirizza a ${RIF_EMERGENZA} e a ${RIF_TELEFONO_AMICO}.
+- se parla di farsi del male: digli con calore che non deve reggere tutto da solo e indirizza ${RIF_EMERGENZA} e a ${RIF_TELEFONO_AMICO}. Mai frasi che suonano come un rifiuto ("non sono lo strumento giusto", "non posso aiutarti").
+- I recapiti sono SOLO quelli scritti qui sopra, esattamente così: mai numeri di telefono, orari o servizi presi dalla memoria.
 Il 112 lo nomini SOLO se parla di farsi del male o di un pericolo immediato: se il disagio è grave ma non c'è questo, non lo scrivi. In questi messaggi fai al massimo UNA domanda, aperta e gentile, e non su cosa studiare.
 Fuori da questi casi espliciti, non nominare mai queste risorse.
 
 Tipo d'esame (scritto, orale, entrambi, progetto): se nel messaggio ti viene detto qual è l'esame su cui state lavorando e il suo tipo, lo usi e non lo richiedi. Se il tipo non è noto e per impostare il lavoro serve davvero, lo chiedi UNA volta, e quella è l'UNICA domanda del messaggio (prima, al massimo, un consiglio utile: niente domande di verifica o di riscaldamento). Quando lo studente te lo dice, aggiungi alla fine della risposta, su una riga sola, il segno [[tipo_esame:scritto]] (oppure orale, entrambi, progetto): l'app lo toglie prima di mostrare il messaggio e lo salva. Solo se lo studente l'ha detto chiaramente e solo se il messaggio indica un esame del libretto su cui lavorate: mai indovinarlo.`;
+
+export const ISTRUZIONI_TECNICHE = istruzioniTecniche('testo');
 
 // Regola di priorità per le matricole: se non ci sono voti, NON insistere sul
 // libretto, sposta il discorso su lezioni, scadenze e metodo.
@@ -78,12 +91,12 @@ CONTESTO IMPORTANTE: questo studente NON ha ancora nessun voto nel libretto — 
  * Le istruzioni di sistema: il manuale del professore (con il nome del bot) e,
  * dopo, le istruzioni tecniche dell'app, che hanno la precedenza.
  */
-export function istruzioniSistema(nomeBot?: string | null): string {
+export function istruzioniSistema(nomeBot?: string | null, formato: Formato = 'testo'): string {
   return `${manualeCompleto(nomeBot)}
 
 ---
 
-${ISTRUZIONI_TECNICHE}`;
+${istruzioniTecniche(formato)}`;
 }
 
 export type Nota = { categoria: string; contenuto: string };
@@ -372,6 +385,8 @@ export type DatiStudente = {
   nomeBot?: string | null;
   /** L'esame su cui si sta lavorando adesso, se c'è (vedi esameInLavorazione). */
   esame?: EsameRiga | null;
+  /** Come l'app mostra i messaggi; senza, 'testo' (le build vecchie non lo mandano). */
+  formato?: Formato;
 };
 
 /**
@@ -386,7 +401,7 @@ export function sistema(dati: DatiStudente, note: Nota[], extra?: string) {
   const blocchi: { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }[] = [
     {
       type: 'text',
-      text: istruzioniSistema(dati.nomeBot) + (dati.senzaVoti ? ISTRUZIONE_MATRICOLA : ''),
+      text: istruzioniSistema(dati.nomeBot, dati.formato) + (dati.senzaVoti ? ISTRUZIONE_MATRICOLA : ''),
       cache_control: { type: 'ephemeral' },
     },
     {
