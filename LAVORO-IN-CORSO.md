@@ -12,7 +12,7 @@
 5. Cache da un'ora — SCELTA 1 ora (`CACHE_STABILE` in chat/logica.ts, intestazione beta in motore.ts). Misura incompleta: credito API Anthropic finito al messaggio 5. Dettagli in docs/prova-correzioni-2026-10-03.md.
 6. Pulizia — vedi sotto.
 
-## URGENTE: il credito dell'API Anthropic e' finito ("credit balance is too low", errore 400 del 3 ottobre ~20:15). Senza credito la chat in produzione non risponde. Ricaricare da Plans & Billing, poi verificare con un messaggio.
+## URGENTE: dopo la ricarica l'API risponde ANCORA "credit balance is too low" (verificato alle ~23:00 del 3 ottobre, 3 tentativi in 2 minuti, via prova-modello che usa ANTHROPIC_API_KEY dei secrets Supabase). O la ricarica non e' ancora arrivata, o la chiave dei secrets appartiene a un'altra organizzazione/workspace di quella ricaricata. Passi 3 e 4 (cache dal vivo, interrogazione dal vivo) BLOCCATI finche' non risponde. prova-modello e' di nuovo ATTIVA (segreto in scratchpad): spegnerla a fine prova.
 
 ## DA FARE (non fatto: contesto al 66% e limite orario del piano al 75%)
 - [ ] PUBBLICARE le due function (il registro è rosso finché non si fa, `npm test` fallisce SOLO per questo):
@@ -23,3 +23,5 @@
 - [x] (fatto, vedi punto 5) Scegliere la cache (5 minuti o 1 ora) col risultato di `cache-esito.json` e, se 1 ora, mettere `ttl: '1h'` nei `cache_control` di `sistema()` in `chat/logica.ts` PRIMA di pubblicare (una sola pubblicazione).
 - [x] `prova-modello` SPENTA (410), segreto cancellato. Resta da cancellare dalla dashboard (nome esatto: `prova-modello`; il connettore non ha il comando).
 - [ ] "1 attività in esecuzione": non è un processo del repo (`Get-Process` mostra solo la misura della cache, `node`, avviata da me). Se resta dopo la fine della misura, è una scheda del terminale dell'app: si chiude da lì.
+
+## Punto 1 (errori del modello): FATTO e committato (errori.ts, chat/index.ts, accoglienza-dialogo, test/errori.test.mjs). Nulla ancora pubblicato: pubblicare UNA volta quando le prove 3 e 4 (con ttl 1h, con/senza intestazione beta) hanno dato esito.
