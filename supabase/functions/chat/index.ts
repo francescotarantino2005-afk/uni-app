@@ -60,7 +60,9 @@ Deno.serve(async (req) => {
     if (!user) return json({ errore: 'NON_AUTORIZZATO' }, 401);
 
     // 2) Input
-    const { messaggio, id, azione } = await req.json().catch(() => ({}));
+    const { messaggio, id, azione, formato: formatoRichiesto } = await req.json().catch(() => ({}));
+    // Le build vecchie non mandano il formato: restano sul testo semplice.
+    const formato = formatoRichiesto === 'markdown' ? 'markdown' : 'testo';
 
     // La chat scrive da sola il messaggio che mantiene l'impegno dell'accoglienza.
     if (azione === 'mantieni_impegno') {
@@ -131,7 +133,7 @@ Deno.serve(async (req) => {
 
     let esito: Awaited<ReturnType<typeof rispondi>>;
     try {
-      esito = await rispondi(admin, clientUtente, user.id, testo, anthropic);
+      esito = await rispondi(admin, clientUtente, user.id, testo, anthropic, formato);
     } catch (e) {
       console.error('Chat AI fallita:', e);
       if (e instanceof Anthropic.APIConnectionTimeoutError) return json({ errore: 'TIMEOUT' }, 504);
@@ -146,7 +148,7 @@ Deno.serve(async (req) => {
       .upsert({ id: idMsg, user_id: user.id, ruolo: 'user', contenuto: testo }, { onConflict: 'id', ignoreDuplicates: true });
     const { data: rigaRisposta, error: erroreRisposta } = await admin
       .from('chat_messages')
-      .insert({ user_id: user.id, ruolo: 'assistant', contenuto: risposta })
+      .insert({ user_id: user.id, ruolo: 'assistant', contenuto: risposta, metadati: esito.metadati })
       .select('id')
       .single();
     await admin.from('usage_chat').insert({ user_id: user.id, data: oggi });

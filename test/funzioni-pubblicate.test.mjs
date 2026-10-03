@@ -35,6 +35,6 @@ test('un file condiviso finisce nel pacchetto di TUTTE le function che lo import
   assert.deepEqual(usano('accoglienza-dialogo/profilo.ts'), ['accoglienza-dialogo', 'chat', 'coda-domande']);
   assert.deepEqual(
     pacchetto('chat').map((f) => f.name),
-    ['_shared/briefing.ts', '_shared/manuale-testo.ts', '_shared/manuale.ts', 'accoglienza-dialogo/profilo.ts', 'chat/index.ts', 'chat/logica.ts', 'chat/memoria.ts', 'chat/motore.ts']
+    ['_shared/aiuto.ts', '_shared/briefing.ts', '_shared/manuale-testo.ts', '_shared/manuale.ts', 'accoglienza-dialogo/profilo.ts', 'chat/controlli.ts', 'chat/index.ts', 'chat/interrogazione.ts', 'chat/logica.ts', 'chat/memoria.ts', 'chat/motore.ts']
   );
 });

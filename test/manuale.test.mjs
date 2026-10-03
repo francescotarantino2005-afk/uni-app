@@ -40,7 +40,7 @@ const ESAMI = [
 
 test('manuale: il testo nel codice è identico al file, carattere per carattere', () => {
   assert.equal(MANUALE, readFileSync(FILE_MD, 'utf8').replace(/\r\n/g, '\n'));
-  assert.match(MANUALE, /^# Manuale del professore — come insegna Lode\n\nVersione 1 · 3 ottobre 2026/);
+  assert.match(MANUALE, /^# Manuale del professore — come insegna Lode\n\nVersione 1\.1 · 3 ottobre 2026/);
 });
 
 test('manuale: {nome_bot} diventa il nome del bot, e senza nome resta Lode', () => {

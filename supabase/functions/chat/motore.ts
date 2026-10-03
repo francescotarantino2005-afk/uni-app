@@ -5,8 +5,11 @@
 // messaggio sia al messaggio che la chat scrive da sola.
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
+import { malessereSerio } from '../_shared/aiuto.ts';
 import { dataOggiRoma, giornoSettimanaRoma } from '../_shared/briefing.ts';
 import { type Impegno, leggiImpegno, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
+import { rispostaControllata } from './controlli.ts';
+import { type Decisione, decidi, statoDaStorico } from './interrogazione.ts';
 import {
   type Azione,
   type NotaMemoriaRiga,
@@ -18,6 +21,7 @@ import {
 import {
   type DatiStudente,
   type EsameRiga,
+  type Formato,
   type MessaggioChat,
   type Nota,
   type TipoEsame,
@@ -87,7 +91,7 @@ export function datiPerPrompt(
 }
 
 export type NotaMemoria = Nota & { id: string; importanza?: number | null; updated_at?: string | null };
-export type StoricoRiga = MessaggioChat & { created_at?: string };
+export type StoricoRiga = MessaggioChat & { created_at?: string; metadati?: unknown };
 
 /** Quante note attive si leggono dal database: piu' di quelle che entrano nel prompt, cosi' la memoria puo' fare ordine. */
 const MAX_NOTE_LETTE = 40;
@@ -98,7 +102,7 @@ export async function caricaTurno(admin: SupabaseClient, clientNote: SupabaseCli
     costruisciContesto(admin, userId),
     admin
       .from('chat_messages')
-      .select('ruolo, contenuto, created_at')
+      .select('ruolo, contenuto, created_at, metadati')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(MAX_STORICO),
@@ -226,14 +230,16 @@ export async function mantieniImpegno(
 /**
  * La risposta a un messaggio dello studente. Se c'e' un impegno ancora da
  * mantenere (la generazione automatica era fallita), questa stessa risposta lo
- * mantiene. Non scrive i messaggi: lo fa chi chiama, dopo i suoi controlli.
+ * mantiene. L'interrogazione guidata e' decisa dal codice (interrogazione.ts).
+ * Non scrive i messaggi: lo fa chi chiama, dopo i suoi controlli.
  */
 export async function rispondi(
   admin: SupabaseClient,
   clientNote: SupabaseClient,
   userId: string,
   testo: string,
-  anthropic: Anthropic
+  anthropic: Anthropic,
+  formato: Formato = 'testo'
 ): Promise<{
   risposta: string;
   storico: StoricoRiga[];
@@ -242,34 +248,43 @@ export async function rispondi(
   noteTutte: NotaMemoria[];
   /** Il tipo d'esame detto dallo studente in questo messaggio, da salvare (solo se l'esame c'è e non ha già un tipo). */
   tipoEsame: { esameId: string; tipo: TipoEsame } | null;
+  /** Lo stato da scrivere sul messaggio di Lode (chat_messages.metadati). */
+  metadati: Record<string, unknown>;
+  decisione: Decisione;
+  rigenerata: boolean;
   segnaMantenuto: (id: string | null) => Promise<void>;
 }> {
   const turno = await caricaTurno(admin, clientNote, userId);
   const impegno = impegnoDaMantenere(turno.impegno, Date.now()) ? turno.impegno : null;
   if (impegno) await scriviImpegno(admin, userId, { ...impegno, tentativo_il: new Date().toISOString() });
   try {
-    const dati = datiPerPrompt(turno, [testo]);
-    const grezza = await chiamaChat(
-      anthropic,
-      richiestaChat(
-        dati,
-        turno.note,
-        turno.storico,
-        testo,
-        impegno ? istruzioneImpegno(impegno.testo, true) : undefined
-      ),
-      impegno ? 'messaggio+impegno' : 'messaggio'
+    const dati = { ...datiPerPrompt(turno, [testo]), formato };
+    // L'interrogazione la guida il codice. Un malessere serio la interrompe.
+    const stato = statoDaStorico(turno.storico);
+    const ultimoDiLode = [...turno.storico].reverse().find((m) => m.ruolo === 'assistant')?.contenuto ?? null;
+    const decisione: Decisione = malessereSerio(testo)
+      ? { fase: 'nessuna', stato: stato ? { ...stato, attiva: false } : null, istruzione: '' }
+      : decidi(stato, testo, ultimoDiLode, dati.esame?.materia ?? null, formato);
+    const extra = [impegno ? istruzioneImpegno(impegno.testo, true) : '', decisione.istruzione].filter(Boolean).join('\n\n') || undefined;
+    const etichetta = decisione.fase !== 'nessuna' ? `interrogazione:${decisione.fase}` : impegno ? 'messaggio+impegno' : 'messaggio';
+
+    const esito = await rispostaControllata(
+      (e) => chiamaChat(anthropic, richiestaChat(dati, turno.note, turno.storico, testo, e), etichetta),
+      extra,
+      decisione.fase
     );
     // Il segno [[tipo_esame:...]] non arriva mai allo studente; il tipo si salva
     // solo se l'ha detto lui e l'esame del libretto non ne ha già uno.
-    const { testo: risposta, tipo } = estraiTipoEsame(grezza);
-    const daSalvare = tipoDaSalvare(tipo, dati.esame, testo);
+    const daSalvare = tipoDaSalvare(esito.tipo, dati.esame, testo);
     return {
-      risposta,
+      risposta: esito.risposta,
       storico: turno.storico,
       note: turno.note,
       noteTutte: turno.noteTutte,
       tipoEsame: daSalvare && dati.esame ? { esameId: dati.esame.id, tipo: daSalvare } : null,
+      metadati: decisione.stato ? { interrogazione: decisione.stato } : {},
+      decisione,
+      rigenerata: esito.rigenerata,
       segnaMantenuto: async (id) => {
         if (!impegno) return;
         await scriviImpegno(admin, userId, {
