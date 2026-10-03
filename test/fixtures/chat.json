@@ -1,8 +1,8 @@
 {
  "tolc": {
-  "registrata_il": "2026-10-02",
+  "registrata_il": "2026-10-03",
   "modello": "claude-sonnet-5-5",
-  "oggi": "2026-10-02",
+  "oggi": "2026-10-03",
   "dialogo": [
    {
     "studente": "devo ancora iniziare il corso, ho il Tolc I il 14 settembre",
@@ -18,11 +18,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Il Tolc I il 14 settembre risulta già passato rispetto a oggi, quindi forse parli di un'altra data o di una sessione successiva, magari me lo chiarisci dopo. Intanto, che tu non abbia ancora iniziato il corso vuol dire che parti da zero, e questo è un punto di partenza chiaro.",
+     "reazione": "Il 14 settembre per oggi, 3 ottobre, è già passato, quindi forse intendi un'altra data, o un altro anno? Intanto è chiaro che il corso non l'hai ancora cominciato.",
      "impegno": "",
      "prossima_chiave": "tempo_al_giorno",
-     "domanda_successiva": "Quanto tempo al giorno riesci a dedicare allo studio in questo periodo?",
+     "domanda_successiva": "Quanto tempo al giorno riesci a dedicare allo studio?",
      "chiusura": ""
     }
    },
@@ -38,34 +40,36 @@
      "avanzamento_livello": "sconosciuto",
      "tempo_testo": "",
      "tempo_minuti": 0,
-     "ostacolo_testo": "sono abbastanza indietro con la matematica",
+     "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": true,
      "chiede_aiuto": true,
-     "reazione": "Riprendere la matematica dalle basi, con monomi, polinomi e prodotti notevoli, è il modo giusto per costruire qualcosa che regge, e il fatto che tu ti eserciti già conta parecchio.",
-     "impegno": "Ripartiamo da monomi e polinomi, che sono la base di tutto il resto, e da lì ti seguo passo passo fino alle disequazioni.",
+     "reazione": "Ripartire dalle basi, da monomi e polinomi fino alle disequazioni, è la mossa giusta quando la matematica è rimasta indietro, e ti stai già muovendo con un metodo.",
+     "impegno": "Ti preparo una serie di 10 esercizi graduali sui prodotti notevoli, dai più semplici ai più insidiosi, così partiamo subito da lì.",
      "prossima_chiave": "nessuna",
      "domanda_successiva": "",
-     "chiusura": ""
+     "chiusura": "Quando li hai fatti, dimmi dove ti sei bloccato e ripartiamo da quel punto."
     }
    }
   ],
   "dati": {
-   "testo": "Oggi è venerdì (2026-10-02).\n--- Profilo ---\nAteneo: Alma Mater Studiorum - Università di Bologna\nCorso: Ingegneria Informatica\n--- Cosa ha detto all'inizio (parole sue) ---\nEsame o prova che ha davanti: Tolc I\nQuando: \"il 14 settembre\"\nA che punto è: \"sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni\"\nCosa lo ostacola: \"sono abbastanza indietro con la matematica\"\n--- Orario settimanale ---\nNessuna lezione inserita.\n--- Prossime scadenze ---\nNessuna scadenza in arrivo.\n--- Libretto ---\nNessun esame verbalizzato.",
+   "testo": "Oggi è venerdì (2026-10-03).\n--- Profilo ---\nAteneo: Alma Mater Studiorum - Università di Bologna\nCorso: Ingegneria Informatica\n--- Cosa ha detto all'inizio (parole sue) ---\nEsame o prova che ha davanti: Tolc I\nQuando: \"il 14 settembre\"\nA che punto è: \"sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni\"\n--- Orario settimanale ---\nNessuna lezione inserita.\n--- Prossime scadenze ---\nNessuna scadenza in arrivo.\n--- Libretto ---\nNessun esame verbalizzato.",
    "senzaVoti": true
   },
-  "primo_messaggio": "Ecco i primi cinque esercizi su monomi e polinomi, in ordine di difficoltà crescente:\n\n1) Calcola 3a + 5a - 2a\n2) Calcola (2x^2) * (4x^3)\n3) Calcola (6x^3y) / (2xy)\n4) Semplifica (3x + 2) + (5x - 7) - (2x - 1)\n5) Calcola (x + 2)(x - 3)\n\nMandami i tuoi risultati, anche uno alla volta: li rifaccio io passaggio per passaggio e ti dico dove sei solido e dove no.",
+  "primo_messaggio": "Ecco i 10 esercizi sui prodotti notevoli, in ordine di difficoltà. Svolgi ogni espressione fino a una forma semplificata.\n\n1) (x + 3)^2\n2) (a - 5)^2\n3) (2x + 1)^2\n4) (x + 4)(x - 4)\n5) (3a - 2b)^2\n6) (5x + 2)(5x - 2)\n7) (x^2 + 3)^2\n8) (2x - 3y)(2x + 3y) + (x + y)^2\n9) (x + 2)^3\n10) (a + b + 1)^2\n\nMandami i risultati, anche uno alla volta: se parti dai primi tre mi basta quello per capire come stai messo.",
   "uso_primo_messaggio": {
-   "input_tokens": 792,
-   "output_tokens": 203,
+   "input_tokens": 872,
+   "output_tokens": 245,
    "cache_read_input_tokens": 0,
-   "cache_creation_input_tokens": 3717
+   "cache_creation_input_tokens": 3688
   },
-  "risposta_sbagliata": "il primo fa 10a",
-  "correzione": "No, 10a non torna. Il conto giusto è 3a + 5a - 2a = (3 + 5 - 2)a = 6a. Il tuo 10a viene da 3 + 5 + 2: il segno meno davanti al 2a è stato letto come un più. Quando sommi monomi simili, sommi i coefficienti tenendo il loro segno, e qui il coefficiente di quel termine è -2, quindi 3 + 5 - 2 = 6.\n\nRifallo con uno gemello: 7b - 4b + b. Poi passa pure al 2) se ti va.",
+  "risposta_sbagliata": "il primo fa x^2 + 9",
+  "correzione": "x^2 + 9 è sbagliato: il risultato giusto è x^2 + 6x + 9.\n\nTi sei fermato al quadrato dei due termini, x^2 e 3^2 = 9, e hai perso il doppio prodotto. Probabilmente hai letto (x + 3)^2 come x^2 + 3^2, cioè hai distribuito l'esponente sui due addendi, e qui non si può fare. Alza al quadrato un binomio significa moltiplicarlo per sé stesso: (x + 3)(x + 3) = x^2 + 3x + 3x + 9 = x^2 + 6x + 9. I due termini centrali sono il doppio prodotto 2 * x * 3 = 6x, ed è quello che nel tuo risultato manca. La regola è (a + b)^2 = a^2 + 2ab + b^2.\n\nRifai tu il secondo, (a - 5)^2, applicando la stessa regola con il segno meno, e mandami il risultato.",
   "uso_correzione": {
-   "input_tokens": 639,
-   "output_tokens": 197,
-   "cache_read_input_tokens": 3717,
+   "input_tokens": 654,
+   "output_tokens": 337,
+   "cache_read_input_tokens": 3688,
    "cache_creation_input_tokens": 0
   }
  }

@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import {
   allineaCoda,
   elaboraTurno,
+  impegnoDiLode,
   leggiImpegno,
   profiloCompleto,
 } from '../supabase/functions/accoglienza-dialogo/logica.ts';
@@ -45,10 +46,11 @@ function dialogoTolc() {
   let esito = null;
   for (const t of TOLC.dialogo) {
     conversazione = [...conversazione, { ruolo: 'user', contenuto: t.studente }];
-    esito = elaboraTurno(
-      { nomeBot: 'Lode', oggi: TOLC.oggi, conversazione, profilo, chieste, esami: [], libretto: { media: null, cfu: 0 } },
-      t.grezzo
-    );
+    const input = { nomeBot: 'Lode', oggi: TOLC.oggi, conversazione, profilo, chieste, esami: [], libretto: { media: null, cfu: 0 } };
+    esito = elaboraTurno(input, t.grezzo);
+    if (esito.fine && esito.impegno_ripiego && t.grezzo_riprova && impegnoDiLode(t.grezzo_riprova.impegno)) {
+      esito = elaboraTurno(input, { ...t.grezzo, impegno: t.grezzo_riprova.impegno });
+    }
     profilo = esito.profilo;
     chieste = esito.chieste;
     conversazione = [...conversazione, { ruolo: 'assistant', contenuto: esito.risposta_bot }];
@@ -75,8 +77,9 @@ test('caso Tolc: il dialogo chiude con un impegno, e l\'impegno resta nel profil
   const impegno = leggiImpegno(profilo);
   assert.ok(impegno, 'l\'impegno non è stato salvato');
   assert.equal(impegno.stato, 'da_mantenere');
-  assert.ok(esito.risposta_bot.endsWith(impegno.testo), 'l\'impegno salvato è la promessa detta allo studente');
-  assert.match(impegno.testo, /monomi|polinomi/i);
+  assert.ok(esito.risposta_bot.includes(impegno.testo), 'l\'impegno salvato è la promessa detta allo studente');
+  assert.match(impegno.testo, /monomi|polinomi|prodotti notevoli/i);
+  assert.ok(impegnoDiLode(impegno.testo), 'è un\'azione che fa Lode');
   // non si perde quando il profilo viene riletto o riscritto
   assert.deepEqual(leggiImpegno(profiloCompleto(JSON.parse(JSON.stringify(profilo)))), impegno);
   // e non entra in coda come domanda
@@ -111,13 +114,16 @@ test('caso Tolc: il PRIMO messaggio della chat contiene esercizi veri, coerenti 
   const { profilo } = dialogoTolc();
   const m = TOLC.primo_messaggio;
   const righe = esercizi(m);
-  assert.ok(righe.length >= 3 && righe.length <= 5, `servono da tre a cinque esercizi, trovati ${righe.length}`);
+  const promessi = Number(leggiImpegno(profilo).testo.match(/\b(\d+) esercizi/)?.[1] ?? 0);
+  // se la promessa dice un numero, ci sono esattamente quelli; altrimenti da tre a cinque
+  if (promessi) assert.equal(righe.length, promessi, `promessi ${promessi} esercizi, trovati ${righe.length}`);
+  else assert.ok(righe.length >= 3 && righe.length <= 5, `servono da tre a cinque esercizi, trovati ${righe.length}`);
   for (const r of righe) assert.ok(conAlgebra(r), `non è un esercizio: ${r}`);
-  // coerenti con la promessa: l'argomento è quello da cui si era detto di partire
-  assert.match(leggiImpegno(profilo).testo, /monomi/i);
-  assert.match(m, /monomi|polinomi/i);
-  // coerenti col livello ("partendo dalle basi"): il primo è una somma di monomi simili, senza potenze né parentesi
-  assert.ok(!/[\^()]/.test(righe[0].replace(/^\d+\)/, '')), `il primo esercizio non è di base: ${righe[0]}`);
+  // coerenti con la promessa: prodotti notevoli = quadrati, cubi e prodotti di binomi
+  assert.match(leggiImpegno(profilo).testo, /prodotti notevoli/i);
+  for (const r of righe) assert.match(r, /\([^)]*[+-][^)]*\)(\^\d|\s*\()/, `non è un prodotto notevole: ${r}`);
+  // coerenti col livello ("partendo dalle basi"): si parte dal quadrato di un binomio semplice
+  assert.match(righe[0], /^1\)\s*\(\w \+ \d\)\^2$/);
   // niente soluzioni insieme agli esercizi, e niente "sei pronto?"
   for (const r of righe) assert.ok(!r.includes('='), `soluzione insieme all'esercizio: ${r}`);
   assert.ok(!/sei pronto|vuoi (che )?(cominci|inizi)|iniziamo\?/i.test(m), 'annuncia invece di cominciare');
@@ -128,15 +134,15 @@ test('caso Tolc: il PRIMO messaggio della chat contiene esercizi veri, coerenti 
 
 test('caso Tolc: sull\'errore spiega il passaggio sbagliato, non dà solo la soluzione giusta', () => {
   const c = TOLC.correzione;
-  assert.equal(TOLC.risposta_sbagliata, 'il primo fa 10a');
-  assert.match(c, /6a/, 'il risultato giusto c\'è');
-  assert.match(c, /10a/, 'riprende il risultato dello studente');
-  // dice DA DOVE viene l'errore e qual è il passaggio rotto (il segno del -2a)
-  assert.match(c, /3 \+ 5 \+ 2/, 'ricostruisce il conto sbagliato');
-  assert.match(c, /segno|meno/i, 'nomina il passaggio sbagliato');
+  assert.equal(TOLC.risposta_sbagliata, 'il primo fa x^2 + 9');
+  assert.match(c, /x\^2 \+ 6x \+ 9/, 'il risultato giusto c\'è');
+  assert.match(c, /x\^2 \+ 9/, 'riprende il risultato dello studente');
+  // dice qual è il passaggio rotto: il doppio prodotto perso
+  assert.match(c, /doppio prodotto/i, 'nomina il passaggio sbagliato');
+  assert.match(c, /2 \* x \* 3|2 · x · 3|2·x·3/, 'mostra il passaggio fatto bene');
   // spiega la regola, e fa riprovare
-  assert.match(c, /coefficient/i);
-  assert.ok(c.replace(/\s+/g, ' ').length > 'Il risultato giusto è 6a.'.length * 4, 'è solo la soluzione');
+  assert.match(c, /\(a \+ b\)\^2 = a\^2 \+ 2ab \+ b\^2/);
+  assert.ok(c.replace(/\s+/g, ' ').length > 'Il risultato giusto è x^2 + 6x + 9.'.length * 4, 'è solo la soluzione');
   assert.match(c, /rifa|riprova|gemello/i);
 });
 

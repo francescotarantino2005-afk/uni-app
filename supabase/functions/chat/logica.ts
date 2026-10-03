@@ -127,7 +127,8 @@ Non l'hai ancora mantenuta. ${
       ? 'Rispondi a quello che ha appena scritto e, nello stesso messaggio, mantienila.'
       : 'Scrivi tu per primo, adesso, il messaggio che la mantiene.'
   }
-- Il messaggio contiene già il contenuto promesso: se hai promesso esercizi, ci sono i primi esercizi veri, scritti per esteso, sull'argomento da cui hai detto di partire e al livello che lui ha dichiarato.
+- Il messaggio contiene già il contenuto promesso: se hai promesso esercizi, ci sono i primi esercizi veri, scritti per esteso, sull'argomento da cui hai detto di partire e al livello che lui ha dichiarato. Se hai promesso una simulazione con un numero di domande, ci sono tutte, numerate, ciascuna con le sue risposte possibili se è a scelta multipla.
+- Se la promessa dice un numero (10 domande, 5 esercizi), rispetti quel numero: vince sulle regole di lunghezza.
 - Non ripetere la promessa, non annunciare cosa farai, non chiedere se è pronto e non salutare di nuovo: la conversazione è già cominciata.
 - Chiudi dicendogli in una riga cosa mandarti (per esempio i risultati, anche uno alla volta).`;
 }

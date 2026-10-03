@@ -1,24 +1,24 @@
 {
   "accoglienza-dialogo": {
-    "versione": 9,
+    "versione": 10,
     "verify_jwt": true,
-    "verificata_il": "2026-10-02",
+    "verificata_il": "2026-10-03",
     "file": {
       "accoglienza-dialogo/index.ts": "6b897d900efb215ee89162135732c496afd329fa97b680256744d30026b02d6e",
-      "accoglienza-dialogo/logica.ts": "6958056b5d2da6353ab37b64810249a52c7cf1ae2bcc8517cafaa6dc3fe2970f",
+      "accoglienza-dialogo/logica.ts": "2fcbec2e7ee633a8f5d18a262628be7ae0d81de80fec74036fb5720c66de7ea8",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
-      "accoglienza-dialogo/servizio.ts": "2bc5588b9abc993589434596ec32c261c329bce5bb73187cda33c72c9193a606"
+      "accoglienza-dialogo/servizio.ts": "b5a61ae562faeacf4719d443bf261e9dcd2535014967358aeebf8af2feb61995"
     }
   },
   "chat": {
-    "versione": 15,
+    "versione": 16,
     "verify_jwt": false,
-    "verificata_il": "2026-10-02",
+    "verificata_il": "2026-10-03",
     "file": {
       "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
       "chat/index.ts": "ce006c68c0ba2c8f5593c02d4c929fb99dc335aefe74017832c9bdc1c749a4ca",
-      "chat/logica.ts": "b1f9d0b6418ad5b8a2b93621045149cc43bf5c8fdcb0a9300f9340c7cc0b7772",
+      "chat/logica.ts": "2fb108158d9d21bac6bea893bcf093a1ac17955c2e037df27cddcffbecea8368",
       "chat/motore.ts": "6844aa801909cf246ac6685557a950e36f5b8e89999e9379e8e75d9250143a83"
     }
   },

@@ -1,6 +1,6 @@
 {
  "reale": {
-  "oggi": "2026-10-02",
+  "oggi": "2026-10-03",
   "esami": [],
   "libretto": {
    "media": null,
@@ -21,11 +21,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Il 14 settembre di quest'anno è già passato, quindi forse ti riferisci a un'altra data o a un altro appello: te lo chiedo senza fretta. Intanto, che tu non abbia ancora iniziato il corso vuol dire che si parte da zero e si può impostare bene fin dall'inizio.",
+     "reazione": "Il 14 settembre per oggi, 3 ottobre, è già passato, quindi forse intendi un'altra data, o un altro anno? Intanto è chiaro che il corso non l'hai ancora cominciato.",
      "impegno": "",
      "prossima_chiave": "tempo_al_giorno",
-     "domanda_successiva": "Quanto tempo riesci a dedicare allo studio ogni giorno?",
+     "domanda_successiva": "Quanto tempo al giorno riesci a dedicare allo studio?",
      "chiusura": ""
     }
    },
@@ -37,24 +39,27 @@
      "esame_indice": 0,
      "quando_testo": "",
      "quando_data": "",
-     "avanzamento_testo": "sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi",
+     "avanzamento_testo": "sono abbastanza indietro con la matematica, sto facendo un percorso nel quale riprendo argomenti vecchi li ristudio e mi esercito, partendo dalle basi: monomi, polinomi, equazioni, prodotti notevoli, disequazioni",
      "avanzamento_livello": "sconosciuto",
      "tempo_testo": "",
      "tempo_minuti": 0,
-     "ostacolo_testo": "sono abbastanza indietro con la matematica",
+     "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": true,
      "chiede_aiuto": true,
-     "reazione": "Ripartire dalle basi e rifare gli esercizi è esattamente il modo giusto per recuperare la matematica: con monomi, polinomi e prodotti notevoli ben solidi, equazioni e disequazioni diventano molto più facili.",
-     "impegno": "Partiamo da monomi e polinomi: ti preparo una serie di esercizi graduali e, quando sbagli, ti spiego il passaggio che non torna prima di passare ai prodotti notevoli.",
+     "reazione": "Ripartire dalle basi, da monomi e polinomi fino alle disequazioni, è la mossa giusta quando la matematica è rimasta indietro, e ti stai già muovendo con un metodo.",
+     "impegno": "Ti preparo una serie di 10 esercizi graduali sui prodotti notevoli, dai più semplici ai più insidiosi, così partiamo subito da lì.",
      "prossima_chiave": "nessuna",
      "domanda_successiva": "",
-     "chiusura": ""
+     "chiusura": "Quando li hai fatti, dimmi dove ti sei bloccato e ripartiamo da quel punto."
     }
    }
-  ]
+  ],
+  "primo_messaggio": "Ecco i 10 esercizi sui prodotti notevoli, in ordine di difficoltà. Svolgi ogni espressione fino a una forma semplificata.\n\n1) (x + 3)^2\n2) (a - 5)^2\n3) (2x + 1)^2\n4) (x + 4)(x - 4)\n5) (3a - 2b)^2\n6) (5x + 2)(5x - 2)\n7) (x^2 + 3)^2\n8) (2x - 3y)(2x + 3y) + (x + y)^2\n9) (x + 2)^3\n10) (a + b + 1)^2\n\nMandami i risultati, anche uno alla volta: se parti dai primi tre mi basta quello per capire come stai messo."
  },
  "tutto_subito": {
-  "oggi": "2026-10-02",
+  "oggi": "2026-10-03",
   "esami": [
    {
     "id": "00000000-0000-4000-8000-000000000001",
@@ -85,7 +90,7 @@
    {
     "studente": "Devo dare Basi di Dati il 12 febbraio, sono più o meno a metà del programma. Studio un paio d'ore la sera perché di giorno lavoro in un bar, e il mio problema è che rimando sempre tutto all'ultima settimana.",
     "grezzo": {
-     "esame_testo": "Devo dare Basi di Dati",
+     "esame_testo": "Devo dare Basi di Dati il 12 febbraio",
      "esame_nome": "Basi di Dati",
      "esame_indice": 4,
      "quando_testo": "il 12 febbraio",
@@ -96,18 +101,21 @@
      "tempo_minuti": 120,
      "ostacolo_testo": "rimando sempre tutto all'ultima settimana",
      "contesto_testo": "di giorno lavoro in un bar",
+     "giorni_all_esame": 132,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Lavorare al bar tutto il giorno e poi studiare due ore la sera non è poco, e il fatto che tu sia già a metà del programma conta. Rimandare tutto all'ultima settimana, poi, lo conosci bene: è una cosa che si può spezzare.",
-     "impegno": "",
+     "reazione": "Lavorare al bar tutto il giorno e poi trovare due ore la sera per studiare non è poco, e dirmi da solo che rimandi all'ultima settimana è già metà del lavoro: sai dov'è il problema.",
+     "impegno": "Ti preparo un piano di studio a piccoli blocchi serali per le settimane che ti separano dal 12 febbraio, così l'ultima settimana resta solo per il ripasso.",
      "prossima_chiave": "nessuna",
      "domanda_successiva": "",
-     "chiusura": "Partiamo dalla seconda metà del programma di Basi di Dati, in piccoli pezzi per le tue sere, così l'ultima settimana resta solo per il ripasso."
+     "chiusura": "Parti stasera con un blocco piccolo: il primo passo è quello che pesa di più."
     }
    }
-  ]
+  ],
+  "primo_messaggio": "Dal 5 ottobre al 5 febbraio hai circa 17 settimane: tengo l'ultima settimana (dal 6 al 12 febbraio) solo per ripasso e simulazioni d'esame, quindi il programma vero va chiuso entro il 5 febbraio. Con \"più o meno a metà\" ti restano tre blocchi, che ti scrivo qui sotto, e una regola fissa: 5 sere a settimana da due ore, il weekend libero come margine per quando salta una sera.\n\nOttobre, ottobre e novembre: completare la seconda metà del programma, un argomento nuovo ogni settimana. Dicembre: chiudere i buchi che sono rimasti dalla prima metà. Gennaio: esercizi su carta, in particolare SQL, algebra relazionale e normalizzazione, che a Basi di Dati sono il cuore dello scritto.\n\nOgni sera sono due blocchi da un'ora: 1 ora di teoria o ripasso, 1 ora di esercizi su quello che hai appena letto. Mai solo teoria: è il modo più comune per credere di sapere e poi bloccarsi davanti al foglio.\n\nPer stasera, un passo solo: dimmi qual è l'ultimo argomento del programma che hai studiato davvero, così lo segno come punto di partenza e ti scrivo la prima settimana nel dettaglio."
  },
  "monosillabi": {
-  "oggi": "2026-10-02",
+  "oggi": "2026-10-03",
   "esami": [
    {
     "id": "00000000-0000-4000-8000-000000000001",
@@ -149,11 +157,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Fisica Generale I, allora: è un esame che di solito si regge su pochi concetti ben chiari e tanti esercizi.",
+     "reazione": "Fisica è uno di quegli esami che si capisce davvero solo facendo esercizi, quindi conviene partire da lì.",
      "impegno": "",
      "prossima_chiave": "quando",
-     "domanda_successiva": "Per quando devi darlo?",
+     "domanda_successiva": "Per quando è fissato l'esame di Fisica Generale I?",
      "chiusura": ""
     }
    },
@@ -171,11 +181,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Va bene, la data non è chiara e non c'è fretta di fissarla adesso: si sistema più avanti.",
+     "reazione": "Se la data non è ancora chiara, per ora non importa: la fissiamo quando ce l'hai sotto mano.",
      "impegno": "",
      "prossima_chiave": "avanzamento",
-     "domanda_successiva": "Intanto, con Fisica a che punto sei: hai già iniziato a studiare o devi ancora partire?",
+     "domanda_successiva": "Intanto, a che punto sei con Fisica Generale I: non hai ancora iniziato, sei a metà o stai già ripassando?",
      "chiusura": ""
     }
    },
@@ -193,8 +205,10 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Poco vuol dire che qualcosa hai già visto, e per Fisica partire da lì è meglio che partire da zero. Si ricomincia dai concetti che ti sono rimasti.",
+     "reazione": "Poco vuol dire che hai già una base da cui partire, e per Fisica Generale I è un buon punto di partenza.",
      "impegno": "",
      "prossima_chiave": "tempo_al_giorno",
      "domanda_successiva": "Quanto tempo riesci a dedicare allo studio ogni giorno, più o meno?",
@@ -215,12 +229,14 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Va bene, anche non saperlo è una risposta: il tempo che hai si vede meglio studiando che immaginandolo.",
-     "impegno": "",
-     "prossima_chiave": "ostacolo",
-     "domanda_successiva": "Quando ti metti a studiare Fisica, cos'è che ti fa inceppare di più?",
-     "chiusura": ""
+     "reazione": "",
+     "impegno": "Ti preparo una mini-simulazione di Fisica Generale I con 5 esercizi graduali, dai più semplici ai più tosti, così vediamo da dove ripartire.",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": "Quando hai la data dell'esame o un'idea del tempo che hai, dimmelo e il piano lo mettiamo a misura."
     }
    },
    {
@@ -237,18 +253,21 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Va bene, un no secco è una risposta come un'altra e non ti rincorro. Le domande le abbiamo finite qui: il resto lo vediamo studiando.",
-     "impegno": "",
+     "reazione": "",
+     "impegno": "Ti preparo una serie di sei esercizi graduali di Fisica Generale I sulla cinematica, dal più semplice al più articolato, così partiamo da qualcosa di concreto.",
      "prossima_chiave": "nessuna",
      "domanda_successiva": "",
-     "chiusura": "Partiamo da Fisica Generale I: riprendiamo i concetti che ti sono rimasti e da lì costruiamo il resto."
+     "chiusura": "Quando hai la data dell'esame, scrivimela e sistemiamo i tempi."
     }
    }
-  ]
+  ],
+  "primo_messaggio": "Ecco i sei esercizi di cinematica, in ordine di difficoltà. Partiamo dalle basi:\n\n1) Un'auto viaggia a velocità costante di 72 km/h. Quanti metri percorre in 10 secondi? (Converti prima i km/h in m/s.)\n\n2) Un ciclista parte da fermo e accelera con a = 2 m/s^2 costante. Che velocità ha dopo 5 s e quanta strada ha fatto in quel tempo?\n\n3) Un treno rallenta con accelerazione costante da 30 m/s a 10 m/s in 8 s. Quanto vale l'accelerazione (con il segno) e quanti metri percorre in quegli 8 s?\n\n4) Un sasso viene lasciato cadere da fermo da un ponte alto 45 m. Dopo quanto tempo tocca l'acqua e con che velocità? Usa g = 10 m/s^2.\n\n5) Una palla viene lanciata verso l'alto con velocità iniziale di 20 m/s (g = 10 m/s^2). Quanto tempo impiega a raggiungere il punto più alto e a che altezza arriva rispetto al punto di lancio?\n\n6) Un'auto A parte da ferma con a = 3 m/s^2. Nello stesso istante, 60 m più avanti sulla stessa strada, un'auto B viaggia nello stesso verso a velocità costante di 10 m/s. Dopo quanto tempo A raggiunge B?\n\nMandami i tuoi risultati, anche uno alla volta: parti dall'1 e li correggo man mano passaggio per passaggio."
  },
  "fuori_tema": {
-  "oggi": "2026-10-02",
+  "oggi": "2026-10-03",
   "esami": [
    {
     "id": "00000000-0000-4000-8000-000000000001",
@@ -290,11 +309,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Sono Lode, un assistente di studio basato su un modello di intelligenza artificiale, quindi di famiglia ci siamo, ma qui il mio lavoro è aiutarti a preparare i tuoi esami, non a chiacchierare di tutto.",
+     "reazione": "Sono un assistente di studio basato su intelligenza artificiale, quindi ti dico le cose come stanno: sono un'AI, ma costruita per aiutarti a preparare gli esami, non per chiacchierare di tutto.",
      "impegno": "",
      "prossima_chiave": "quando",
-     "domanda_successiva": "Intanto dimmi: per quando hai in mente di dare il tuo prossimo esame?",
+     "domanda_successiva": "Intanto dimmi, hai già una data in mente per il tuo primo esame?",
      "chiusura": ""
     }
    },
@@ -312,11 +333,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Sul prezzo non ho informazioni certe e non voglio dirti una cifra a caso, quindi meglio controllare i dettagli direttamente nell'app o sul sito.",
+     "reazione": "Sul prezzo non ho informazioni da darti, e non voglio dirti una cifra a caso. Quello che posso fare è mostrarti subito a cosa servo, così giudichi da solo.",
      "impegno": "",
-     "prossima_chiave": "quando",
-     "domanda_successiva": "Se mi dici quale esame hai davanti, per primo, cominciamo a metterlo a fuoco: qual è?",
+     "prossima_chiave": "ostacolo",
+     "domanda_successiva": "Quando ti metti a studiare, cosa ti fa più spesso perdere tempo o ti blocca?",
      "chiusura": ""
     }
    },
@@ -334,18 +357,42 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Del meteo di domani a Bari non so dirti nulla, non ho modo di controllarlo da qui. Per tre domande di fila hai evitato il discorso studio, nessun problema, ma non posso aiutarti senza partire da qualcosa.",
+     "reazione": "Il meteo di Bari non rientra tra le cose che so dirti, io mi occupo di esami e studio. Ti consiglio un'app meteo per domani.",
      "impegno": "",
-     "prossima_chiave": "quando",
-     "domanda_successiva": "Se non vuoi dirmi ancora quale esame, dimmi almeno: ce n'è uno con una data che si avvicina?",
+     "prossima_chiave": "avanzamento",
+     "domanda_successiva": "Se ti dico di scegliere un esame tra Analisi Matematica II, Fisica Generale I, Programmazione II, Basi di Dati o Prova Finale, a che punto sei con la preparazione di quello che hai davanti?",
      "chiusura": ""
+    },
+    "grezzo_riprova": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
+     "chiede_aiuto": false,
+     "reazione": "Il meteo di Bari non è roba mia, per quello ti serve un'app del tempo.",
+     "impegno": "Ti preparo subito in chat una mini-simulazione da 15 domande su uno dei tuoi esami, così capiamo da dove partire.",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": "Quando vuoi, dimmi quale esame hai davanti e la mini-simulazione la costruisco su quello."
     }
    }
-  ]
+  ],
+  "primo_messaggio": "Simulazione da 15 domande su Analisi Matematica II, dalle più semplici alle più impegnative. Le prime tre sono a scelta multipla, le altre a risposta aperta. Dove non sai, scrivi \"non so\": mi serve per capire da dove ripartire.\n\n1) Il limite per x che tende a 0 di sin(x)/x vale: a) 0, b) 1, c) infinito, d) non esiste\n2) La derivata di x^2 * e^x è: a) 2x e^x, b) x^2 e^x, c) (2x + x^2) e^x, d) 2x + e^x\n3) L'integrale di 1/x su (1, e) vale: a) 0, b) 1, c) e, d) e - 1\n4) Calcola la derivata di f(x) = ln(x^2 + 1).\n5) Calcola l'integrale indefinito di x * cos(x).\n6) Calcola il limite per x che tende a +infinito di (3x^2 + x) / (x^2 - 5).\n7) Dati f(x,y) = x^2 y + y^3, scrivi le derivate parziali rispetto a x e a y.\n8) Scrivi il gradiente di f(x,y) = x^2 + 3xy nel punto (1, 2).\n9) Trova i punti stazionari di f(x,y) = x^2 + y^2 - 2x.\n10) Per f(x,y) = x^2 - y^2, dai la matrice hessiana e di' di che tipo è il punto stazionario (0,0).\n11) Calcola l'integrale doppio di xy sul quadrato [0,1] x [0,1].\n12) Determina la natura della serie somma per n da 1 a infinito di 1/n^2 e di 1/n.\n13) Risolvi l'equazione differenziale y' = 2y con y(0) = 3.\n14) Risolvi l'equazione differenziale y'' - 3y' + 2y = 0.\n15) Trova il minimo di f(x,y) = x^2 + y^2 con il vincolo x + y = 2 usando i moltiplicatori di Lagrange.\n\nMandami le risposte anche una alla volta, non serve finire tutto. Se preferisci un altro esame tra quelli del libretto, dimmelo e cambio."
  },
  "non_risponde": {
-  "oggi": "2026-10-02",
+  "oggi": "2026-10-03",
   "esami": [
    {
     "id": "00000000-0000-4000-8000-000000000001",
@@ -387,11 +434,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Fisica Generale I, quindi parto da lì: è un esame che richiede parecchio esercizio sui problemi, non solo teoria.",
+     "reazione": "Fisica è un esame che chiede metodo più che memoria, quindi capire da dove partire fa la differenza.",
      "impegno": "",
      "prossima_chiave": "quando",
-     "domanda_successiva": "Per quando è l'appello di fisica che vuoi dare?",
+     "domanda_successiva": "Quando devi darlo?",
      "chiusura": ""
     }
    },
@@ -409,11 +458,13 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
-     "reazione": "Un boh sulla data ci sta, magari l'appello non è ancora uscito o non hai deciso, e per ora la lascio in sospeso.",
+     "reazione": "Nessun problema, la data la sistemiamo più avanti: per Fisica Generale I intanto conta più come studi che quando lo dai.",
      "impegno": "",
      "prossima_chiave": "avanzamento",
-     "domanda_successiva": "Su Fisica Generale I, a che punto sei con la preparazione?",
+     "domanda_successiva": "A che punto sei con Fisica Generale I: non hai ancora iniziato, sei a metà o stai già ripassando?",
      "chiusura": ""
     }
    },
@@ -431,14 +482,76 @@
      "tempo_minuti": 0,
      "ostacolo_testo": "",
      "contesto_testo": "",
+     "giorni_all_esame": -1,
+     "in_difficolta": false,
      "chiede_aiuto": false,
      "reazione": "",
-     "impegno": "",
+     "impegno": "Ti preparo una mini-simulazione di 5 domande su Fisica Generale I, dalla cinematica alla dinamica, così partiamo da qualcosa di concreto.",
      "prossima_chiave": "nessuna",
      "domanda_successiva": "",
-     "chiusura": "Per ora fermiamo qui le domande: parto da Fisica Generale I e, quando ti va di dirmi qualcosa in più, ci sono."
+     "chiusura": "Quando vuoi, rispondimi qui sotto e la facciamo insieme."
     }
    }
-  ]
+  ],
+  "primo_messaggio": "Ecco la mini-simulazione su Fisica Generale I, dalla cinematica alla dinamica, in ordine di difficoltà crescente:\n\n1) Un'auto parte da ferma e accelera in modo costante a 2 m/s^2. Che velocità ha dopo 5 s e quanta strada ha percorso?\n\n2) Un sasso viene lasciato cadere da fermo da un ponte alto 45 m. Dopo quanto tempo tocca l'acqua? Usa g = 10 m/s^2 e trascura l'aria.\n\n3) Un pallone viene calciato dal suolo con velocità 20 m/s a 30 gradi sopra l'orizzontale. Quanto vale il tempo di volo? Usa g = 10 m/s^2.\n\n4) Una cassa di 10 kg è ferma su un piano orizzontale liscio, senza attrito. La spingi con una forza orizzontale di 30 N. Quanto vale l'accelerazione e che velocità ha dopo 4 s?\n\n5) Una cassa di 5 kg scivola su un piano inclinato di 30 gradi, senza attrito. Quanto vale l'accelerazione lungo il piano? Usa g = 10 m/s^2.\n\nMandami i tuoi risultati, anche uno alla volta: parti dal primo e dimmi pure dove ti blocchi."
+ },
+ "urgenza": {
+  "oggi": "2026-10-03",
+  "esami": [],
+  "libretto": {
+   "media": null,
+   "cfu": 0
+  },
+  "turni": [
+   {
+    "studente": "devo sostenere il tolc i tra una settimana circa",
+    "grezzo": {
+     "esame_testo": "devo sostenere il tolc i tra una settimana circa",
+     "esame_nome": "tolc i",
+     "esame_indice": 0,
+     "quando_testo": "tra una settimana circa",
+     "quando_data": "",
+     "avanzamento_testo": "",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "giorni_all_esame": 7,
+     "in_difficolta": false,
+     "chiede_aiuto": false,
+     "reazione": "Il Tolc I tra una settimana circa ti lascia poco margine, ma abbastanza per lavorare in modo mirato.",
+     "impegno": "",
+     "prossima_chiave": "avanzamento",
+     "domanda_successiva": "A che punto sei con la preparazione per il Tolc I?",
+     "chiusura": ""
+    }
+   },
+   {
+    "studente": "sono messo male",
+    "grezzo": {
+     "esame_testo": "",
+     "esame_nome": "",
+     "esame_indice": 0,
+     "quando_testo": "",
+     "quando_data": "",
+     "avanzamento_testo": "sono messo male",
+     "avanzamento_livello": "sconosciuto",
+     "tempo_testo": "",
+     "tempo_minuti": 0,
+     "ostacolo_testo": "",
+     "contesto_testo": "",
+     "giorni_all_esame": 7,
+     "in_difficolta": true,
+     "chiede_aiuto": false,
+     "reazione": "Dirlo senza giri di parole è già un buon punto di partenza: con una settimana davanti conta più scegliere bene cosa fare che recuperare tutto.",
+     "impegno": "Ti preparo una mini-simulazione del Tolc I di 10 domande, così vediamo subito dove perdi più punti e da lì costruisco il piano dei giorni che restano.",
+     "prossima_chiave": "nessuna",
+     "domanda_successiva": "",
+     "chiusura": "Intanto non pensare a tutto il programma: ci concentriamo sulle sezioni dove si guadagnano più punti in fretta."
+    }
+   }
+  ],
+  "primo_messaggio": "Ecco la mini-simulazione di 10 domande, a risposta multipla come al Tolc I. Cerca di farla in una ventina di minuti, senza calcolatrice.\n\n1) Quanto vale 2^3 · 2^4 / 2^5?\nA) 2^2  B) 4^2  C) 2^12  D) 2^3  E) 1\n\n2) La soluzione dell'equazione 3x - 5 = 2x + 7 è:\nA) x = 2  B) x = 12  C) x = -12  D) x = 1  E) x = 7\n\n3) Quale numero è il più grande?\nA) 3/4  B) 5/8  C) 7/10  D) 2/3  E) 4/5\n\n4) Un prodotto costa 80 euro e viene scontato del 25%. Il prezzo finale è:\nA) 55 euro  B) 60 euro  C) 65 euro  D) 20 euro  E) 75 euro\n\n5) Se x^2 = 49, allora x vale:\nA) solo 7  B) solo -7  C) 7 oppure -7  D) 24,5  E) nessun valore reale\n\n6) La disequazione 2x - 6 > 0 è verificata per:\nA) x < 3  B) x > 3  C) x > -3  D) x < -3  E) x > 6\n\n7) Un triangolo rettangolo ha i cateti lunghi 6 e 8. La lunghezza dell'ipotenusa è:\nA) 10  B) 14  C) 12  D) 7  E) 48\n\n8) Qual è il valore di (a + b)^2?\nA) a^2 + b^2  B) a^2 + 2ab + b^2  C) a^2 - 2ab + b^2  D) 2a + 2b  E) a^2 + ab + b^2\n\n9) In una classe di 30 studenti, 18 sono ragazze. Che percentuale della classe è formata da ragazzi?\nA) 18%  B) 30%  C) 40%  D) 60%  E) 12%\n\n10) La retta che passa per i punti (0, 1) e (2, 5) ha coefficiente angolare:\nA) 1  B) 2  C) 4  D) 1/2  E) 3\n\nMandami le tue risposte, anche una alla volta (per esempio \"1 A, 2 B\"). Se su qualche domanda non sai da dove cominciare, scrivi \"non so\": mi serve proprio quello."
  }
 }

@@ -14,9 +14,17 @@
 //   sono facoltativi: se non si riesce a normalizzare resta il testo, e la
 //   chiave conta come risposta. Null vuol dire solo "non ne ha parlato" o "ha
 //   saltato la domanda";
-// - se lo studente chiede aiuto in modo esplicito il dialogo si chiude con un
-//   impegno concreto e le chiavi mancanti vanno in coda; l'impegno si salva nel
-//   profilo ("da_mantenere") e la chat lo mantiene scrivendo lei per prima;
+// - OGNI chiusura contiene un impegno di Lode: un'azione concreta che Lode fa in
+//   chat ("ti preparo una mini-simulazione..."), mai un consiglio da seguire da
+//   soli. Se il modello non lo scrive la function lo richiede una volta, poi usa
+//   un impegno fisso coerente con l'esame. L'impegno si salva nel profilo
+//   ("da_mantenere") e la chat lo mantiene scrivendo lei per prima;
+// - si chiude subito, con l'impegno, se lo studente chiede aiuto, oppure se
+//   l'esame e' entro 14 giorni e dice di essere in difficolta' ("sono messo
+//   male"): con pochi giorni davanti ogni domanda in piu' e' tempo rubato. Le
+//   chiavi mancanti vanno in coda;
+// - i nomi degli esami si scrivono bene anche se lo studente li scrive male
+//   ("tolc i" -> "Tolc I"), nel profilo e nelle battute;
 // - due non-risposte di fila ("boh", "mah", "no", niente, o una domanda saltata
 //   col tasto "Salta"): si chiude con garbo, senza altre domande, e le chiavi
 //   mancanti vanno in coda. Il salto resta nelle note come risposta SALTATA,
@@ -114,6 +122,102 @@ export function senzaAvvio(testo: string): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
 }
 
+// ---------- l'impegno di Lode ----------
+
+/**
+ * L'impegno e' un'azione che fa LODE, in chat: "ti preparo...", "ti scrivo...".
+ * Un consiglio da seguire da solo ("un primo giro serio, col telefono fuori
+ * dalla stanza") o una promessa vaga ("ti aiuto", "ti seguo") non lo sono.
+ */
+const AZIONE_DI_LODE =
+  /\bti\s+(?:(?:lo|la|li|le|ne)\s+)?(preparo|preparer[oò]|faccio|far[oò]|scrivo|scriver[oò]|mando|mander[oò]|propongo|proporr[oò]|costruisco|costruir[oò]|organizzo|organizzer[oò]|imposto|imposter[oò]|spiego|spiegher[oò]|metto|metter[oò]|do|dar[oò])\b/i;
+
+/** Il testo e' un impegno che Lode puo' mantenere in chat? */
+export function impegnoDiLode(testo: unknown): boolean {
+  const t = pulisci(testo, 300);
+  return t.length >= 10 && !t.includes('?') && AZIONE_DI_LODE.test(t);
+}
+
+/** L'impegno fisso quando il modello non ne scrive uno valido: coerente con l'esame, se c'e'. */
+export function impegnoDiRipiego(nomeEsame: string | null): string {
+  return nomeEsame
+    ? `Ti preparo subito in chat una mini-simulazione di ${nomeEsame} da 10 domande, per capire da dove partire.`
+    : 'Ti preparo subito in chat un piano per i prossimi giorni, da cui partiamo insieme.';
+}
+
+// ---------- urgenza ----------
+
+/** Oltre questa distanza dall'esame una difficolta' dichiarata non chiude il dialogo. */
+export const GIORNI_URGENZA = 14;
+
+/** "Sono messo male", "sono indietro", "non ce la faccio": lo studente dice di essere in difficolta'. */
+const DIFFICOLTA =
+  /\b(messo|messa) male\b|\bindietro\b|\bnon ce la (faccio|far[oò])\b|\bin difficolt[aà]\b|\bnon (so|ho studiato|ho fatto) (niente|nulla)\b|\bnon sono (pront[oa]|preparat[oa])\b|\bnel panico\b|\bdisperat[oa]\b|\bnon capisco (niente|nulla)\b/i;
+
+/** In un messaggio qualunque della conversazione lo studente ha detto di essere in difficolta'? */
+export function inDifficolta(conversazione: Messaggio[]): boolean {
+  return conversazione.some((m) => m.ruolo === 'user' && DIFFICOLTA.test(m.contenuto));
+}
+
+function giorniTra(daIso: string, aIso: string): number {
+  const g = (iso: string) => {
+    const [a, m, d] = iso.split('-').map(Number);
+    return Date.UTC(a, m - 1, d) / 86_400_000;
+  };
+  return Math.round(g(aIso) - g(daIso));
+}
+
+/**
+ * Giorni da oggi all'esame: dalla data certa se c'e', altrimenti dalla stima
+ * del modello ("tra una settimana circa" -> 7). Null se non si sa.
+ */
+export function giorniAllEsame(p: ProfiloStudio, oggi: string, stima: unknown): number | null {
+  if (p.quando.data && /^\d{4}-\d{2}-\d{2}$/.test(p.quando.data)) return giorniTra(oggi, p.quando.data);
+  const n = Number(stima);
+  return Number.isInteger(n) && n >= 0 && n <= 730 ? n : null;
+}
+
+// ---------- nomi degli esami ----------
+
+const PAROLE_MINUSCOLE = new Set([
+  'di', 'e', 'ed', 'del', 'della', 'dello', 'dei', 'degli', 'delle', 'a', 'al', 'alla', 'ai',
+  'in', 'per', 'con', 'da', 'su', 'il', 'la', 'lo', 'le', 'gli', 'l',
+]);
+const ROMANO = /^(i|ii|iii|iv|v|vi|vii|viii|ix|x)$/i;
+
+/**
+ * Il nome dell'esame scritto bene: iniziali maiuscole, preposizioni minuscole,
+ * numeri romani maiuscoli ("tolc i" -> "Tolc I", "basi di dati" -> "Basi di
+ * Dati"). Se lo studente ha gia' usato delle maiuscole, resta com'e'.
+ */
+export function nomeEsameCorretto(nome: string): string {
+  const t = nome.replace(/\s+/g, ' ').trim();
+  if (!t || /\p{Lu}/u.test(t)) return t;
+  let n = 0;
+  return t.replace(/[\p{L}\d]+/gu, (parola) => {
+    const primo = n++ === 0;
+    if (!primo && ROMANO.test(parola)) return parola.toUpperCase();
+    if (!primo && PAROLE_MINUSCOLE.has(parola)) return parola;
+    return parola.charAt(0).toUpperCase() + parola.slice(1);
+  });
+}
+
+function senzaSimboli(testo: string): string {
+  return testo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Nella battuta ogni esame nominato si scrive come nel suo nome corretto ("tolc i" -> "Tolc I"). */
+export function correggiNomi(testo: string, nomi: (string | null)[]): string {
+  let t = testo;
+  for (const nome of nomi) {
+    const parole = nome?.match(/[\p{L}\d]+/gu);
+    if (!nome || !parole) continue;
+    const modello = new RegExp(`(?<![\\p{L}\\d])${parole.map(senzaSimboli).join("[\\s'-]+")}(?![\\p{L}\\d])`, 'giu');
+    t = t.replace(modello, nome);
+  }
+  return t;
+}
+
 // ---------- profilo ----------
 
 /**
@@ -153,17 +257,18 @@ export function conversazioneDalleNote(p: ProfiloStudio): Messaggio[] {
   ]);
 }
 
-/** Chiusura di ripiego: nomina l'esame solo se c'e', e non finge di sapere cio' che non sa. */
-export function chiusuraFissa(nomeEsame: string | null): string {
-  return nomeEsame
-    ? `Ora so da dove partire: ${nomeEsame}. Ci vediamo dentro.`
-    : 'Quando vuoi, dimmi quale esame hai davanti e partiamo da lì.';
+/** Dopo due non-risposte di fila: nessun rimprovero, e subito l'impegno. */
+export const CHIUSURA_GARBATA = 'Le domande le lasciamo qui, nessun problema.';
+
+/** La chiusura senza modello (ripiego o salto): una frase gentile, se serve, e l'impegno fisso. */
+function chiusuraDiRipiego(profilo: ProfiloStudio, garbata: boolean): string {
+  profilo.impegno = {
+    testo: impegnoDiRipiego(profilo.esame_target.nome),
+    stato: 'da_mantenere',
+    il: new Date().toISOString(),
+  };
+  return [garbata ? CHIUSURA_GARBATA : '', profilo.impegno.testo].filter(Boolean).join(' ');
 }
-
-const IMPEGNO_FISSO = 'Partiamo da lì: ti aspetto in chat e cominciamo subito.';
-
-/** Chiusura dopo due non-risposte di fila: nessun rimprovero, la porta resta aperta. */
-export const CHIUSURA_GARBATA = 'Le domande le lasciamo qui: quando ti va, scrivimi in chat da cosa vuoi partire.';
 
 // ---------- date ----------
 
@@ -220,6 +325,8 @@ export type Grezzo = {
   tempo_minuti: number;
   ostacolo_testo: string;
   contesto_testo: string;
+  giorni_all_esame: number;
+  in_difficolta: boolean;
 };
 
 const SCHEMA = {
@@ -228,7 +335,7 @@ const SCHEMA = {
   required: [
     'esame_testo', 'esame_nome', 'esame_indice', 'quando_testo', 'quando_data',
     'avanzamento_testo', 'avanzamento_livello', 'tempo_testo', 'tempo_minuti',
-    'ostacolo_testo', 'contesto_testo',
+    'ostacolo_testo', 'contesto_testo', 'giorni_all_esame', 'in_difficolta',
     'chiede_aiuto', 'reazione', 'impegno', 'prossima_chiave', 'domanda_successiva', 'chiusura',
   ],
   properties: {
@@ -243,12 +350,14 @@ const SCHEMA = {
     tempo_minuti: { type: 'integer', description: 'Minuti al giorno solo se dà una quantità ("2/3 ore" → 150). 0 altrimenti.' },
     ostacolo_testo: { type: 'string', description: 'Le parole ESATTE con cui dice cosa lo ostacola o cosa va storto quando studia. "" se non ne parla.' },
     contesto_testo: { type: 'string', description: 'Le parole ESATTE con cui dice qualcosa della sua vita che pesa sullo studio (lavora, è pendolare, fuorisede...). "" se non ne parla.' },
+    giorni_all_esame: { type: 'integer', description: "Quanti giorni mancano all'esame da oggi, ricavati da TUTTA la conversazione anche in modo approssimato (\"tra una settimana circa\" → 7). -1 se non si ricava." },
+    in_difficolta: { type: 'boolean', description: 'true se in tutta la conversazione dice di essere in difficoltà con la preparazione ("sono messo male", "sono indietro", "non ce la faccio").' },
     chiede_aiuto: { type: 'boolean', description: "true SOLO se nell'ultimo messaggio chiede aiuto in modo esplicito." },
     reazione: { type: 'string', description: 'Una o due frasi che rispondono a quello che ha appena detto. Mai una domanda.' },
-    impegno: { type: 'string', description: 'Solo se chiede_aiuto: UNA frase con un impegno concreto su ciò che ha detto. "" altrimenti.' },
+    impegno: { type: 'string', description: 'OBBLIGATORIO se prossima_chiave è "nessuna": UNA frase in prima persona con un\'azione concreta che fai TU in chat appena finita la conversazione ("Ti preparo..."). "" altrimenti.' },
     prossima_chiave: { type: 'string', enum: ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo', 'nessuna'], description: 'La chiave della prossima domanda, o "nessuna" se il dialogo finisce.' },
     domanda_successiva: { type: 'string', description: 'UNA frase: la domanda su prossima_chiave. "" se è "nessuna".' },
-    chiusura: { type: 'string', description: 'Solo se prossima_chiave è "nessuna" e non chiede aiuto: UNA frase di chiusura. "" altrimenti.' },
+    chiusura: { type: 'string', description: 'Facoltativa, solo se prossima_chiave è "nessuna": UNA frase di consiglio che viene DOPO l\'impegno. "" altrimenti.' },
   },
 } as const;
 
@@ -280,7 +389,8 @@ LA BATTUTA
 - Non attribuirgli MAI cose che non ha detto: niente date, voti, esami, numeri o stati d'animo che non siano nelle sue parole. Non fare calcoli sul tempo che manca.
 - Se indica una data già passata rispetto a oggi, faglielo notare con gentilezza nella reazione, senza prenderla per buona e senza fargli il terzo grado.
 - Italiano corretto, tono da compagno di corso sveglio, prima persona singolare, dai del tu. Testo semplice: niente markdown, elenchi, emoji.
-- Esami: puoi nominare solo quelli in <esami_noti> o quello che lo studente ha scritto, con le sue parole. <esami_noti> è un elenco parziale: se nomina un esame che non c'è, va bene così, non farglielo notare.
+- Esami: puoi nominare solo quelli in <esami_noti> o quello che lo studente ha scritto. <esami_noti> è un elenco parziale: se nomina un esame che non c'è, va bene così, non farglielo notare.
+- Nelle tue frasi scrivi i nomi degli esami correttamente, con le maiuscole giuste, anche quando lo studente li scrive male: "tolc i" → "Tolc I", "analisi 2" → "Analisi 2". (Nei campi *_testo ed esame_nome invece copi le sue parole esatte.)
 
 LA DOMANDA SUCCESSIVA
 - prossima_chiave è la PRIMA, nell'ordine di priorità, che dopo questo messaggio è ancora senza risposta e che non compare in <gia_chieste>. Una cosa già detta non si chiede. Una cosa già chiesta non si richiede, nemmeno se la risposta è stata vaga o non è arrivata.
@@ -289,14 +399,18 @@ LA DOMANDA SUCCESSIVA
 - domanda_successiva: UNA frase, una sola domanda, con parole tue, legata a quello che ha detto.
 
 SE CHIEDE AIUTO
-- Se nell'ultimo messaggio chiede aiuto in modo esplicito ("mi serve una mano", "un aiuto mi sarebbe utile", "mi aiuti?"), l'aiuto vince sul questionario: chiede_aiuto=true, prossima_chiave="nessuna", niente domanda.
-- impegno: UNA frase con un impegno concreto e preciso, costruito su quello che ha detto lui (per esempio l'argomento da cui ripartire). Niente promesse vaghe e niente funzioni dell'app inventate.
+- Se nell'ultimo messaggio chiede aiuto in modo esplicito ("mi serve una mano", "un aiuto mi sarebbe utile", "mi aiuti?"), l'aiuto vince sul questionario: chiede_aiuto=true, prossima_chiave="nessuna", niente domanda, e chiudi con l'impegno.
+
+SE L'ESAME È VICINO E LUI È IN DIFFICOLTÀ
+- Se l'esame è entro 14 giorni da oggi e lo studente dice di essere in difficoltà ("sono messo male", "sono indietro", "non ce la faccio"), non si fanno altre domande: prossima_chiave="nessuna" e chiudi subito con l'impegno. Con pochi giorni davanti ogni domanda in più è tempo rubato.
 
 SE NON VUOLE RISPONDERE
-- Se <due_non_risposte_di_fila> è "sì", lo studente ha dato due non-risposte una dopo l'altra: non si insiste. prossima_chiave="nessuna", niente domanda, reazione "" e chiusura = UNA frase gentile che chiude le domande e lascia la porta aperta, senza rimprovero, senza ironia e senza dire che non ha risposto.
+- Se <due_non_risposte_di_fila> è "sì", lo studente ha dato due non-risposte una dopo l'altra: non si insiste. prossima_chiave="nessuna", niente domanda, reazione "", e chiudi con l'impegno, senza rimprovero, senza ironia e senza dire che non ha risposto.
 
-LA CHIUSURA
-- Se prossima_chiave è "nessuna" e non ha chiesto aiuto: chiusura è UNA frase che dice da dove si parte, scegliendo la cosa più importante. Non è un riassunto e non elenca tutto.
+QUANDO IL DIALOGO SI CHIUDE (prossima_chiave "nessuna", per qualunque motivo)
+- impegno è OBBLIGATORIO: UNA frase con un'azione che fai TU, in chat, appena finita questa conversazione. Una cosa concreta che prepari o scrivi per lui, legata all'esame e a quello che ha detto: una mini-simulazione con un numero preciso di domande, una serie di esercizi graduali su un argomento preciso, uno schema, il piano dei prossimi giorni. In prima persona: "Ti preparo…", "Ti scrivo…".
+- L'impegno non è mai un consiglio che deve seguire da solo ("studia a blocchi", "metti via il telefono"), mai una promessa vaga ("ti aiuto", "ti seguo", "ti aspetto in chat") e non si rimanda: lo prepari adesso. Niente funzioni dell'app inventate.
+- chiusura: facoltativa, UNA frase di consiglio che viene DOPO l'impegno e mai al suo posto. "" se non serve. Non è un riassunto.
 
 In tutto la battuta non supera le tre frasi.`;
 
@@ -327,6 +441,7 @@ export function costruisciContesto(input: InputTurno): string {
     `<gia_chieste>${input.chieste.join(', ') || 'nessuna'}</gia_chieste>`,
     `<domande_rimaste>${rimaste}</domande_rimaste>`,
     `<due_non_risposte_di_fila>${dueNonRisposte(input.conversazione) ? 'sì' : 'no'}</due_non_risposte_di_fila>`,
+    `<esame_noto>${p.esame_target.nome ?? p.esame_target.testo ?? 'nessuno'}</esame_noto>`,
     `<conversazione>\n${testoConversazione(input.conversazione)}\n</conversazione>`,
     `<ultimo_messaggio_dello_studente>${ultimo}</ultimo_messaggio_dello_studente>`,
   ].join('\n');
@@ -344,6 +459,22 @@ export function richiestaModello(input: InputTurno, system: string = SYSTEM) {
     system,
     output_config: { format: { type: 'json_schema', schema: SCHEMA } },
     messages: [{ role: 'user', content: costruisciContesto(input) }],
+  };
+}
+
+/**
+ * La seconda (e ultima) richiesta quando il dialogo si chiude ma il modello non
+ * ha scritto un impegno di Lode: stessa conversazione, con la correzione. Della
+ * risposta si usa solo il campo impegno.
+ */
+export function richiestaRiprova(input: InputTurno, g: Grezzo, system: string = SYSTEM) {
+  const nota = `<riprova>Il dialogo si chiude adesso, ma quello che hai scritto non è un impegno che mantieni tu: "${pulisci(
+    g.impegno,
+    300
+  )}". Riscrivi la risposta: impegno è OBBLIGATORIO, UNA frase in prima persona con una cosa concreta che prepari o scrivi per lui in chat appena finita questa conversazione (per esempio "Ti preparo subito in chat una mini-simulazione di ... da 15 domande, per capire da dove partire."). Il consiglio, se serve, va in chiusura.</riprova>`;
+  return {
+    ...richiestaModello(input, system),
+    messages: [{ role: 'user', content: `${costruisciContesto(input)}\n${nota}` }],
   };
 }
 
@@ -370,8 +501,12 @@ export type EsitoTurno = {
   /** la chiave della domanda contenuta in risposta_bot, null se il dialogo e' finito */
   prossima_chiave: Chiave | null;
   fine: boolean;
-  /** true se si chiude perche' lo studente ha chiesto aiuto: la chat si apre su quello */
+  /** true se si chiude perche' lo studente ha chiesto aiuto */
   aiuto: boolean;
+  /** true se si chiude perche' l'esame e' vicino e lo studente e' in difficolta' */
+  urgente?: boolean;
+  /** true se il modello non ha scritto un impegno valido ed e' stato usato quello fisso */
+  impegno_ripiego?: boolean;
 };
 
 /** Il testo e' fatto di parole che lo studente ha scritto davvero? */
@@ -434,7 +569,8 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
   const esameTesto = cita('esame_target', g.esame_testo);
   const scelto = input.esami[Number(g.esame_indice) - 1];
   if (esameTesto || scelto) {
-    const nome = scelto ? scelto.materia : citazione(g.esame_nome, messaggio) ?? esameTesto;
+    const citato = citazione(g.esame_nome, messaggio);
+    const nome = scelto ? scelto.materia : citato ? nomeEsameCorretto(citato) : esameTesto;
     p.esame_target = { testo: esameTesto ?? nome, nome, id: scelto ? scelto.id : null };
   }
 
@@ -481,7 +617,16 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
   const aiuto = g.chiede_aiuto === true;
   // Due non-risposte di fila: non si fanno altre domande a chi non vuole rispondere.
   const basta = !aiuto && dueNonRisposte(input.conversazione);
-  const prossima = aiuto || basta ? null : prossimaChiave(profilo, input.chieste);
+  // Esame entro 14 giorni + difficolta' dichiarata: si chiude subito con l'impegno.
+  const giorni = haRisposta(profilo, 'esame_target') ? giorniAllEsame(profilo, input.oggi, g.giorni_all_esame) : null;
+  const urgente =
+    !aiuto &&
+    !basta &&
+    giorni !== null &&
+    giorni >= 0 &&
+    giorni <= GIORNI_URGENZA &&
+    (inDifficolta(input.conversazione) || g.in_difficolta === true);
+  const prossima = aiuto || basta || urgente ? null : prossimaChiave(profilo, input.chieste);
 
   // 3) La battuta: reazione + (domanda | impegno | chiusura), mai piu' di tre frasi.
   const nomeTarget = profilo.esame_target.nome;
@@ -495,24 +640,31 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
   }
 
   let coda: string;
-  if (aiuto) {
-    coda = lecito(reazionePulita(pulisci(g.impegno, 300), 1)) || IMPEGNO_FISSO;
-    // La promessa si salva: la chat la mantiene scrivendo lei il primo messaggio.
-    const impegno: Impegno = { testo: coda, stato: 'da_mantenere', il: new Date().toISOString() };
-    profilo.impegno = impegno;
-  } else if (basta) {
-    // Niente reazione a un "boh": solo la chiusura, del modello se e' pulita.
-    reazione = '';
-    coda = lecito(reazionePulita(pulisci(g.chiusura, 300), 1)) || CHIUSURA_GARBATA;
-  } else if (prossima) {
+  let impegnoRipiego = false;
+  if (prossima) {
     const delModello = g.prossima_chiave === prossima ? lecito(unaDomanda(pulisci(g.domanda_successiva, 300))) : '';
     coda = delModello || DOMANDE_FISSE[prossima];
   } else {
-    coda = lecito(reazionePulita(pulisci(g.chiusura, 300), 1)) || chiusuraFissa(nomeTarget);
+    // OGNI chiusura contiene un impegno di Lode, che la chat mantiene scrivendo
+    // lei il primo messaggio. Il consiglio, se c'e', viene dopo e mai al suo posto.
+    const proposto = lecito(reazionePulita(pulisci(g.impegno, 300), 1));
+    impegnoRipiego = !impegnoDiLode(proposto);
+    const testoImpegno = impegnoRipiego ? impegnoDiRipiego(nomeTarget) : proposto;
+    const impegno: Impegno = { testo: testoImpegno, stato: 'da_mantenere', il: new Date().toISOString() };
+    profilo.impegno = impegno;
+    // Niente reazione a un "boh": solo una frase gentile prima dell'impegno.
+    if (basta) reazione = CHIUSURA_GARBATA;
+    const consiglio = basta ? '' : lecito(reazionePulita(pulisci(g.chiusura, 300), 1));
+    const conConsiglio = consiglio && consiglio !== testoImpegno && !impegnoDiLode(consiglio);
+    coda = [testoImpegno, conConsiglio ? consiglio : ''].filter(Boolean).join(' ');
   }
   const spazio = MAX_FRASI - frasi(coda).length;
-  const risposta_bot =
-    senzaAvvio([primeFrasi(reazione, Math.max(0, spazio)), coda].filter(Boolean).join(' ')) || coda;
+  const nomi = [nomeTarget, ...input.esami.map((e) => e.materia)];
+  const risposta_bot = correggiNomi(
+    senzaAvvio([primeFrasi(reazione, Math.max(0, spazio)), coda].filter(Boolean).join(' ')) || coda,
+    nomi
+  );
+  if (profilo.impegno && prossima === null) profilo.impegno = { ...profilo.impegno, testo: correggiNomi(profilo.impegno.testo, nomi) };
 
   return {
     risposta_bot,
@@ -521,6 +673,8 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
     prossima_chiave: prossima,
     fine: prossima === null,
     aiuto,
+    urgente,
+    impegno_ripiego: prossima === null && impegnoRipiego,
   };
 }
 
@@ -545,11 +699,7 @@ export function turnoDiRipiego(input: InputTurno): EsitoTurno {
   const basta = dueNonRisposte(input.conversazione);
   const prossima = basta ? null : prossimaChiave(profilo, input.chieste);
   return {
-    risposta_bot: prossima
-      ? DOMANDE_FISSE[prossima]
-      : basta
-        ? CHIUSURA_GARBATA
-        : chiusuraFissa(profilo.esame_target.nome),
+    risposta_bot: prossima ? DOMANDE_FISSE[prossima] : chiusuraDiRipiego(profilo, basta),
     profilo,
     chieste: prossima ? [...input.chieste, prossima] : input.chieste,
     prossima_chiave: prossima,
@@ -578,9 +728,7 @@ export function turnoSaltato(prima: ProfiloStudio, chieste: Chiave[], domanda = 
   return {
     risposta_bot: prossima
       ? `Nessun problema, ci torniamo. ${DOMANDE_FISSE[prossima]}`
-      : basta
-        ? CHIUSURA_GARBATA
-        : chiusuraFissa(profilo.esame_target.nome),
+      : chiusuraDiRipiego(profilo, basta),
     profilo,
     chieste: prossima ? [...chieste, prossima] : chieste,
     prossima_chiave: prossima,

@@ -1,6 +1,6 @@
 // Un turno del dialogo di accoglienza, dato l'utente gia' riconosciuto: input,
 // tetto anti-abuso, chiamata al modello, scrittura dei messaggi in chat, e
-// l'impegno da mantenere quando lo studente chiede aiuto. Il contorno HTTP
+// l'impegno da mantenere con cui si chiude OGNI dialogo. Il contorno HTTP
 // (login, CORS) sta in index.ts; le regole stanno in logica.ts.
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
@@ -11,11 +11,13 @@ import {
   type Messaggio,
   elaboraTurno,
   leggiGrezzo,
+  impegnoDiLode,
   leggiImpegno,
   oggetto,
   profiloCompleto,
   pulisci,
   richiestaModello,
+  richiestaRiprova,
 } from './logica.ts';
 
 const TIMEOUT_MS = 25_000;
@@ -152,8 +154,7 @@ export async function turnoServizio(
   };
   const controllo = new AbortController();
   const scadenza = setTimeout(() => controllo.abort(), TIMEOUT_MS);
-  let grezzo = null;
-  try {
+  const chiama = async (corpo: unknown) => {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       signal: controllo.signal,
@@ -162,21 +163,43 @@ export async function turnoServizio(
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
-      body: JSON.stringify(richiestaModello(input)),
+      body: JSON.stringify(corpo),
     });
-    if (r.ok) grezzo = leggiGrezzo(await r.json());
-    else console.error('Dialogo AI: risposta', r.status, (await r.text()).slice(0, 300));
+    if (r.ok) return leggiGrezzo(await r.json());
+    console.error('Dialogo AI: risposta', r.status, (await r.text()).slice(0, 300));
+    return null;
+  };
+  let grezzo = null;
+  try {
+    grezzo = await chiama(richiestaModello(input));
   } catch (e) {
     console.error('Dialogo AI fallito:', e);
-    if (controllo.signal.aborted) return esitoErrore('TIMEOUT', 504);
-  } finally {
-    clearTimeout(scadenza);
+    if (controllo.signal.aborted) {
+      clearTimeout(scadenza);
+      return esitoErrore('TIMEOUT', 504);
+    }
   }
   // Senza una risposta valida del modello l'app usa il suo ripiego (testi fissi).
-  if (!grezzo) return esitoErrore('SERVIZIO_NON_DISPONIBILE', 503);
+  if (!grezzo) {
+    clearTimeout(scadenza);
+    return esitoErrore('SERVIZIO_NON_DISPONIBILE', 503);
+  }
 
   // 5) Il turno lo decide la logica: profilo, prossima domanda, battuta.
-  const esito = elaboraTurno(input, grezzo);
+  let esito = elaboraTurno(input, grezzo);
+  // Il dialogo si chiude ma il modello non ha scritto un impegno di Lode: lo si
+  // richiede UNA volta; se nemmeno la seconda va bene resta quello fisso.
+  if (esito.fine && esito.impegno_ripiego) {
+    try {
+      const riprova = await chiama(richiestaRiprova(input, grezzo));
+      if (riprova && impegnoDiLode(riprova.impegno)) {
+        esito = elaboraTurno(input, { ...grezzo, impegno: riprova.impegno });
+      }
+    } catch (e) {
+      console.error('Riprova impegno fallita, resta quello fisso:', e);
+    }
+  }
+  clearTimeout(scadenza);
 
   // 6) Il dialogo diventa la prima conversazione della chat. Prima i turni
   // rimasti indietro (function fallita in precedenza), senza duplicare quelli
@@ -205,11 +228,11 @@ export async function turnoServizio(
   );
   if (erroreScrittura) console.error('Scrittura chat fallita:', erroreScrittura);
 
-  // 7) La promessa va mantenuta. Se il dialogo chiude con un impegno lo si
-  // salva subito nel profilo ("da_mantenere") e, SENZA far aspettare la
-  // battuta di chiusura, parte in background il primo messaggio della chat.
+  // 7) La promessa va mantenuta. Ogni chiusura ha un impegno: lo si salva
+  // subito nel profilo ("da_mantenere") e, SENZA far aspettare la battuta di
+  // chiusura, parte in background il primo messaggio della chat.
   let sfondo: Promise<void> | null = null;
-  const impegno = esito.aiuto ? esito.profilo.impegno ?? null : null;
+  const impegno = esito.fine ? esito.profilo.impegno ?? null : null;
   if (impegno) {
     await salvaImpegno(admin, userId, impegno, true);
     sfondo = (async () => {
@@ -236,7 +259,10 @@ export async function turnoServizio(
       chieste: esito.chieste,
       prossima_chiave: esito.prossima_chiave,
       fine: esito.fine,
-      aiuto: esito.aiuto,
+      // L'app apre la chat quando "aiuto" e' vero: ogni chiusura con un impegno
+      // porta in chat, dove arriva il messaggio che lo mantiene.
+      aiuto: esito.aiuto || !!impegno,
+      urgente: esito.urgente === true,
       messaggi_salvati: !erroreScrittura,
     },
     sfondo,
