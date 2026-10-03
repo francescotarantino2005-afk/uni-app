@@ -390,6 +390,14 @@ export type DatiStudente = {
 };
 
 /**
+ * La cache dei due blocchi stabili dura UN'ORA (non i 5 minuti di base): una
+ * pausa di qualche minuto non costringe a riscrivere ~9.600 token. Scrivere
+ * costa di piu' (4 $/M invece di 2,50) ma basta una pausa oltre i 5 minuti per
+ * session a rendere conveniente l'ora (misure del 3 ottobre, docs/prova-correzioni).
+ */
+export const CACHE_STABILE = { type: 'ephemeral', ttl: '1h' } as const;
+
+/**
  * Le istruzioni di sistema in tre blocchi. I primi due sono la parte stabile e
  * portano il segno di cache: (1) manuale + istruzioni tecniche, uguali per ogni
  * studente con lo stesso nome del bot; (2) note e dati reali dello studente,
@@ -398,16 +406,16 @@ export type DatiStudente = {
  * di cache, così cambiarlo non rompe la cache.
  */
 export function sistema(dati: DatiStudente, note: Nota[], extra?: string) {
-  const blocchi: { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }[] = [
+  const blocchi: { type: 'text'; text: string; cache_control?: { type: 'ephemeral'; ttl: '5m' | '1h' } }[] = [
     {
       type: 'text',
       text: istruzioniSistema(dati.nomeBot, dati.formato) + (dati.senzaVoti ? ISTRUZIONE_MATRICOLA : ''),
-      cache_control: { type: 'ephemeral' },
+      cache_control: CACHE_STABILE,
     },
     {
       type: 'text',
       text: `${bloccoNote(note)}<dati_reali_utente>\n${dati.testo}\n</dati_reali_utente>`,
-      cache_control: { type: 'ephemeral' },
+      cache_control: CACHE_STABILE,
     },
   ];
   const momento = [istruzioneEsame(dati.esame), extra].filter(Boolean).join('\n\n');

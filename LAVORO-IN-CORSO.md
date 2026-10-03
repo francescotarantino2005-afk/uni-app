@@ -9,8 +9,10 @@
 2. Recapiti di aiuto — FATTO nel codice: manuale v1.1 (.md e manuale-testo.ts uguali), `_shared/aiuto.ts`, controllo dei telefoni in `chat/controlli.ts` (rigenera una volta, poi toglie la frase).
 3. Interrogazione guidata dal codice — FATTO nel codice: `chat/interrogazione.ts`, `chat/controlli.ts`, `chat/motore.ts`, `chat/index.ts`. 5 prove con il modello vero: 4 domande ciascuna, nessun voto anticipato.
 4. Formule e formato — FATTO nel codice: simboli Unicode, campo `formato` ('testo' default | 'markdown').
-5. Cache da un'ora — misura in corso (script in scratchpad, finisce alle ~20:11): vedi sotto.
+5. Cache da un'ora — SCELTA 1 ora (`CACHE_STABILE` in chat/logica.ts, intestazione beta in motore.ts). Misura incompleta: credito API Anthropic finito al messaggio 5. Dettagli in docs/prova-correzioni-2026-10-03.md.
 6. Pulizia — vedi sotto.
+
+## URGENTE: il credito dell'API Anthropic e' finito ("credit balance is too low", errore 400 del 3 ottobre ~20:15). Senza credito la chat in produzione non risponde. Ricaricare da Plans & Billing, poi verificare con un messaggio.
 
 ## DA FARE (non fatto: contesto al 66% e limite orario del piano al 75%)
 - [ ] PUBBLICARE le due function (il registro è rosso finché non si fa, `npm test` fallisce SOLO per questo):
@@ -18,6 +20,6 @@
   2. Lo stesso per `accoglienza-dialogo` (entrypoint `accoglienza-dialogo/index.ts`, verify_jwt true).
   3. `npm test` verde, commit, push.
   Nuovi file nel pacchetto di `chat`: `_shared/aiuto.ts`, `chat/controlli.ts`, `chat/interrogazione.ts`; in `accoglienza-dialogo`: `_shared/aiuto.ts`.
-- [ ] Scegliere la cache (5 minuti o 1 ora) col risultato di `cache-esito.json` e, se 1 ora, mettere `ttl: '1h'` nei `cache_control` di `sistema()` in `chat/logica.ts` PRIMA di pubblicare (una sola pubblicazione).
+- [x] (fatto, vedi punto 5) Scegliere la cache (5 minuti o 1 ora) col risultato di `cache-esito.json` e, se 1 ora, mettere `ttl: '1h'` nei `cache_control` di `sistema()` in `chat/logica.ts` PRIMA di pubblicare (una sola pubblicazione).
 - [ ] Spegnere `prova-modello` (ora è un tramite attivo con segreto): ridistribuire la versione 410, oppure cancellarla dalla dashboard (il connettore non ha un comando per cancellare le function).
 - [ ] "1 attività in esecuzione": non è un processo del repo (`Get-Process` mostra solo la misura della cache, `node`, avviata da me). Se resta dopo la fine della misura, è una scheda del terminale dell'app: si chiude da lì.
