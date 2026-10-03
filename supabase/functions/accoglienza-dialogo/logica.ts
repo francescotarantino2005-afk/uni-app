@@ -24,7 +24,7 @@
 //   male"): con pochi giorni davanti ogni domanda in piu' e' tempo rubato. Le
 //   chiavi mancanti vanno in coda;
 // - i nomi degli esami si scrivono bene anche se lo studente li scrive male
-//   ("tolc i" -> "Tolc I"), nel profilo e nelle battute;
+//   ("tolc i" -> "TOLC-I"), nel profilo e nelle battute;
 // - due non-risposte di fila ("boh", "mah", "no", niente, o una domanda saltata
 //   col tasto "Salta"): si chiude con garbo, senza altre domande, e le chiavi
 //   mancanti vanno in coda. Il salto resta nelle note come risposta SALTATA,
@@ -184,14 +184,22 @@ const PAROLE_MINUSCOLE = new Set([
   'in', 'per', 'con', 'da', 'su', 'il', 'la', 'lo', 'le', 'gli', 'l',
 ]);
 const ROMANO = /^(i|ii|iii|iv|v|vi|vii|viii|ix|x)$/i;
+// Le sigle ufficiali CISIA: TOLC-I, TOLC-E, TOLC-S, TOLC-F, TOLC-B, TOLC-AV, TOLC-SU, TOLC-PSI, TOLC-LP.
+// "e" e' anche una congiunzione: vale come sigla solo in fondo al nome.
+const TOLC = /(?<![\p{L}\d])tolc(?:[\s-]+(i|s|f|b|av|su|psi|lp|e(?=\s*$))(?![\p{L}\d]))?(?![\p{L}\d])/giu;
+
+function siglaTolc(testo: string): string {
+  return testo.replace(TOLC, (_, sigla?: string) => (sigla ? `TOLC-${sigla.toUpperCase()}` : 'TOLC'));
+}
 
 /**
  * Il nome dell'esame scritto bene: iniziali maiuscole, preposizioni minuscole,
- * numeri romani maiuscoli ("tolc i" -> "Tolc I", "basi di dati" -> "Basi di
- * Dati"). Se lo studente ha gia' usato delle maiuscole, resta com'e'.
+ * numeri romani maiuscoli ("fisica generale ii" -> "Fisica Generale II", "basi
+ * di dati" -> "Basi di Dati"). Se lo studente ha gia' usato delle maiuscole,
+ * resta com'e'. Le sigle TOLC sono sempre quelle ufficiali ("tolc i" -> "TOLC-I").
  */
 export function nomeEsameCorretto(nome: string): string {
-  const t = nome.replace(/\s+/g, ' ').trim();
+  const t = siglaTolc(nome.replace(/\s+/g, ' ').trim());
   if (!t || /\p{Lu}/u.test(t)) return t;
   let n = 0;
   return t.replace(/[\p{L}\d]+/gu, (parola) => {
@@ -206,7 +214,7 @@ function senzaSimboli(testo: string): string {
   return testo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Nella battuta ogni esame nominato si scrive come nel suo nome corretto ("tolc i" -> "Tolc I"). */
+/** Nella battuta ogni esame nominato si scrive come nel suo nome corretto ("tolc i" -> "TOLC-I"). */
 export function correggiNomi(testo: string, nomi: (string | null)[]): string {
   let t = testo;
   for (const nome of nomi) {
@@ -340,7 +348,7 @@ const SCHEMA = {
   ],
   properties: {
     esame_testo: { type: 'string', description: "Le parole ESATTE dell'ultimo messaggio con cui lo studente dice quale esame o prova deve dare. \"\" se non ne parla." },
-    esame_nome: { type: 'string', description: "Solo il nome dell'esame, con le parole ESATTE dello studente (es. \"Tolc I\"). \"\" se non ne parla." },
+    esame_nome: { type: 'string', description: "Solo il nome dell'esame, con le parole ESATTE dello studente (es. \"TOLC-I\"). \"\" se non ne parla." },
     esame_indice: { type: 'integer', description: "Numero dell'esame in <esami_noti> se intende chiaramente quello, altrimenti 0." },
     quando_testo: { type: 'string', description: "Le parole ESATTE con cui dice quando deve dare l'esame, anche vaghe. \"\" se non ne parla." },
     quando_data: { type: 'string', description: 'AAAA-MM-GG solo se indica un giorno preciso; senza anno usa la ricorrenza più vicina a oggi, ANCHE se è già passata. "" altrimenti.' },
@@ -390,7 +398,7 @@ LA BATTUTA
 - Se indica una data già passata rispetto a oggi, faglielo notare con gentilezza nella reazione, senza prenderla per buona e senza fargli il terzo grado.
 - Italiano corretto, tono da compagno di corso sveglio, prima persona singolare, dai del tu. Testo semplice: niente markdown, elenchi, emoji.
 - Esami: puoi nominare solo quelli in <esami_noti> o quello che lo studente ha scritto. <esami_noti> è un elenco parziale: se nomina un esame che non c'è, va bene così, non farglielo notare.
-- Nelle tue frasi scrivi i nomi degli esami correttamente, con le maiuscole giuste, anche quando lo studente li scrive male: "tolc i" → "Tolc I", "analisi 2" → "Analisi 2". (Nei campi *_testo ed esame_nome invece copi le sue parole esatte.)
+- Nelle tue frasi scrivi i nomi degli esami correttamente, con le maiuscole giuste, anche quando lo studente li scrive male: "tolc i" → "TOLC-I", "analisi 2" → "Analisi 2". (Nei campi *_testo ed esame_nome invece copi le sue parole esatte.)
 
 LA DOMANDA SUCCESSIVA
 - prossima_chiave è la PRIMA, nell'ordine di priorità, che dopo questo messaggio è ancora senza risposta e che non compare in <gia_chieste>. Una cosa già detta non si chiede. Una cosa già chiesta non si richiede, nemmeno se la risposta è stata vaga o non è arrivata.

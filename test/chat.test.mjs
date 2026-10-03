@@ -103,7 +103,7 @@ test('caso Tolc: la richiesta alla chat obbliga a mantenere la promessa, con il 
   assert.match(r.system[2].text, /esercizi veri/);
   // il livello dichiarato dallo studente arriva al modello con le sue parole
   assert.match(r.system[1].text, /indietro con la matematica/);
-  assert.match(r.system[1].text, /Tolc I/);
+  assert.match(r.system[1].text, /TOLC-I/);
   // la conversazione parte da un messaggio dello studente e finisce con l'apertura della chat
   assert.equal(r.messages[0].role, 'user');
   assert.equal(r.messages[r.messages.length - 1].content, TURNO_APERTURA);
@@ -178,7 +178,7 @@ test('impegno: se la generazione fallisce resta "da_mantenere" e lo mantiene la 
 });
 
 test('impegno: scriverlo nel profilo non tocca il resto, e un profilo riscritto dall\'app vecchia lo riottiene', () => {
-  const profilo = { esame_target: { testo: 'Tolc I', nome: 'Tolc I', id: null }, ostacolo: 'x' };
+  const profilo = { esame_target: { testo: 'TOLC-I', nome: 'TOLC-I', id: null }, ostacolo: 'x' };
   const con = conImpegno(profilo, IMPEGNO);
   assert.deepEqual(con.esame_target, profilo.esame_target);
   assert.deepEqual(leggiImpegno(con), { ...IMPEGNO, tentativo_il: null, mantenuto_il: null, messaggio_id: null });

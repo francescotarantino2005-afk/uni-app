@@ -111,13 +111,13 @@ function regoleGenerali(r) {
 
 // ---------- le conversazioni registrate ----------
 
-test('conversazione reale (Tolc I): non richiede ciò che ha già detto, e l\'aiuto vince sul questionario', () => {
+test('conversazione reale (TOLC-I): non richiede ciò che ha già detto, e l\'aiuto vince sul questionario', () => {
   const r = rigioca('reale');
   regoleGenerali(r);
   const [uno, due] = r.turni;
 
   // messaggio 1: dice l'esame E la data → non si chiede "quando"
-  assert.equal(uno.esito.profilo.esame_target.nome, 'Tolc I');
+  assert.equal(uno.esito.profilo.esame_target.nome, 'TOLC-I');
   assert.ok(haRisposta(uno.esito.profilo, 'quando'));
   assert.notEqual(uno.esito.prossima_chiave, 'quando');
   // la data è già passata: non viene registrata come data, e il bot lo fa notare
@@ -212,13 +212,13 @@ test('studente che non vuole rispondere: dopo due non-risposte di fila il dialog
   assert.match(r.profilo.impegno.testo, /Fisica Generale I/);
 });
 
-test('PROVA DI STANOTTE (Tolc I tra una settimana, "sono messo male"): si chiude subito con un impegno di Lode', () => {
+test('PROVA DI STANOTTE (TOLC-I tra una settimana, "sono messo male"): si chiude subito con un impegno di Lode', () => {
   const r = rigioca('urgenza');
   regoleGenerali(r);
   const [uno, due] = r.turni;
   // il nome si scrive bene, nel profilo e nella battuta, anche se lo studente scrive "tolc i"
-  assert.equal(uno.esito.profilo.esame_target.nome, 'Tolc I');
-  assert.match(uno.esito.risposta_bot, /Tolc I/);
+  assert.equal(uno.esito.profilo.esame_target.nome, 'TOLC-I');
+  assert.match(uno.esito.risposta_bot, /TOLC-I/);
   assert.ok(!/tolc i/.test(uno.esito.risposta_bot), 'nome scritto male nella battuta');
   assert.equal(uno.esito.fine, false); // senza difficoltà dichiarata si continua
   // "sono messo male" con l'esame tra una settimana: niente più domande
@@ -227,8 +227,8 @@ test('PROVA DI STANOTTE (Tolc I tra una settimana, "sono messo male"): si chiude
   assert.equal(due.esito.aiuto, false);
   assert.equal(due.esito.prossima_chiave, null);
   assert.deepEqual(r.chieste, ['esame_target', 'avanzamento']);
-  // l'impegno è un'azione di Lode sul Tolc I, non "un primo giro serio col telefono fuori dalla stanza"
-  assert.match(r.profilo.impegno.testo, /Tolc I/);
+  // l'impegno è un'azione di Lode sul TOLC-I, non "un primo giro serio col telefono fuori dalla stanza"
+  assert.match(r.profilo.impegno.testo, /TOLC-I/);
   assert.match(r.profilo.impegno.testo, /^Ti (preparo|scrivo|faccio)/);
   assert.ok(!/telefono fuori/.test(r.profilo.impegno.testo));
   // tempo e ostacolo non chiesti vanno in coda
@@ -502,28 +502,28 @@ test('richiesta di aiuto: l\'impegno detto allo studente viene salvato nel profi
 });
 
 test('ogni chiusura ha un impegno di Lode: un consiglio non basta, e il consiglio va dopo l\'impegno', () => {
-  const pieno = { esame_target: { testo: 'Tolc I', nome: 'Tolc I', id: null } };
+  const pieno = { esame_target: { testo: 'TOLC-I', nome: 'TOLC-I', id: null } };
   const chiusura = (grezzo) =>
     esegui(turno('il telefono i pensieri', grezzo, { profilo: profiloCompleto(pieno), chieste: ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo'] }));
   // il modello scrive solo un consiglio (la prova di stanotte): niente impegno valido -> ripiego, e la function riprova
   const consiglio = chiusura({
     reazione: 'Telefono e pensieri sono i due nemici.',
-    impegno: 'Si parte da domani: un primo giro serio sul Tolc I, a blocchi brevi, col telefono fuori dalla stanza.',
+    impegno: 'Si parte da domani: un primo giro serio sul TOLC-I, a blocchi brevi, col telefono fuori dalla stanza.',
   });
   assert.equal(consiglio.fine, true);
   assert.equal(consiglio.impegno_ripiego, true);
-  assert.equal(consiglio.profilo.impegno.testo, impegnoDiRipiego('Tolc I'));
-  assert.ok(consiglio.risposta_bot.endsWith(impegnoDiRipiego('Tolc I')));
+  assert.equal(consiglio.profilo.impegno.testo, impegnoDiRipiego('TOLC-I'));
+  assert.ok(consiglio.risposta_bot.endsWith(impegnoDiRipiego('TOLC-I')));
   // impegno + consiglio: l'impegno prima, il consiglio dopo
   const buono = chiusura({
     reazione: 'Telefono e pensieri sono i due nemici.',
-    impegno: 'Ti preparo subito in chat una mini-simulazione del Tolc I da 15 domande.',
+    impegno: 'Ti preparo subito in chat una mini-simulazione del TOLC-I da 15 domande.',
     chiusura: 'Quando la fai, metti il telefono in un\'altra stanza.',
   });
   assert.equal(buono.impegno_ripiego, false);
   assert.equal(
     buono.risposta_bot,
-    'Telefono e pensieri sono i due nemici. Ti preparo subito in chat una mini-simulazione del Tolc I da 15 domande. Quando la fai, metti il telefono in un\'altra stanza.'
+    'Telefono e pensieri sono i due nemici. Ti preparo subito in chat una mini-simulazione del TOLC-I da 15 domande. Quando la fai, metti il telefono in un\'altra stanza.'
   );
   // la seconda richiesta al modello dice cosa non andava e chiede l'impegno
   const t = turno('x', {}, { profilo: profiloCompleto(pieno) });
@@ -534,21 +534,21 @@ test('ogni chiusura ha un impegno di Lode: un consiglio non basta, e il consigli
 
 test('impegno di Lode: un\'azione che fa Lode, non un consiglio né una promessa vaga', () => {
   for (const t of [
-    'Ti preparo subito in chat una mini-simulazione del Tolc I da 15 domande, per capire da dove partire.',
+    'Ti preparo subito in chat una mini-simulazione del TOLC-I da 15 domande, per capire da dove partire.',
     'Partiamo da monomi e polinomi: ti preparo una serie di esercizi graduali.',
     'Ti scrivo il piano dei prossimi sette giorni, un blocco al giorno.',
     'Domani ti faccio trovare cinque esercizi sulle derivate.',
   ]) assert.equal(impegnoDiLode(t), true, t);
   for (const t of [
-    'Si parte da domani: un primo giro serio sul Tolc I, a blocchi brevi, col telefono fuori dalla stanza.',
+    'Si parte da domani: un primo giro serio sul TOLC-I, a blocchi brevi, col telefono fuori dalla stanza.',
     'Ripartiamo da monomi e polinomi e da lì ti seguo passo passo.',
     'Ti aiuto a organizzare il ripasso.',
     'Partiamo da lì: ti aspetto in chat e cominciamo subito.',
     'Ti preparo qualcosa?',
     '',
   ]) assert.equal(impegnoDiLode(t), false, t);
-  assert.match(impegnoDiRipiego('Tolc I'), /^Ti preparo .*Tolc I/);
-  assert.ok(impegnoDiLode(impegnoDiRipiego('Tolc I')) && impegnoDiLode(impegnoDiRipiego(null)));
+  assert.match(impegnoDiRipiego('TOLC-I'), /^Ti preparo .*TOLC-I/);
+  assert.ok(impegnoDiLode(impegnoDiRipiego('TOLC-I')) && impegnoDiLode(impegnoDiRipiego(null)));
 });
 
 test('urgenza: esame entro 14 giorni + difficoltà dichiarata chiudono subito; da sole no', () => {
@@ -567,7 +567,7 @@ test('urgenza: esame entro 14 giorni + difficoltà dichiarata chiudono subito; d
   assert.equal(giorniAllEsame(profiloCompleto({}), '2026-10-03', 7), 7);
   assert.equal(giorniAllEsame(profiloCompleto({}), '2026-10-03', -1), null);
 
-  const tolc = { esame_target: { testo: 'il tolc i', nome: 'Tolc I', id: null }, quando: { testo: 'tra una settimana circa', data: null } };
+  const tolc = { esame_target: { testo: 'il tolc i', nome: 'TOLC-I', id: null }, quando: { testo: 'tra una settimana circa', data: null } };
   const caso = (messaggi, grezzo) =>
     esegui(turno(messaggi[messaggi.length - 1], { reazione: 'Ok.', prossima_chiave: 'tempo_al_giorno', domanda_successiva: 'Quanto tempo hai?', ...grezzo }, {
       conversazione: conv(...messaggi), profilo: profiloCompleto(tolc), chieste: ['esame_target', 'avanzamento'], oggi: '2026-10-03',
@@ -586,14 +586,21 @@ test('urgenza: esame entro 14 giorni + difficoltà dichiarata chiudono subito; d
 });
 
 test('i nomi degli esami si scrivono bene, nel profilo e nelle battute', () => {
-  assert.equal(nomeEsameCorretto('tolc i'), 'Tolc I');
+  assert.equal(nomeEsameCorretto('tolc i'), 'TOLC-I');
   assert.equal(nomeEsameCorretto('basi di dati'), 'Basi di Dati');
   assert.equal(nomeEsameCorretto('fisica generale ii'), 'Fisica Generale II');
   assert.equal(nomeEsameCorretto('analisi 2'), 'Analisi 2');
   assert.equal(nomeEsameCorretto('Analisi Matematica'), 'Analisi Matematica'); // già scritto bene: resta
   assert.equal(nomeEsameCorretto('TOLC-I'), 'TOLC-I');
-  assert.equal(correggiNomi('Il tolc i è vicino, e il TOLC I pure.', ['Tolc I']), 'Il Tolc I è vicino, e il Tolc I pure.');
-  assert.equal(correggiNomi('Lo stoltolc ignoto resta.', ['Tolc I']), 'Lo stoltolc ignoto resta.'); // solo parole intere
+  for (const s of ['I', 'E', 'S', 'F', 'B', 'AV', 'SU', 'PSI', 'LP']) {
+    assert.equal(nomeEsameCorretto(`tolc ${s.toLowerCase()}`), `TOLC-${s}`);
+    assert.equal(nomeEsameCorretto(`Tolc-${s.toLowerCase()}`), `TOLC-${s}`);
+    assert.equal(nomeEsameCorretto(`TOLC ${s}`), `TOLC-${s}`);
+  }
+  assert.equal(nomeEsameCorretto('tolc'), 'TOLC');
+  assert.equal(nomeEsameCorretto('tolc e fisica'), 'TOLC e fisica'); // "e" in mezzo e' una congiunzione
+  assert.equal(correggiNomi('Il tolc i è vicino, e il TOLC I pure.', ['TOLC-I']), 'Il TOLC-I è vicino, e il TOLC-I pure.');
+  assert.equal(correggiNomi('Lo stoltolc ignoto resta.', ['TOLC-I']), 'Lo stoltolc ignoto resta.'); // solo parole intere
   const e = esegui(
     turno('devo sostenere il tolc i tra una settimana circa', {
       esame_testo: 'devo sostenere il tolc i', esame_nome: 'tolc i',
@@ -602,9 +609,9 @@ test('i nomi degli esami si scrivono bene, nel profilo e nelle battute', () => {
       prossima_chiave: 'avanzamento', domanda_successiva: 'A che punto sei con la preparazione per il tolc i?',
     })
   );
-  assert.equal(e.profilo.esame_target.nome, 'Tolc I');
+  assert.equal(e.profilo.esame_target.nome, 'TOLC-I');
   assert.equal(e.profilo.esame_target.testo, 'devo sostenere il tolc i'); // le sue parole restano sue
-  assert.equal(e.risposta_bot, 'Il Tolc I tra una settimana circa è dietro l\'angolo. A che punto sei con la preparazione per il Tolc I?');
+  assert.equal(e.risposta_bot, 'Il TOLC-I tra una settimana circa è dietro l\'angolo. A che punto sei con la preparazione per il TOLC-I?');
 });
 
 test('un esame dell\'elenco che lo studente non ha scelto non viene nominato', () => {
@@ -618,7 +625,7 @@ test('un esame dell\'elenco che lo studente non ha scelto non viene nominato', (
 
 test('ripiego (il modello non risponde): niente ricevute, le parole dello studente valgono per la sola domanda fatta', () => {
   const t = turno('mi sento indietro, non mi sento in grado', {}, {
-    profilo: profiloCompleto({ esame_target: { testo: 'Tolc I', nome: 'Tolc I', id: null }, quando: { testo: 'il 14 settembre', data: null } }),
+    profilo: profiloCompleto({ esame_target: { testo: 'TOLC-I', nome: 'TOLC-I', id: null }, quando: { testo: 'il 14 settembre', data: null } }),
     chieste: ['esame_target', 'avanzamento'],
   });
   const e = turnoDiRipiego(t.input);
