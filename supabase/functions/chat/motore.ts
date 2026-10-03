@@ -6,6 +6,7 @@
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { malessereSerio } from '../_shared/aiuto.ts';
+import { logErroreModello, tipoErrore } from '../_shared/errori.ts';
 import { dataOggiRoma, giornoSettimanaRoma } from '../_shared/briefing.ts';
 import { type Impegno, leggiImpegno, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
 import { rispostaControllata } from './controlli.ts';
@@ -221,6 +222,7 @@ export async function mantieniImpegno(
     });
     return { stato: 'mantenuto', messaggio: testo, creato_il: creato };
   } catch (e) {
+    logErroreModello('chat:impegno', tipoErrore(e), (e as { status?: number })?.status);
     console.error('Impegno non mantenuto, resta da mantenere:', e);
     // Si libera la prenotazione: la prossima occasione puo' riprovare subito.
     await scriviImpegno(admin, userId, { ...impegno, tentativo_il: null });
@@ -359,6 +361,7 @@ export async function aggiornaMemoria(
     );
     await eseguiAzioni(clientUtente, userId, pianoMemoria(leggiOperazioni(out), note));
   } catch (e) {
+    logErroreModello('chat:memoria', tipoErrore(e), (e as { status?: number })?.status);
     console.error('Aggiornamento memoria fallito:', e);
   }
 }

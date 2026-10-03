@@ -3,12 +3,14 @@
 // l'impegno da mantenere con cui si chiude OGNI dialogo. Il contorno HTTP
 // (login, CORS) sta in index.ts; le regole stanno in logica.ts.
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { type TipoErroreModello, logErroreModello, tipoDaRisposta, tipoErrore } from '../_shared/errori.ts';
 import {
   CHIAVI,
   type Chiave,
   type EsameElenco,
   type Impegno,
   type Messaggio,
+  corpoBlocco,
   elaboraTurno,
   leggiGrezzo,
   impegnoDiLode,
@@ -166,23 +168,27 @@ export async function turnoServizio(
       body: JSON.stringify(corpo),
     });
     if (r.ok) return leggiGrezzo(await r.json());
-    console.error('Dialogo AI: risposta', r.status, (await r.text()).slice(0, 300));
+    const testoErrore = (await r.text()).slice(0, 300);
+    errore = tipoDaRisposta(r.status, testoErrore);
+    logErroreModello('accoglienza-dialogo', errore, r.status);
+    console.error('Dialogo AI: risposta', r.status, testoErrore);
     return null;
   };
+  let errore: TipoErroreModello | null = null;
   let grezzo = null;
   try {
     grezzo = await chiama(richiestaModello(input));
   } catch (e) {
+    errore = controllo.signal.aborted ? 'timeout' : tipoErrore(e);
+    logErroreModello('accoglienza-dialogo', errore);
     console.error('Dialogo AI fallito:', e);
-    if (controllo.signal.aborted) {
-      clearTimeout(scadenza);
-      return esitoErrore('TIMEOUT', 504);
-    }
   }
-  // Senza una risposta valida del modello l'app usa il suo ripiego (testi fissi).
+  // Senza una risposta valida (credito esaurito, sovraccarico, rete...) il dialogo
+  // resta al turno in cui era, con un normale messaggio di Lode.
   if (!grezzo) {
     clearTimeout(scadenza);
-    return esitoErrore('SERVIZIO_NON_DISPONIBILE', 503);
+    if (!errore) logErroreModello('accoglienza-dialogo', (errore = 'risposta_vuota'));
+    return { stato: 200, corpo: corpoBlocco(input.profilo, chieste, errore), sfondo: null };
   }
 
   // 5) Il turno lo decide la logica: profilo, prossima domanda, battuta.

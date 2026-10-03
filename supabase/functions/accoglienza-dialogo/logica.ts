@@ -37,6 +37,7 @@ export const MAX_DOMANDE = 5;
 export const MAX_FRASI = 3;
 
 import { pericoloImmediato, malessereSerio, rispostaDiAiuto } from '../_shared/aiuto.ts';
+import { MESSAGGIO_BLOCCO, type TipoErroreModello } from '../_shared/errori.ts';
 import { sezioniManuale } from '../_shared/manuale.ts';
 import {
   CHIAVI,
@@ -548,6 +549,26 @@ export type EsitoTurno = {
   /** true se si chiude subito per un malessere serio: niente impegno, niente esercizi */
   malessere?: boolean;
 };
+
+/**
+ * Il modello non risponde (credito, sovraccarico, rete): il dialogo RESTA al
+ * turno in cui era. Un normale messaggio di Lode, profilo e chiavi chieste come
+ * erano, niente salvato in chat: lo studente riscrive la risposta.
+ */
+export function corpoBlocco(profilo: ProfiloStudio, chieste: Chiave[], tipo: TipoErroreModello) {
+  return {
+    risposta_bot: MESSAGGIO_BLOCCO,
+    profilo_studio: profilo,
+    chieste,
+    prossima_chiave: chieste[chieste.length - 1] ?? null,
+    fine: false,
+    aiuto: false,
+    urgente: false,
+    malessere: false,
+    messaggi_salvati: false,
+    errore_modello: tipo,
+  };
+}
 
 /** Il testo e' fatto di parole che lo studente ha scritto davvero? */
 function citazione(proposta: unknown, messaggio: string): string | null {

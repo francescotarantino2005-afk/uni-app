@@ -22,6 +22,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { dataOggiRoma } from '../_shared/briefing.ts';
+import { MESSAGGIO_BLOCCO, logErroreModello, tipoErrore } from '../_shared/errori.ts';
 import { aggiornaMemoria, mantieniImpegno, rispondi, salvaTipoEsame } from './motore.ts';
 import { quandoAggiornare } from './memoria.ts';
 
@@ -135,9 +136,14 @@ Deno.serve(async (req) => {
     try {
       esito = await rispondi(admin, clientUtente, user.id, testo, anthropic, formato);
     } catch (e) {
+      // Credito esaurito, sovraccarico, rete: la chat non si rompe. Si risponde con un
+      // normale messaggio di Lode (le build attuali lo mostrano come un messaggio
+      // qualunque). Non si salva niente, non si conta nel tetto, non entra nella
+      // memoria, nessun impegno risulta mantenuto.
+      const tipo = e instanceof Anthropic.APIConnectionTimeoutError ? 'timeout' : tipoErrore(e);
+      logErroreModello('chat', tipo, (e as { status?: number })?.status);
       console.error('Chat AI fallita:', e);
-      if (e instanceof Anthropic.APIConnectionTimeoutError) return json({ errore: 'TIMEOUT' }, 504);
-      return json({ errore: 'SERVIZIO_NON_DISPONIBILE' }, 503);
+      return json({ risposta: MESSAGGIO_BLOCCO, errore_modello: tipo });
     }
     const { risposta, storico, noteTutte } = esito;
 
