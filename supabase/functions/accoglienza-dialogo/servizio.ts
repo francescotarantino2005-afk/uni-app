@@ -232,7 +232,13 @@ export async function turnoServizio(
   // subito nel profilo ("da_mantenere") e, SENZA far aspettare la battuta di
   // chiusura, parte in background il primo messaggio della chat.
   let sfondo: Promise<void> | null = null;
-  const impegno = esito.fine ? esito.profilo.impegno ?? null : null;
+  // Un malessere serio chiude il dialogo SENZA impegno: l'accoglienza e' finita e
+  // la chat non scrive nessun messaggio automatico.
+  if (esito.malessere) {
+    const { error } = await admin.from('profiles').update({ accoglienza_stato: 'completata' }).eq('id', userId);
+    if (error) console.error('Chiusura per malessere: stato non salvato:', error);
+  }
+  const impegno = esito.fine && !esito.malessere ? esito.profilo.impegno ?? null : null;
   if (impegno) {
     await salvaImpegno(admin, userId, impegno, true);
     sfondo = (async () => {
@@ -263,6 +269,7 @@ export async function turnoServizio(
       // porta in chat, dove arriva il messaggio che lo mantiene.
       aiuto: esito.aiuto || !!impegno,
       urgente: esito.urgente === true,
+      malessere: esito.malessere === true,
       messaggi_salvati: !erroreScrittura,
     },
     sfondo,

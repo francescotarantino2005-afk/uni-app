@@ -36,6 +36,7 @@ export const MODELLO = 'claude-sonnet-5-5';
 export const MAX_DOMANDE = 5;
 export const MAX_FRASI = 3;
 
+import { pericoloImmediato, malessereSerio, rispostaDiAiuto } from '../_shared/aiuto.ts';
 import { sezioniManuale } from '../_shared/manuale.ts';
 import {
   CHIAVI,
@@ -87,6 +88,9 @@ function reazionePulita(testo: string, quante: number): string {
     .slice(0, quante)
     .join(' ');
 }
+
+/** Frasi che suonano come un rifiuto: davanti a un malessere serio non si scrivono. */
+const RIFIUTO = /non sono (?:lo strumento|in grado|la persona)|non posso aiutarti|non sono qualificat/i;
 
 const NON_RISPOSTA =
   /^(boh+|bo|mah+|no+|non (lo )?so|non saprei|niente|nulla|nessuno|vedremo|dopo|non mi va|[?.\-\s]+)[\s.!?]*$/i;
@@ -336,6 +340,8 @@ export type Grezzo = {
   contesto_testo: string;
   giorni_all_esame: number;
   in_difficolta: boolean;
+  /** Il modello segnala un malessere serio; decide il codice (vedi elaboraTurno). */
+  malessere_serio?: boolean;
 };
 
 const SCHEMA = {
@@ -344,7 +350,7 @@ const SCHEMA = {
   required: [
     'esame_testo', 'esame_nome', 'esame_indice', 'quando_testo', 'quando_data',
     'avanzamento_testo', 'avanzamento_livello', 'tempo_testo', 'tempo_minuti',
-    'ostacolo_testo', 'contesto_testo', 'giorni_all_esame', 'in_difficolta',
+    'ostacolo_testo', 'contesto_testo', 'giorni_all_esame', 'in_difficolta', 'malessere_serio',
     'chiede_aiuto', 'reazione', 'impegno', 'prossima_chiave', 'domanda_successiva', 'chiusura',
   ],
   properties: {
@@ -361,9 +367,10 @@ const SCHEMA = {
     contesto_testo: { type: 'string', description: 'Le parole ESATTE con cui dice qualcosa della sua vita che pesa sullo studio (lavora, è pendolare, fuorisede...). "" se non ne parla.' },
     giorni_all_esame: { type: 'integer', description: "Quanti giorni mancano all'esame da oggi, ricavati da TUTTA la conversazione anche in modo approssimato (\"tra una settimana circa\" → 7). -1 se non si ricava." },
     in_difficolta: { type: 'boolean', description: 'true se in tutta la conversazione dice di essere in difficoltà con la preparazione ("sono messo male", "sono indietro", "non ce la faccio").' },
+    malessere_serio: { type: 'boolean', description: 'true se nell\'ultimo messaggio lo studente esprime in modo esplicito un malessere serio che va oltre l\'esame (disperazione, "non ce la faccio più con tutto", isolamento, pensieri di farsi del male). false per ansia da esame, stress, "sono messo male con la preparazione".' },
     chiede_aiuto: { type: 'boolean', description: "true SOLO se nell'ultimo messaggio chiede aiuto in modo esplicito." },
     reazione: { type: 'string', description: 'Una o due frasi che rispondono a quello che ha appena detto. Mai una domanda.' },
-    impegno: { type: 'string', description: 'OBBLIGATORIO se prossima_chiave è "nessuna": UNA frase in prima persona con un\'azione concreta che fai TU in chat appena finita la conversazione ("Ti preparo..."). "" altrimenti.' },
+    impegno: { type: 'string', description: 'OBBLIGATORIO se prossima_chiave è "nessuna" (tranne se malessere_serio è true: allora ""): UNA frase in prima persona con un\'azione concreta che fai TU in chat appena finita la conversazione ("Ti preparo..."). "" altrimenti.' },
     prossima_chiave: { type: 'string', enum: ['esame_target', 'quando', 'avanzamento', 'tempo_al_giorno', 'ostacolo', 'nessuna'], description: 'La chiave della prossima domanda, o "nessuna" se il dialogo finisce.' },
     domanda_successiva: { type: 'string', description: 'UNA frase: la domanda su prossima_chiave. "" se è "nessuna".' },
     chiusura: { type: 'string', description: 'Facoltativa, solo se prossima_chiave è "nessuna": UNA frase di consiglio che viene DOPO l\'impegno. "" altrimenti.' },
@@ -406,6 +413,11 @@ LA DOMANDA SUCCESSIVA
 - quando e avanzamento si chiedono solo se l'esame è noto: se dopo questo messaggio l'esame manca ancora, saltale e passa a tempo_al_giorno e poi a ostacolo.
 - Se non ne resta nessuna, o se <domande_rimaste> è 0, prossima_chiave è "nessuna".
 - domanda_successiva: UNA frase, una sola domanda, con parole tue, legata a quello che ha detto.
+
+SE C'È UN MALESSERE SERIO
+- Segna malessere_serio=true se nell'ultimo messaggio lo studente esprime in modo esplicito un malessere serio che va oltre l'esame: disperazione ("non ce la faccio più con tutto"), isolamento, pensieri di farsi del male. Vale a qualunque punto del dialogo, anche al primo messaggio.
+- NON è un malessere serio l'ansia da esame, la paura di non farcela con una materia, lo stress, "sono messo male con la preparazione", "sono in ansia per Analisi": sono difficoltà di studio, malessere_serio=false.
+- Con malessere_serio=true: reazione = una o due frasi calde che prendono sul serio quello che dice (mai una domanda, mai consigli di studio, mai frasi che suonano come un rifiuto), prossima_chiave="nessuna", impegno "" e chiusura "". Niente numeri di telefono: i recapiti li aggiunge l'app.
 
 SE CHIEDE AIUTO
 - Se nell'ultimo messaggio chiede aiuto in modo esplicito ("mi serve una mano", "un aiuto mi sarebbe utile", "mi aiuti?"), l'aiuto vince sul questionario: chiede_aiuto=true, prossima_chiave="nessuna", niente domanda, e chiudi con l'impegno.
@@ -533,6 +545,8 @@ export type EsitoTurno = {
   urgente?: boolean;
   /** true se il modello non ha scritto un impegno valido ed e' stato usato quello fisso */
   impegno_ripiego?: boolean;
+  /** true se si chiude subito per un malessere serio: niente impegno, niente esercizi */
+  malessere?: boolean;
 };
 
 /** Il testo e' fatto di parole che lo studente ha scritto davvero? */
@@ -638,6 +652,26 @@ export function elaboraTurno(input: InputTurno, g: Grezzo): EsitoTurno {
   if (contesto) p.contesto = prima.contesto && prima.contesto !== contesto ? `${prima.contesto}; ${contesto}` : contesto;
 
   const profilo = conNota(p, input, messaggio);
+
+  // 1b) Un malessere serio (sezione 7 del manuale) chiude subito il dialogo: niente
+  // impegno, niente esercizi, niente altre domande. Il modello lo segnala, decide il codice.
+  if (g.malessere_serio === true || malessereSerio(messaggio)) {
+    const { impegno: _senza, ...senzaImpegno } = profilo;
+    const reazione = frasi(pulisci(g.reazione, 500))
+      .filter((f) => !f.includes('?') && !RIFIUTO.test(f) && !/\d{3}/.test(f))
+      .slice(0, 2)
+      .join(' ');
+    return {
+      risposta_bot: rispostaDiAiuto(reazione || 'Quello che stai dicendo conta, e lo prendo sul serio.', pericoloImmediato(messaggio)),
+      profilo: senzaImpegno as ProfiloStudio,
+      chieste: input.chieste,
+      prossima_chiave: null,
+      fine: true,
+      aiuto: false,
+      urgente: false,
+      malessere: true,
+    };
+  }
 
   // 2) Cosa viene dopo: lo decide il codice sul profilo aggiornato.
   const aiuto = g.chiede_aiuto === true;
