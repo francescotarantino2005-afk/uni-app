@@ -36,6 +36,7 @@ export const MODELLO = 'claude-sonnet-5-5';
 export const MAX_DOMANDE = 5;
 export const MAX_FRASI = 3;
 
+import { sezioniManuale } from '../_shared/manuale.ts';
 import {
   CHIAVI,
   DOMANDE_FISSE,
@@ -184,9 +185,9 @@ const PAROLE_MINUSCOLE = new Set([
   'in', 'per', 'con', 'da', 'su', 'il', 'la', 'lo', 'le', 'gli', 'l',
 ]);
 const ROMANO = /^(i|ii|iii|iv|v|vi|vii|viii|ix|x)$/i;
-// Le sigle ufficiali CISIA: TOLC-I, TOLC-E, TOLC-S, TOLC-F, TOLC-B, TOLC-AV, TOLC-SU, TOLC-PSI, TOLC-LP.
+// Le sigle ufficiali CISIA: TOLC-I, TOLC-E, TOLC-S, TOLC-F, TOLC-B, TOLC-AV, TOLC-SU, TOLC-PSI, TOLC-LP, TOLC-SPS.
 // "e" e' anche una congiunzione: vale come sigla solo in fondo al nome.
-const TOLC = /(?<![\p{L}\d])tolc(?:[\s-]+(i|s|f|b|av|su|psi|lp|e(?=\s*$))(?![\p{L}\d]))?(?![\p{L}\d])/giu;
+const TOLC = /(?<![\p{L}\d])tolc(?:[\s-]+(i|s|f|b|av|su|psi|lp|sps|e(?=\s*$))(?![\p{L}\d]))?(?![\p{L}\d])/giu;
 
 function siglaTolc(testo: string): string {
   return testo.replace(TOLC, (_, sigla?: string) => (sigla ? `TOLC-${sigla.toUpperCase()}` : 'TOLC'));
@@ -422,6 +423,23 @@ QUANDO IL DIALOGO SI CHIUDE (prossima_chiave "nessuna", per qualunque motivo)
 
 In tutto la battuta non supera le tre frasi.`;
 
+/** Le sezioni del manuale del professore che servono al dialogo: chi è, il lato umano, l'onestà. */
+export const SEZIONI_MANUALE_DIALOGO = [1, 7, 8];
+
+/**
+ * Il system prompt del dialogo: le sezioni 1, 7 e 8 del manuale (col nome del
+ * bot) e, dopo, le regole del dialogo, che hanno la precedenza.
+ */
+export function systemDialogo(nomeBot?: string | null): string {
+  return `${sezioniManuale(SEZIONI_MANUALE_DIALOGO, nomeBot)}
+
+---
+
+ISTRUZIONI DEL DIALOGO (hanno la precedenza sul manuale: qui sono fissati il formato JSON della risposta, il numero di frasi e l'ordine delle domande; il manuale ti dice chi sei, come stare accanto allo studente e quando non inventare)
+
+${SYSTEM}`;
+}
+
 function testoConversazione(conversazione: Messaggio[]): string {
   return conversazione
     .map((m) => `${m.ruolo === 'assistant' ? 'Tu' : 'Studente'}: ${m.contenuto}`)
@@ -456,7 +474,7 @@ export function costruisciContesto(input: InputTurno): string {
 }
 
 /** Il corpo della chiamata a /v1/messages: risposta strutturata secondo lo schema. */
-export function richiestaModello(input: InputTurno, system: string = SYSTEM) {
+export function richiestaModello(input: InputTurno, system: string = systemDialogo(input.nomeBot)) {
   return {
     model: MODELLO,
     max_tokens: 1200,
@@ -475,7 +493,7 @@ export function richiestaModello(input: InputTurno, system: string = SYSTEM) {
  * ha scritto un impegno di Lode: stessa conversazione, con la correzione. Della
  * risposta si usa solo il campo impegno.
  */
-export function richiestaRiprova(input: InputTurno, g: Grezzo, system: string = SYSTEM) {
+export function richiestaRiprova(input: InputTurno, g: Grezzo, system: string = systemDialogo(input.nomeBot)) {
   const nota = `<riprova>Il dialogo si chiude adesso, ma quello che hai scritto non è un impegno che mantieni tu: "${pulisci(
     g.impegno,
     300
