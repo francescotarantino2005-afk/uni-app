@@ -96,8 +96,8 @@ test('caso Tolc: la richiesta alla chat obbliga a mantenere la promessa, con il 
   assert.equal(r.model, 'claude-sonnet-5-5');
   // parte stabile in cache (istruzioni + dati dello studente), istruzione del momento fuori
   assert.equal(r.system.length, 3);
-  assert.deepEqual(r.system[0].cache_control, { type: 'ephemeral', ttl: '1h' });
-  assert.deepEqual(r.system[1].cache_control, { type: 'ephemeral', ttl: '1h' });
+  assert.deepEqual(r.system[0].cache_control, { type: 'ephemeral' });
+  assert.deepEqual(r.system[1].cache_control, { type: 'ephemeral' });
   assert.equal(r.system[2].cache_control, undefined);
   assert.ok(r.system[2].text.includes(impegno.testo));
   assert.match(r.system[2].text, /esercizi veri/);

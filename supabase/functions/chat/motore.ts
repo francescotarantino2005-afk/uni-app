@@ -135,8 +135,7 @@ export async function chiamaChat(
   richiesta: ReturnType<typeof richiestaChat>,
   etichetta: string
 ): Promise<string> {
-  // La cache da un'ora (blocco stabile) a volte richiede l'intestazione beta: se non serve e' innocua.
-  const out = await anthropic.messages.create(richiesta as never, { headers: { 'anthropic-beta': 'extended-cache-ttl-2025-04-11' } });
+  const out = await anthropic.messages.create(richiesta as never);
   const uso = (out as { usage?: Uso }).usage ?? {};
   // Una riga per chiamata: token reali e costo, per tenere d'occhio la spesa.
   console.log(

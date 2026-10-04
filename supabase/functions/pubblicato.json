@@ -1,30 +1,36 @@
 {
   "accoglienza-dialogo": {
-    "versione": 12,
+    "versione": 13,
     "verify_jwt": true,
-    "verificata_il": "2026-10-03",
+    "verificata_il": "2026-10-04",
     "file": {
-      "_shared/manuale-testo.ts": "efc15e7e023a38526d7558cfae3313aa19e29c71a18d1de1cc0fd4ed45d35196",
+      "_shared/aiuto.ts": "918da1edf1473547438e320f634491fdabf985979ccb0eaa2f8e2bee100f4a9c",
+      "_shared/errori.ts": "3e843b48f4e132e3b37468982ed24ac859847951a2f6ae4423d8ae30791e61ea",
+      "_shared/manuale-testo.ts": "9bd195cc8a3ac308edcec9d82d985c514db71d182b4129bcc458ddf228e300c0",
       "_shared/manuale.ts": "56645cccd1c3754ab1903b0efa0cfa8cf34b27a6159c7beb22ee3560ab3f1d12",
       "accoglienza-dialogo/index.ts": "6b897d900efb215ee89162135732c496afd329fa97b680256744d30026b02d6e",
-      "accoglienza-dialogo/logica.ts": "fa8effb4d872a9d580cf818787b464387be2ec7ec7d585c387a828b1cdf9603f",
+      "accoglienza-dialogo/logica.ts": "2180f384cfad0599b3de9ea7ef1346435834690b91a1fe6dca5236cb8678c4a2",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
-      "accoglienza-dialogo/servizio.ts": "b5a61ae562faeacf4719d443bf261e9dcd2535014967358aeebf8af2feb61995"
+      "accoglienza-dialogo/servizio.ts": "bd5550afffc2c90b392ffb3c70e4511a6f16583f55c28b6a9d34f6ee6e72b594"
     }
   },
   "chat": {
-    "versione": 17,
+    "versione": 18,
     "verify_jwt": false,
-    "verificata_il": "2026-10-03",
+    "verificata_il": "2026-10-04",
     "file": {
+      "_shared/aiuto.ts": "918da1edf1473547438e320f634491fdabf985979ccb0eaa2f8e2bee100f4a9c",
       "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
-      "_shared/manuale-testo.ts": "efc15e7e023a38526d7558cfae3313aa19e29c71a18d1de1cc0fd4ed45d35196",
+      "_shared/errori.ts": "3e843b48f4e132e3b37468982ed24ac859847951a2f6ae4423d8ae30791e61ea",
+      "_shared/manuale-testo.ts": "9bd195cc8a3ac308edcec9d82d985c514db71d182b4129bcc458ddf228e300c0",
       "_shared/manuale.ts": "56645cccd1c3754ab1903b0efa0cfa8cf34b27a6159c7beb22ee3560ab3f1d12",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
-      "chat/index.ts": "784a42cb6260d4459f5f5c4c6ca2b868e32067e59a2a18378970c8f6bb855791",
-      "chat/logica.ts": "62255bbc571e34a19565972b6a55001ea8359cf77f285362cb2935509d24a5ce",
+      "chat/controlli.ts": "0070b8a22dc194ebbbb05b14de6d95eabf1c115b2e0194f9f0356bb0498a9e4c",
+      "chat/index.ts": "829d62a5b8c9cecdc15a3fd654c6e1e4852c7f5c0baf5f66386443bb3c8ff9b8",
+      "chat/interrogazione.ts": "14aab6f29e04583399588d38bb95a72ec373c2d4f3a5afa3173de143a03e7102",
+      "chat/logica.ts": "72daeca5fc913020b4d66fbaadf95b2d4048e83945d06ea11d9b86c5a27c89cd",
       "chat/memoria.ts": "18ce5c23cfbf048748e50e1794e5f635e743910d329372b621c11c6d730116c3",
-      "chat/motore.ts": "d9b896f5c92bfaa32a713932308c8b11cb96009033305403257bb87581a38c98"
+      "chat/motore.ts": "7de0de5a4f97d5379d5094e46437988a93a750f50ba73c837afcf1919318facf"
     }
   },
   "coda-domande": {
