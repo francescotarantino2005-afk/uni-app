@@ -11,7 +11,7 @@
     "backgroundColor": "#FBFAF8",
     "ios": {
       "bundleIdentifier": "it.francescotarantino.uniapp",
-      "buildNumber": "20",
+      "buildNumber": "21",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"

@@ -1,7 +1,7 @@
 # Lavoro in corso — aggiornamento 1.0.1 (9 ottobre 2026)
 
 ## Stato
-- **Build iOS 21 (1.0.1)** lanciata su EAS con invio automatico ad App Store Connect (TestFlight).
+- **Build iOS 21 (1.0.1)**: build EAS FINITA, invio FINITO, su App Store Connect risulta VALID (caricata il 9 ottobre alle 19:59) e quindi disponibile in TestFlight.
   Build: https://expo.dev/accounts/tara7/projects/assistente-studente/builds/9e2a2c43-de81-42a7-abb6-e94d91a302b1
   Invio: https://expo.dev/accounts/tara7/projects/assistente-studente/submissions/39f55146-e91a-41c5-bc83-11ccb2e0f053
   NON inviata in revisione: lo fa Francesco dopo la prova sul telefono.
