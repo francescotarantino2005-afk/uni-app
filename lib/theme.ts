@@ -108,3 +108,31 @@ export const raggi = {
   lg: 20,
   pieno: 999,
 };
+
+/**
+ * La chat (dalla 1.0.1): carta chiara, inchiostro scuro, viola per ciò che si
+ * tocca. Vale solo per la schermata della chat e la sua barra laterale.
+ */
+export const coloriChat = {
+  viola: '#6B3FF5',
+  violaTenue: 'rgba(107, 63, 245, 0.10)',
+  bollaStudente: '#CDBDFD',
+  sfondo: '#FCFAFF',
+  superficie: '#FFFFFF',
+  testo: '#221C36',
+  testoSecondario: '#6B6480',
+  bordo: '#ECE6FB',
+  codice: '#F3EFFE',
+  errore: '#DC2626',
+};
+
+/** I font della chat (caricati nel layout radice). Formule al 92% del testo. */
+export const fontChat = {
+  testo: 'EBGaramond_400Regular',
+  corsivo: 'EBGaramond_400Regular_Italic',
+  grassetto: 'EBGaramond_700Bold',
+  formula: 'SourceSerif4_400Regular',
+  dimensione: 19,
+  interlinea: 26,
+  dimensioneFormula: Math.round(19 * 0.92 * 10) / 10,
+};

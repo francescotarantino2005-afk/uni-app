@@ -3,6 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/eb-garamond": "^0.4.3",
+    "@expo-google-fonts/source-serif-4": "^0.4.2",
     "@expo/vector-icons": "^15.0.2",
     "@supabase/supabase-js": "^2.110.1",
     "expo": "~54.0.36",

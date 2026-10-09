@@ -4,6 +4,9 @@ import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import { useFonts } from 'expo-font';
+import { EBGaramond_400Regular, EBGaramond_400Regular_Italic, EBGaramond_700Bold } from '@expo-google-fonts/eb-garamond';
+import { SourceSerif4_400Regular } from '@expo-google-fonts/source-serif-4';
 import { useAppStore } from '@/store/useAppStore';
 import { ReazionePersonaggio } from '@/components/ReazionePersonaggio';
 import { RichiestaNotifiche } from '@/components/RichiestaNotifiche';
@@ -15,6 +18,13 @@ export default function LayoutRadice() {
   const avvia = useAppStore((s) => s.avvia);
   const pathname = usePathname();
   const giaGestito = useRef(false);
+  // I font della chat (1.0.1). Se non si caricano l'app parte lo stesso, col font di sistema.
+  const [fontPronti, erroreFont] = useFonts({
+    EBGaramond_400Regular,
+    EBGaramond_400Regular_Italic,
+    EBGaramond_700Bold,
+    SourceSerif4_400Regular,
+  });
 
   useEffect(() => {
     avvia();
@@ -69,7 +79,7 @@ export default function LayoutRadice() {
   }, []);
 
   // Finché non abbiamo ripristinato sessione e profilo, niente flash di schermate sbagliate.
-  if (!pronto) {
+  if (!pronto || (!fontPronti && !erroreFont)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colori.sfondo }}>
         <ActivityIndicator color={colori.accento} />

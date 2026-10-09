@@ -11,18 +11,26 @@ const MESSAGGI_ERRORE: Record<string, string> = {
 const ERRORE_GENERICO = 'Qualcosa è andato storto. Riprova tra poco.';
 const ERRORE_RETE = 'Sembra che tu sia offline: controlla la connessione e riprova.';
 
-/** Carica lo storico della chat (ordine cronologico). */
-export async function caricaStorico(): Promise<MessaggioChat[]> {
-  const { data } = await supabase
-    .from('chat_messages')
-    .select('id, ruolo, contenuto')
-    .order('created_at', { ascending: true });
+/**
+ * Carica lo storico di una conversazione (ordine cronologico). Nella "Generale"
+ * ci sono anche i messaggi senza conversazione (accoglienza, domande in coda,
+ * il messaggio che mantiene l'impegno).
+ */
+export async function caricaStorico(conversazione?: { id: string; generale: boolean } | null): Promise<MessaggioChat[]> {
+  let q = supabase.from('chat_messages').select('id, ruolo, contenuto');
+  if (conversazione) {
+    q = conversazione.generale
+      ? q.or(`conversazione_id.eq.${conversazione.id},conversazione_id.is.null`)
+      : q.eq('conversazione_id', conversazione.id);
+  }
+  const { data } = await q.order('created_at', { ascending: true });
   return (data as MessaggioChat[]) ?? [];
 }
 
 export type EsitoInvio =
   | { tipo: 'ok'; risposta: string }
   | { tipo: 'cap' } // cap giornaliero raggiunto → upsell
+  | { tipo: 'conversazione_sparita' } // eliminata da un altro dispositivo
   | { tipo: 'errore'; messaggio: string };
 
 /**
@@ -30,10 +38,11 @@ export type EsitoInvio =
  * `id` è generato una sola volta alla composizione e riusato nel retry: il server
  * lo usa come chiave di idempotenza, così un reinvio non duplica il messaggio.
  */
-export async function inviaMessaggioChat(messaggio: string, id: string): Promise<EsitoInvio> {
+export async function inviaMessaggioChat(messaggio: string, id: string, conversazioneId?: string | null): Promise<EsitoInvio> {
   try {
+    // Dalla 1.0.1 l'app mostra il Markdown leggero e ha le conversazioni.
     const { data, error } = await supabase.functions.invoke('chat', {
-      body: { messaggio, id },
+      body: { messaggio, id, formato: 'markdown', ...(conversazioneId ? { conversazione_id: conversazioneId } : {}) },
     });
 
     if (error) {
@@ -41,6 +50,7 @@ export async function inviaMessaggioChat(messaggio: string, id: string): Promise
         const corpo = await error.context.json().catch(() => null);
         const codice = corpo?.errore as string | undefined;
         if (codice === 'CAP_RAGGIUNTO') return { tipo: 'cap' };
+        if (codice === 'CONVERSAZIONE_NON_TROVATA') return { tipo: 'conversazione_sparita' };
         return { tipo: 'errore', messaggio: (codice && MESSAGGI_ERRORE[codice]) || ERRORE_GENERICO };
       }
       return { tipo: 'errore', messaggio: ERRORE_RETE };
