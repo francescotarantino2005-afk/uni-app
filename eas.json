@@ -15,7 +15,7 @@
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview",
+      "environment": "production",
       "channel": "preview",
       "android": {
         "buildType": "apk"
@@ -32,6 +32,13 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6800782505",
+        "ascApiKeyPath": "C:/Users/franc/.eas-secrets/AuthKey_6QA5HT877B.p8",
+        "ascApiKeyId": "6QA5HT877B",
+        "ascApiKeyIssuerId": "99985ff9-be3a-4b1f-b4a3-c978accf63d4"
+      }
+    }
   }
 }
