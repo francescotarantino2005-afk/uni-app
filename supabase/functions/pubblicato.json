@@ -15,9 +15,9 @@
     }
   },
   "chat": {
-    "versione": 18,
+    "versione": 19,
     "verify_jwt": false,
-    "verificata_il": "2026-10-04",
+    "verificata_il": "2026-10-09",
     "file": {
       "_shared/aiuto.ts": "918da1edf1473547438e320f634491fdabf985979ccb0eaa2f8e2bee100f4a9c",
       "_shared/briefing.ts": "603c68a005e9746644ec832e5293b901b7e188bdd0a660e59f1d7c54f1f257bf",
@@ -26,11 +26,12 @@
       "_shared/manuale.ts": "56645cccd1c3754ab1903b0efa0cfa8cf34b27a6159c7beb22ee3560ab3f1d12",
       "accoglienza-dialogo/profilo.ts": "70eacf7839662871eae49a581abab7ff1aae9692fe0189539ece44aaeff569ba",
       "chat/controlli.ts": "0070b8a22dc194ebbbb05b14de6d95eabf1c115b2e0194f9f0356bb0498a9e4c",
-      "chat/index.ts": "829d62a5b8c9cecdc15a3fd654c6e1e4852c7f5c0baf5f66386443bb3c8ff9b8",
+      "chat/formule.ts": "a04925f80eec1857590d7e9a44eea739b499829fcf159e4b7093ab7f182d96ed",
+      "chat/index.ts": "624c493b650b824f18219afaf9be869b7070f44167b7d69a99bc7972253108b8",
       "chat/interrogazione.ts": "14aab6f29e04583399588d38bb95a72ec373c2d4f3a5afa3173de143a03e7102",
-      "chat/logica.ts": "72daeca5fc913020b4d66fbaadf95b2d4048e83945d06ea11d9b86c5a27c89cd",
+      "chat/logica.ts": "0e0dfd8e75d3cd7a7b85689ad31dfcc5856461bfe982ec75bbc6569aaa975c75",
       "chat/memoria.ts": "18ce5c23cfbf048748e50e1794e5f635e743910d329372b621c11c6d730116c3",
-      "chat/motore.ts": "7de0de5a4f97d5379d5094e46437988a93a750f50ba73c837afcf1919318facf"
+      "chat/motore.ts": "f12f5a77c88fa33923da7298d3243958b6aa87ef098c6e116001ae49977e1e8c"
     }
   },
   "coda-domande": {
