@@ -125,6 +125,14 @@ test('la cronologia che comincia con un messaggio di Lode non lo butta via', () 
   assert.ok(m[2].content.includes('le risposte'), 'due messaggi di fila dello studente si uniscono');
 });
 
+test('una correzione che cita le lettere non prende il posto del test attivo', () => {
+  const righe = conversazioneTolc();
+  const correzione = Array.from({ length: 12 }, (_, i) => `**Domanda ${i + 1}:** hai risposto A), la giusta era C) perché…`).join('\n\n');
+  righe.push({ id: 'corr', ruolo: 'assistant', contenuto: correzione, created_at: '2026-10-09T18:20:00Z', metadati: { correzione: { test_id: 'test', risposte: {}, da_confermare: [], completa: true } } });
+  assert.equal(tipoMateriale(correzione), 'test', 'a guardare solo il testo sembrerebbe un test');
+  assert.equal(materialeAttivo(righe, Date.parse('2026-10-09T18:30:00Z')).id, 'test');
+});
+
 test('un materiale più vecchio di due settimane non è più attivo', () => {
   const righe = conversazioneTolc().slice(0, 3);
   assert.equal(materialeAttivo(righe, Date.parse('2026-10-30T00:00:00Z')), null);
@@ -175,10 +183,11 @@ test('risposte ambigue: il codice chiede SOLO le righe dubbie, col numero; poi c
   assert.deepEqual(d1.stato.da_confermare, [7, 10, 14, 19, 20]);
   // lo studente risponde alle righe chieste
   const storico = [{ ruolo: 'assistant', metadati: { correzione: d1.stato } }];
-  const d2 = decidiCorrezione('7-A 10-B 14: non data 19-D 20-E', 'test', chiave, correzioneDaStorico(storico, 'test'), true);
-  assert.equal(d2.tipo, 'conferma', '"non data" su una riga sola va bene ma la 14 va confermata');
-  const d3 = decidiCorrezione('contala come non data', 'test', chiave, d2.stato, true);
-  assert.equal(d3.tipo, 'risultato');
+  const d2 = decidiCorrezione('7-A 10-B 14: non so', 'test', chiave, correzioneDaStorico(storico, 'test'), true);
+  assert.equal(d2.tipo, 'conferma', '"non so" resta da confermare; mancano anche 19 e 20');
+  assert.deepEqual(d2.stato.da_confermare, [14, 19, 20]);
+  const d3 = decidiCorrezione('14: non data 19-D 20-E', 'test', chiave, d2.stato, true);
+  assert.equal(d3.tipo, 'risultato', '"non data" in chiaro non si richiede');
   assert.equal(d3.risultato.massimo, 20);
   assert.equal(d3.stato.risposte['14'], null);
   assert.equal(d3.risultato.giuste + d3.risultato.sbagliate + d3.risultato.non_date, 20);
@@ -189,6 +198,36 @@ test('risposte ambigue: il codice chiede SOLO le righe dubbie, col numero; poi c
   assert.equal(d4.risultato.righe.find((x) => x.n === 12).esito, 'giusta');
   // un messaggio qualunque non è una consegna
   assert.equal(decidiCorrezione('spiegami meglio i logaritmi', 'test', chiave, d4.stato, true).tipo, 'nessuna');
+});
+
+test('"non data", "non risposta", "salto" in chiaro valgono non data senza conferma; i dubbi sì', () => {
+  const chiave = estraiChiave(TEST_GREZZO).chiave;
+  for (const scritto of ['non data', 'non risposta', 'salto', 'la salto', 'saltata', 'non ho risposto', 'in bianco', 'lasciata vuota', 'nessuna risposta', 'salto, non l\'ho studiata']) {
+    const l = leggiRisposte(`1-A 2-B 3: ${scritto} 4-D 5-E`);
+    assert.equal(l.risposte['3'], null, `"${scritto}" è non data`);
+    assert.ok('3' in l.risposte);
+    assert.deepEqual(l.dubbie, [], `"${scritto}" non si chiede`);
+  }
+  // anche una per riga, senza numero
+  const inOrdine = leggiRisposte('a\nb\nnon data\nd\ne');
+  assert.deepEqual(inOrdine.risposte, { 1: 'A', 2: 'B', 3: null, 4: 'D', 5: 'E' });
+  // le righe davvero ambigue restano da confermare
+  for (const dubbio of ['non so', 'non data, ma forse B', 'salto? mi sembra C', 'boh', 'e? non sono sicuro']) {
+    const l = leggiRisposte(`1-A 2-B 3: ${dubbio} 4-D 5-E`);
+    assert.deepEqual(l.dubbie.map((d) => d.n), [3], `"${dubbio}" va confermata`);
+  }
+  // nel test intero: le non date in chiaro entrano nel conto, la riga ambigua si chiede
+  const tutte = Array.from({ length: 20 }, (_, i) => `${i + 1}-${CHIAVE[i]}`);
+  tutte[3] = '4: non risposta';
+  tutte[9] = '10: salto';
+  const ok = decidiCorrezione(tutte.join('\n'), 'test', chiave, null, false);
+  assert.equal(ok.tipo, 'risultato');
+  assert.deepEqual([ok.risultato.giuste, ok.risultato.non_date], [18, 2]);
+  tutte[14] = '15: non so';
+  const chiede = decidiCorrezione(tutte.join('\n'), 'test', chiave, null, false);
+  assert.equal(chiede.tipo, 'conferma');
+  assert.deepEqual(chiede.stato.da_confermare, [15]);
+  assert.ok(!/\b4\)|\b10\)/.test(chiede.testo), 'chiede solo la 15');
 });
 
 test('istruzioni: segno del test, conteggio una volta sola, mai inventare il materiale mancante', () => {

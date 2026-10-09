@@ -171,6 +171,8 @@ export function materialeAttivo<T extends RigaMateriale>(righe: T[], adessoMs: n
   for (let i = righe.length - 1; i >= 0; i--) {
     const r = righe[i];
     if (r.ruolo !== 'assistant') continue;
+    // una correzione (o la richiesta delle righe dubbie) non e' un materiale nuovo
+    if (leggiCorrezione(r.metadati) && !leggiMateriale(r.metadati)) continue;
     if (!leggiMateriale(r.metadati) && !tipoMateriale(r.contenuto)) continue;
     const quando = r.created_at ? Date.parse(r.created_at) : adessoMs;
     if (adessoMs - quando > MATERIALE_VALE_GIORNI * 86_400_000) return null;
@@ -203,12 +205,22 @@ export type Lettura = {
 
 const NON_SO = /^(?:non\s+(?:so|lo\s+so|l'ho\s+fatt[ao]|ricordo|ho\s+rispost[oa]|data)|saltat[ao]|nessuna|boh|[-–—]+$|x$|\?+$)/i;
 
+/**
+ * "Non data" detto in chiaro: vale 0, senza chiedere conferma. Solo all'inizio
+ * della riga; dopo puo' esserci un motivo ("salto, non l'ho studiata") ma non
+ * una lettera o un dubbio ("non data, ma forse B": quella si chiede).
+ */
+const NON_DATA = /^(?:non\s+(?:dat[ao]|rispost[ao]|ho\s+rispost[oa]|l'ho\s+dat[ao]|risponde?o)|nessuna\s+risposta|senza\s+risposta|(?:la\s+)?salt(?:o|ata|ato)|in\s+bianco|lasciat[ao]\s+(?:vuot[ao]|in\s+bianco)|vuot[ao])(?![\p{L}])/iu;
+const RIPENSAMENTO = /\b(?:penso|credo|forse|mi\s+sembra|direi|però|ma)\b|(?:^|[^\p{L}])(?:[A-E]|[a-e]\))(?![\p{L}])/u;
+
 /** Interpreta cio' che lo studente ha scritto dopo il numero (o nella riga, senza numero). */
-function interpreta(resto: string): { lettera: string } | { dubbia: string } | null {
+function interpreta(resto: string): { lettera: string } | { vuota: true } | { dubbia: string } | null {
   const r = resto.trim().replace(/^[:.)=\-–—]\s*/, '').trim();
   if (!r) return null;
   const sola = r.match(/^\(?([A-Ea-e])\)?[.,;]?$/);
   if (sola) return { lettera: sola[1].toUpperCase() };
+  const nonData = r.match(NON_DATA);
+  if (nonData) return RIPENSAMENTO.test(r.slice(nonData[0].length)) ? { dubbia: r } : { vuota: true };
   if (NON_SO.test(r)) return { dubbia: r };
   // lettera con un dubbio ("e? non sono sicuro")
   if (/^\(?[A-Ea-e]\)?\s*\?/.test(r)) return { dubbia: r };
@@ -236,6 +248,9 @@ export function leggiRisposte(messaggio: string): Lettura {
     if ('lettera' in esito) {
       risposte[String(n)] = esito.lettera;
       chiare++;
+    } else if ('vuota' in esito) {
+      risposte[String(n)] = null;
+      chiare++;
     } else dubbie.push({ n, scritto: esito.dubbia.slice(0, 80) });
   };
 
@@ -248,9 +263,10 @@ export function leggiRisposte(messaggio: string): Lettura {
 
   // Coppie numero-lettera sulla stessa riga ("1-A 2-B 3-C", "11-B, 12-B").
   const coppie = [...messaggio.matchAll(/(?:^|[\s,;/|])(\d{1,2})\s*[-=:.)]\s*\(?([A-Ea-e])\)?(?=$|[\s,;/|.])/gm)];
-  // un numero con i due punti o la parentesi a meta' riga comincia un'altra risposta ("11: non so 12:c")
+  // un numero con i due punti o la parentesi a meta' riga comincia un'altra risposta
+  // ("11: non so 12:c"), e cosi' "4-B" dopo "3: non data"
   const segmenti = messaggio
-    .split(/\n|\/|;|\||\s+(?=\d{1,2}\s*[:)=])/)
+    .split(/\n|\/|;|\||\s+(?=\d{1,2}\s*(?:[:)=]|-\s*[A-Ea-e](?![\p{L}])))/u)
     .map((s) => s.trim())
     .filter(Boolean);
   if (coppie.length >= 3 && coppie.length >= segmenti.length) {
@@ -442,14 +458,13 @@ export function decidiCorrezione(
   const risposte: Record<string, string | null> = { ...(aggiorna?.risposte ?? {}) };
   for (const [n, l] of Object.entries(lettura.risposte)) if (numeri.includes(Number(n))) risposte[n] = l;
   let dubbie = lettura.dubbie.filter((d) => numeri.includes(d.n) && !(String(d.n) in lettura.risposte));
-  // le righe in sospeso dal giro prima restano da confermare, se non arrivano ora
-  const sospese = (inSospeso?.da_confermare ?? []).filter((n) => !(String(n) in lettura.risposte) && !dubbie.some((d) => d.n === n));
+  // le righe in sospeso dal giro prima, se non arrivano ora, restano tra le mancanti
+  // (salvo "contale come non date", che le chiude tutte)
   if (nonDate) {
+    const sospese = (inSospeso?.da_confermare ?? []).filter((n) => !(String(n) in lettura.risposte));
     for (const n of sospese) risposte[String(n)] = null;
     for (const d of dubbie) risposte[String(d.n)] = null;
     dubbie = [];
-  } else {
-    for (const n of sospese) if (!dubbie.some((d) => d.n === n)) dubbie.push({ n, scritto: 'da confermare' });
   }
   for (const d of dubbie) delete risposte[String(d.n)];
   const mancanti = numeri.filter((n) => !(String(n) in risposte) && !dubbie.some((d) => d.n === n));
