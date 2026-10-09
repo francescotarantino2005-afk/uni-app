@@ -1,39 +1,57 @@
-# Lavoro in corso — aggiornamento 1.0.1 (9 ottobre 2026)
+# Lavoro in corso — correzioni dopo la prova TOLC-I (9 ottobre 2026, sera)
 
-## Stato
-- **Build iOS 21 (1.0.1)**: build EAS FINITA, invio FINITO, su App Store Connect risulta VALID (caricata il 9 ottobre alle 19:59) e quindi disponibile in TestFlight.
-  Build: https://expo.dev/accounts/tara7/projects/assistente-studente/builds/9e2a2c43-de81-42a7-abb6-e94d91a302b1
-  Invio: https://expo.dev/accounts/tara7/projects/assistente-studente/submissions/39f55146-e91a-41c5-bc83-11ccb2e0f053
-  NON inviata in revisione: lo fa Francesco dopo la prova sul telefono.
-- `npm test` 165/165. Tutto committato e pubblicato su GitHub (resta fuori solo `eas.json`, con le modifiche fatte da EAS: ambiente "production" nel profilo preview e la chiave ASC per l'invio).
+Sessione interrotta per limite d'uso. Tutto il codice è nel repo ma `chat` e
+`accoglienza-dialogo` NON sono ancora ripubblicate (npm test: 178/180, falliscono
+solo i due controlli "repo = pubblicato").
 
-## Fatto il 9 ottobre
-1. PROVE DAL VIVO (la vecchia lista "DA FARE CON CREDITO"): tutte fatte, 0,32 USD. Dettagli in `docs/prova-dal-vivo-2026-10-09.md`.
-   - cache: OK; cache da 1 ora verificata e attivata (senza intestazione beta).
-   - interrogazione di Diritto: OK (4 domande, nessun voto anticipato, "Voto: 21/30").
-   - malessere: OK (niente esercizi, solo recapiti consentiti, 112 solo col pericolo).
-   - formule: il modello scriveva `x^(3/2)` → corretto (`chat/formule.ts` + istruzione), riprovato OK.
-   - errore del modello: OK ("Mi sono bloccato un attimo…" + `LODE_ERRORE_MODELLO`).
-   - `chat` v19 pubblicata e registrata (13 file identici al repo). `prova-modello` di nuovo spenta (410).
-2. ICONA: rifatta dall'originale ad alta risoluzione (`assets/images/pose/guarda.png`), uguale all'allegato (differenza media ~4/255), sfondo blu notte radiale #241654 → #1E1347, 1024×1024 RGB senza alfa. Anche adaptive icon Android (sfondo uguale, `backgroundColor` #1E1347 in app.json).
-3. ASPETTO DELLA CHAT: EB Garamond 19, formule Source Serif 4 al 92%, colori #6B3FF5 / #CDBDFD / #FCFAFF / #221C36, Markdown leggero (`lib/markdown.ts`), robot accanto all'ultima risposta con le pose (`lib/posaRisposta.ts`, `components/AvatarLode.tsx`). L'app nuova chiede `formato: 'markdown'`; le build vecchie restano su testo. Messaggi lunghi: giorni del piano in grassetto in testa a ogni blocco (provato col modello vero).
-4. SPAZI PER ESAME: tabella `conversazioni` (RLS verificata: ognuno vede/gestisce solo le sue, la "Generale" non si elimina, esame altrui rifiutato), `chat_messages.conversazione_id` facoltativo, 93 messaggi di 13 studenti nella loro "Generale" (migrazione `20261009172726_conversazioni.sql`, nessuna cancellazione). La chat usa la conversazione richiesta o la "Generale" (build vecchie). Memoria condivisa. Barra laterale (`components/BarraConversazioni.tsx`): gruppi per esame, Nuova chat, rinomina, elimina con conferma; icona + scorrimento dal bordo sinistro. Provata sul web con dati finti (la parte con login va provata sul telefono).
-5. ELIMINA ACCOUNT: la cancellazione a cascata arriva anche alle conversazioni (verificato in una transazione annullata sull'account di prova: profilo, conversazioni, messaggi, note, esami a zero; poi tutto rimesso com'era). `elimina-account` invariata.
+## Fatto
+- PUNTO 1: colonna `profiles.senza_limiti` (migrazione `20261009191003_senza_limiti.sql`,
+  applicata) + trigger `proteggi_flag_profilo`: con ruolo authenticated/anon lo
+  studente non può cambiare né `senza_limiti` né `premium` (prima `premium` era
+  modificabile dall'app: buco chiuso). Provato in transazione annullata.
+  `senza_limiti = true` su **prova1@gmail.com** (id 2c17ce78-…, unico account attivo
+  sulla chat il 9/10 20:00-20:55). `index.ts` salta il tetto con premium O senza_limiti.
+  SBLOCCO TEMPORANEO: finché `chat` nuova non è pubblicata, sullo stesso account
+  c'è anche `premium = true` (il server attuale salta il tetto solo con premium).
+  DOPO la pubblicazione: `update profiles set premium=false where id='2c17ce78-217b-4f79-8c87-71f5cb7e0ae3';`
+  "Mi sono bloccato" e 413 non scalano il tetto (verificato nel codice, test/limiti.test.mjs).
+- CAUSE trovate (log 20:01-20:55): (a) storico = ultimi 10 messaggi e i messaggi di
+  Lode in testa venivano SCARTATI: il test del 3/10 è sparito alle 20:14; (b) alle
+  20:01 la correzione ha toccato max_tokens 1500 → "risposta vuota" → "Mi sono
+  bloccato", e il messaggio con le risposte NON era salvato; (c) 3 rifiuti 413 alle 20:45.
+- PUNTO 2: `chat/materiali.ts` (nuovo): cronologia per budget (12k token, ultimi 6
+  sempre interi, fino a 80 letti); metadati.materiale (test/esercizi/piano);
+  l'ultimo materiale attivo (14 giorni) rientra nel contesto se fuori finestra.
+  `messaggiModello` non scarta più i messaggi di Lode e unisce quelli di fila.
+  Il messaggio dello studente si salva anche quando il modello fallisce.
+  MAX_TOKENS_CHAT 1500 → 4000; il log uso_chat riporta `fine` (stop_reason).
+- PUNTO 3: regola nelle istruzioni tecniche + manuale 1.2 (sezione Onestà),
+  manuale-testo.ts rigenerato.
+- PUNTO 4: limite solo sul server (l'app non ne ha): 2000 → 8000. Nessuna build 22 serve.
+- PUNTO 5: segno `[[test formato=tolc chiave=1A,... senza_penalita=16-20]]` tolto dal
+  testo e salvato nei metadati; il codice legge le risposte, chiede solo le righe
+  dubbie col numero (senza modello), calcola giuste/sbagliate/non date/punteggio e
+  lo mette in testa; il modello spiega solo gli errori. Fallback: conteggio una sola volta.
+- PUNTO 6: `formuleLeggibili` copre tutte le risposte, test compresi (test nel repo).
+- PUNTO 7: eas.json committato.
+- PROVE DAL VIVO: 4 chiamate, **0,078 USD** (tetto 1). A: test con chiave giusta
+  (10/10 verificate a mano), niente ^. B: senza test dice subito "Non vedo il mini
+  test" e chiede di reincollarlo. C: con correzione calcolata spiega solo gli errori.
+  D: test fuori finestra rimesso nel contesto, usato bene. `prova-modello` rispenta (410).
 
-## Bloccato in attesa di Francesco
-- Cancellare la function `prova-modello` dalla dashboard Supabase (il collegamento non ha il comando, la CLI non ha il token). È spenta (410).
-- Provare "Elimina account" dal telefono con un account creato apposta (io non posso creare account).
-- Le prove con login (vedi la lista "Da provare sul telefono" qui sotto).
+## Da fare (in quest'ordine)
+1. In `chat/materiali.ts`: "3: non data" scritto chiaramente va accettato come non
+   data (oggi lo richiede). In `interpreta` aggiungere prima di NON_SO un caso
+   `{ vuota: true }` (risposte[n]=null, conta come chiara) e nello split dei segmenti
+   aggiungere `-` alla lookahead `[:)=-]`. Aggiornare in test/materiali.test.mjs
+   l'attesa di d2 (diventa 'risultato' o 'conferma' solo per righe davvero dubbie).
+2. `npm test`, poi pubblicare `chat` (14 file, con materiali.ts) e `accoglienza-dialogo`
+   (cambia _shared/manuale-testo.ts), rileggerle e `node scripts/funzioni.mjs registra`.
+3. Rimettere `premium=false` sull'account del fondatore (vedi sopra).
+4. Facoltativo: convertire anche `\log_2` / pedici in Unicode (₂).
 
-## Da provare sul telefono (build 21)
-1. Icona nuova sulla schermata Home.
-2. Chat Generale: lo storico di prima c'è tutto; scrivi un messaggio, la risposta arriva in Garamond col robot accanto (pensa → guarda).
-3. Chiedi "mi fai un piano per l'esame tra 6 giorni": i giorni in grassetto in testa ai blocchi.
-4. Chiedi un esercizio con formule: niente ^ né *.
-5. Barra laterale (icona in alto a sinistra e scorrimento dal bordo): Nuova chat dentro un esame, scrivi, il titolo prende il primo messaggio; rinomina; elimina con conferma.
-6. Interrogazione ("interrogami su …"): 4 domande, poi "Voto: NN/30"; con 28+ il robot esulta.
-7. Tastiera: il campo di testo resta visibile sopra la tastiera.
-8. Elimina account su un account di prova creato apposta.
-
-## Note per il revisore Apple (cambiato rispetto alla 1.0)
-Nuova icona; nuovo aspetto della chat; conversazioni separate per esame nella chat (barra laterale). Nessun nuovo permesso, nessun login nuovo, nessun acquisto. L'eliminazione dell'account resta in Impostazioni e cancella anche le conversazioni.
+## Da provare sul telefono (dopo il punto 2)
+- Chiedere una mini simulazione TOLC, rispondere con un "non so" e una riga saltata:
+  il codice deve chiedere solo quelle righe, poi dare "Risultato: N su M".
+- Incollare un messaggio lungo (fino a 8000 caratteri).
+- Dopo 8-10 messaggi, chiedere della domanda 4 del test: Lode deve vederlo.

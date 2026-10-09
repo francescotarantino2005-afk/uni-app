@@ -43,8 +43,24 @@ import {
   testoRisposta,
   tipoDaSalvare,
 } from './logica.ts';
+import { formuleLeggibili } from './formule.ts';
+import {
+  MAX_STORICO_LETTI,
+  correzioneDaStorico,
+  decidiCorrezione,
+  estraiChiave,
+  finestraStorico,
+  istruzioneCorrezione,
+  istruzioneMateriale,
+  leggiChiave,
+  materialeAttivo,
+  metadatiMateriale,
+  rigaRisultato,
+} from './materiali.ts';
 
-export const MAX_STORICO = 10; // ultimi messaggi passati come contesto
+// La cronologia si legge fino a MAX_STORICO_LETTI messaggi e poi si taglia per
+// budget di token (materiali.ts): fino al 9 ottobre erano 10 messaggi fissi.
+export const MAX_STORICO = MAX_STORICO_LETTI;
 export const MAX_NOTE = MAX_NOTE_PROMPT; // note di memoria caricate nel prompt
 
 /** Legge dal database i dati reali dello studente; il testo lo compone formattaContesto (logica.ts, pura). */
@@ -135,7 +151,7 @@ export async function toccaConversazione(admin: SupabaseClient, conv: Conversazi
 }
 
 export type NotaMemoria = Nota & { id: string; importanza?: number | null; updated_at?: string | null };
-export type StoricoRiga = MessaggioChat & { created_at?: string; metadati?: unknown };
+export type StoricoRiga = MessaggioChat & { id?: string; created_at?: string; metadati?: unknown };
 
 /** Quante note attive si leggono dal database: piu' di quelle che entrano nel prompt, cosi' la memoria puo' fare ordine. */
 const MAX_NOTE_LETTE = 40;
@@ -150,13 +166,16 @@ export async function caricaTurno(
   // Lo storico e' quello della conversazione; nella "Generale" contano anche i
   // messaggi senza conversazione (accoglienza, coda-domande, impegno). La memoria
   // dello studente (note, profilo) resta una sola per tutte le conversazioni.
-  let storicoQ = admin.from('chat_messages').select('ruolo, contenuto, created_at, metadati').eq('user_id', userId);
-  if (conversazione) {
-    storicoQ = conversazione.generale
-      ? storicoQ.or(`conversazione_id.eq.${conversazione.id},conversazione_id.is.null`)
-      : storicoQ.eq('conversazione_id', conversazione.id);
-  }
-  const [contesto, storicoR, noteR] = await Promise.all([
+  // deno-lint-ignore no-explicit-any
+  const dellaConversazione = (q: any) =>
+    !conversazione ? q : conversazione.generale ? q.or(`conversazione_id.eq.${conversazione.id},conversazione_id.is.null`) : q.eq('conversazione_id', conversazione.id);
+  const campi = 'id, ruolo, contenuto, created_at, metadati';
+  const storicoQ = dellaConversazione(admin.from('chat_messages').select(campi).eq('user_id', userId));
+  // L'ultimo materiale segnato (test, esercizi, piano), anche se e' piu' vecchio della cronologia letta.
+  const materialeQ = dellaConversazione(
+    admin.from('chat_messages').select(campi).eq('user_id', userId).eq('ruolo', 'assistant').not('metadati->materiale', 'is', null)
+  );
+  const [contesto, storicoR, noteR, materialeR] = await Promise.all([
     costruisciContesto(admin, userId),
     storicoQ.order('created_at', { ascending: false }).limit(MAX_STORICO),
     // clientNote e' il client dell'utente (RLS effettiva); il filtro su user_id
@@ -169,11 +188,25 @@ export async function caricaTurno(
       .order('importanza', { ascending: false })
       .order('updated_at', { ascending: false })
       .limit(MAX_NOTE_LETTE),
+    materialeQ.order('created_at', { ascending: false }).limit(1),
   ]);
   const noteTutte = (noteR.data ?? []) as NotaMemoria[];
+  const letti = ((storicoR.data ?? []) as StoricoRiga[]).reverse();
+  // Per budget di token, con gli ultimi messaggi sempre interi.
+  const storico = finestraStorico(letti);
+  // Il materiale attivo: il piu' recente tra quello segnato e quello riconosciuto
+  // dal testo nei messaggi letti (i messaggi di prima del 9 ottobre non hanno il segno).
+  const adesso = Date.now();
+  const candidati = [...((materialeR.data ?? []) as StoricoRiga[]), ...letti].sort((a, b) =>
+    (a.created_at ?? '').localeCompare(b.created_at ?? '')
+  );
+  const materiale = materialeAttivo(candidati, adesso);
   return {
     contesto,
-    storico: ((storicoR.data ?? []) as StoricoRiga[]).reverse(),
+    storico,
+    materiale,
+    /** true se il materiale attivo non e' nella cronologia mandata al modello */
+    materialeFuori: !!materiale && !storico.some((m) => m.id === materiale.id),
     // nel prompt entrano le piu' importanti e recenti; la memoria le vede tutte
     note: noteTutte.slice(0, MAX_NOTE),
     noteTutte,
@@ -201,6 +234,7 @@ export async function chiamaChat(
       cache_letti: uso.cache_read_input_tokens ?? 0,
       cache_scritti: uso.cache_creation_input_tokens ?? 0,
       usd: Number(costoUSD(MODELLO_CHAT, uso).toFixed(6)),
+      fine: (out as { stop_reason?: string }).stop_reason ?? null,
     })
   );
   const testo = testoRisposta(out);
@@ -257,11 +291,13 @@ export async function mantieniImpegno(
       ),
       'impegno'
     );
-    const testo = estraiTipoEsame(grezzo).testo;
+    // il segno [[test ...]] va nei metadati, non allo studente
+    const conChiave = estraiChiave(estraiTipoEsame(grezzo).testo);
+    const testo = conChiave.testo;
     const creato = new Date().toISOString();
     const { data: riga, error } = await admin
       .from('chat_messages')
-      .insert({ user_id: userId, ruolo: 'assistant', contenuto: testo, created_at: creato })
+      .insert({ user_id: userId, ruolo: 'assistant', contenuto: testo, created_at: creato, metadati: metadatiMateriale(testo, conChiave.chiave) })
       .select('id')
       .single();
     if (error) throw error;
@@ -322,8 +358,49 @@ export async function rispondi(
     const decisione: Decisione = malessereSerio(testo)
       ? { fase: 'nessuna', stato: stato ? { ...stato, attiva: false } : null, istruzione: '' }
       : decidi(stato, testo, ultimoDiLode, dati.esame?.materia ?? null, formato);
-    const extra = [impegno ? istruzioneImpegno(impegno.testo, true) : '', decisione.istruzione].filter(Boolean).join('\n\n') || undefined;
-    const etichetta = decisione.fase !== 'nessuna' ? `interrogazione:${decisione.fase}` : impegno ? 'messaggio+impegno' : 'messaggio';
+    // Il test attivo con la sua chiave: le risposte dello studente le confronta il
+    // CODICE (materiali.ts). Il modello spiega gli errori ma non conta.
+    const chiave = turno.materiale ? leggiChiave(turno.materiale.metadati) : null;
+    const correzione =
+      chiave && turno.materiale?.id && decisione.fase === 'nessuna' && !malessereSerio(testo)
+        ? decidiCorrezione(testo, turno.materiale.id, chiave, correzioneDaStorico(turno.storico, turno.materiale.id), formato === 'markdown')
+        : ({ tipo: 'nessuna' } as const);
+    if (correzione.tipo === 'conferma') {
+      // Righe dubbie o mancanti: le chiede il codice, senza modello.
+      if (impegno) await scriviImpegno(admin, userId, { ...impegno, tentativo_il: null });
+      return {
+        risposta: correzione.testo,
+        storico: turno.storico,
+        note: turno.note,
+        noteTutte: turno.noteTutte,
+        tipoEsame: null,
+        metadati: { correzione: correzione.stato },
+        decisione,
+        rigenerata: false,
+        segnaMantenuto: async () => {},
+      };
+    }
+
+    const extra =
+      [
+        impegno ? istruzioneImpegno(impegno.testo, true) : '',
+        decisione.istruzione,
+        // il materiale su cui lo studente sta lavorando, anche se e' fuori dalla cronologia
+        turno.materialeFuori && turno.materiale
+          ? istruzioneMateriale(turno.materiale, formuleLeggibili(estraiChiave(turno.materiale.contenuto).testo))
+          : '',
+        correzione.tipo === 'risultato' ? istruzioneCorrezione(correzione.risultato) : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n') || undefined;
+    const etichetta =
+      decisione.fase !== 'nessuna'
+        ? `interrogazione:${decisione.fase}`
+        : correzione.tipo === 'risultato'
+          ? 'correzione'
+          : impegno
+            ? 'messaggio+impegno'
+            : 'messaggio';
 
     const esito = await rispostaControllata(
       (e) => chiamaChat(anthropic, richiestaChat(dati, turno.note, turno.storico, testo, e), etichetta),
@@ -333,13 +410,23 @@ export async function rispondi(
     // Il segno [[tipo_esame:...]] non arriva mai allo studente; il tipo si salva
     // solo se l'ha detto lui e l'esame del libretto non ne ha già uno.
     const daSalvare = tipoDaSalvare(esito.tipo, dati.esame, testo);
+    // Il segno [[test ...]] (la chiave di un test nuovo) neanche: va nei metadati.
+    const conChiave = estraiChiave(esito.risposta);
+    const risposta =
+      correzione.tipo === 'risultato' ? `${rigaRisultato(correzione.risultato, formato === 'markdown')}\n\n${conChiave.testo}` : conChiave.testo;
+    // Una correzione non e' un materiale nuovo (salvo che porti la chiave di un test nuovo).
+    const materialeNuovo = conChiave.chiave || correzione.tipo !== 'risultato' ? metadatiMateriale(conChiave.testo, conChiave.chiave) : {};
     return {
-      risposta: esito.risposta,
+      risposta,
       storico: turno.storico,
       note: turno.note,
       noteTutte: turno.noteTutte,
       tipoEsame: daSalvare && dati.esame ? { esameId: dati.esame.id, tipo: daSalvare } : null,
-      metadati: decisione.stato ? { interrogazione: decisione.stato } : {},
+      metadati: {
+        ...(decisione.stato ? { interrogazione: decisione.stato } : {}),
+        ...materialeNuovo,
+        ...(correzione.tipo === 'risultato' ? { correzione: correzione.stato } : {}),
+      },
       decisione,
       rigenerata: esito.rigenerata,
       segnaMantenuto: async (id) => {

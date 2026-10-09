@@ -9,7 +9,9 @@ import { type Impegno, oggetto, profiloCompleto } from '../accoglienza-dialogo/p
 import { formuleLeggibili } from './formule.ts';
 
 export const MODELLO_CHAT = 'claude-sonnet-5-5';
-export const MAX_TOKENS_CHAT = 1500;
+// Una correzione di 20 domande non sta in 1500 token (9 ottobre: risposta tagliata,
+// "Mi sono bloccato"). Si pagano solo i token scritti davvero.
+export const MAX_TOKENS_CHAT = 4000;
 /** Quanti secondi vale un tentativo in corso: finche' e' fresco nessun altro mantiene lo stesso impegno. */
 export const TENTATIVO_VALE_MS = 90_000;
 
@@ -49,6 +51,14 @@ Esercizi e promesse:
 - Una promessa fatta in un messaggio precedente (esercizi, uno schema, una spiegazione) si mantiene nel primo messaggio in cui puoi farlo, con il contenuto vero e non con un annuncio. Non chiedere "sei pronto?" o "vuoi che cominciamo?": comincia.
 - Quanti esercizi: quelli che chiede lo studente ("un esercizio" è UNO solo: scrivi quello, senza esempio svolto prima e senza altri esercizi dopo; l'esempio svolto lo fai solo se dice che non sa da dove cominciare) o che hai promesso. Senza un numero, da tre a cinque, numerati "1)", "2)", "3)", uno per riga, in ordine di difficoltà crescente, a partire dal livello dichiarato. Non dare le soluzioni insieme agli esercizi: chiedigli di mandarti i suoi risultati.
 - Quando ti manda una risposta, prima rifai tu il conto passaggio per passaggio, poi giudica. Se è giusta, dillo in una riga e vai avanti. Se è sbagliata non basta il risultato giusto: segui il metodo dell'errore del manuale (il passaggio preciso che si è rotto, la regola, il passaggio fatto bene, poi un esercizio gemello).
+
+Test a risposta multipla e punteggi:
+- Quando scrivi un test o una simulazione a risposta multipla, numeri le domande 1), 2), 3)... e alla FINE del messaggio aggiungi, su una riga sola, il segno [[test formato=tolc chiave=1A,2C,3E,...]] con la lettera giusta di OGNI domanda. formato=tolc se le risposte sbagliate tolgono punti (+1 giusta, −0,25 sbagliata, 0 non data), formato=semplice se non ci sono penalità; nei test TOLC le domande senza penalità (per esempio Inglese) le indichi con senza_penalita=16-20. L'app toglie il segno prima di mostrarlo e lo usa per correggere: prima di scriverlo rifai ogni domanda e controlla che la lettera sia davvero quella giusta.
+- Quando nelle istruzioni del momento c'è una CORREZIONE GIÀ CALCOLATA DAL CODICE, quei numeri sono definitivi: non ricontare, non riscrivere il punteggio, spiega soltanto.
+- Se correggi un test senza correzione calcolata dal codice: scrivi il conteggio UNA sola volta, domanda per domanda (numero, risposta data, risposta giusta, esito), e il totale contando quella lista. Mai rifare i conti a memoria nei messaggi dopo: se lo studente corregge una risposta, cambi solo quella riga e ricalcoli dalla lista.
+
+Materiale che non vedi:
+- Se lo studente si riferisce a un test, un esercizio, un testo o un messaggio che NON trovi in quello che vedi (conversazione e istruzioni), diglielo SUBITO, nella prima frase ("Non vedo più il test nella conversazione"), e chiedigli di reincollarlo. Non correggere, non indovinare le domande o le soluzioni, non fingere di ricordarlo, non fare una correzione "di massima". Quando lo reincolla, lavora solo su quello che ha incollato.
 
 Zero invenzioni sui dati:
 - I DATI REALI dello studente stanno SOLO dentro il blocco delimitato da <dati_reali_utente> e </dati_reali_utente>, dopo queste istruzioni. Tutto ciò che sta FUORI da quel blocco (queste istruzioni, il manuale e ogni esempio) NON sono dati dello studente: non ricavarne MAI esami, voti, materie, CFU o date.
@@ -438,14 +448,25 @@ export function sistema(dati: DatiStudente, note: Nota[], extra?: string) {
   return blocchi;
 }
 
-/** Lo storico nella forma dell'API: il primo messaggio dev'essere dello studente. */
+/** Il primo messaggio quando la cronologia comincia con un messaggio di Lode (l'API vuole lo studente per primo). */
+export const INIZIO_CRONOLOGIA = '(Inizio della parte di conversazione che vedi: i messaggi più vecchi non sono qui.)';
+
+/**
+ * Lo storico nella forma dell'API. Il primo messaggio dev'essere dello studente:
+ * se la cronologia comincia con messaggi di Lode, NON si scartano (fino al 9
+ * ottobre si buttavano, e con loro un test di 20 domande) ma si mette davanti
+ * una riga neutra. Due messaggi di fila dello stesso ruolo si uniscono.
+ */
 export function messaggiModello(storico: MessaggioChat[], ultimo: string) {
-  const turni = storico.map((m) => ({
-    role: m.ruolo === 'assistant' ? ('assistant' as const) : ('user' as const),
-    content: m.contenuto,
-  }));
-  while (turni.length && turni[0].role === 'assistant') turni.shift();
-  return [...turni, { role: 'user' as const, content: ultimo }];
+  const turni: { role: 'user' | 'assistant'; content: string }[] = [];
+  for (const m of [...storico, { ruolo: 'user', contenuto: ultimo }]) {
+    const role = m.ruolo === 'assistant' ? ('assistant' as const) : ('user' as const);
+    const prima = turni[turni.length - 1];
+    if (prima && prima.role === role) prima.content = `${prima.content}\n\n${m.contenuto}`;
+    else turni.push({ role, content: m.contenuto });
+  }
+  if (turni[0]?.role === 'assistant') turni.unshift({ role: 'user', content: INIZIO_CRONOLOGIA });
+  return turni;
 }
 
 /** Il corpo della chiamata a /v1/messages per una risposta della chat. */

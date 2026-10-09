@@ -111,7 +111,7 @@ test('malessere, modello vero: primo turno e metà dialogo chiudono senza impegn
 // ---------- 2. recapiti di aiuto ----------
 
 test('recapiti: nel manuale ci sono scritti esattamente così, e il file .md e il codice restano uguali', () => {
-  assert.match(MANUALE, /Versione 1\.1 · 3 ottobre 2026/);
+  assert.match(MANUALE, /Versione 1.2 · 9 ottobre 2026/);
   const compatto = MANUALE.replace(/\s+/g, ' ');
   assert.ok(compatto.includes('puoi indicare Telefono Amico Italia: 02 2327 2327 (tutti i giorni, dalle 10 alle 24) o in chat su WhatsApp al 324 011 7252. Usa SOLO questi recapiti, scritti esattamente così: mai numeri, orari o servizi presi dalla memoria;'));
   assert.ok(MANUALE.indexOf('suggerisci di parlarne con una persona') < MANUALE.indexOf('puoi indicare Telefono Amico'));

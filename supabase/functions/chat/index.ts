@@ -27,6 +27,8 @@ import { aggiornaMemoria, conversazioneDelTurno, mantieniImpegno, rispondi, salv
 import { quandoAggiornare } from './memoria.ts';
 
 const CAP_GIORNALIERO = 10; // messaggi/giorno per gli utenti free
+/** Lunghezza massima di un messaggio: un test di 20 domande reincollato ci sta (fino al 9 ottobre era 2000). */
+export const MAX_CARATTERI_MESSAGGIO = 8000;
 const TIMEOUT_MS = 30_000;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,7 +81,7 @@ Deno.serve(async (req) => {
     if (!messaggio || typeof messaggio !== 'string' || !messaggio.trim()) {
       return json({ errore: 'RICHIESTA_NON_VALIDA' }, 400);
     }
-    if (messaggio.length > 2000) return json({ errore: 'MESSAGGIO_TROPPO_LUNGO' }, 413);
+    if (messaggio.length > MAX_CARATTERI_MESSAGGIO) return json({ errore: 'MESSAGGIO_TROPPO_LUNGO' }, 413);
     const testo = messaggio.trim();
     // id del messaggio: chiave di idempotenza. Se il client non ne manda uno valido, ne generiamo uno.
     const idMsg = typeof id === 'string' && UUID_RE.test(id) ? id : crypto.randomUUID();
@@ -119,10 +121,13 @@ Deno.serve(async (req) => {
     const conversazione = await conversazioneDelTurno(admin, user.id, convRichiesta ?? null);
     if (convRichiesta && !conversazione) return json({ errore: 'CONVERSAZIONE_NON_TROVATA' }, 404);
 
-    // 4) CAP giornaliero (server-side). I premium non hanno cap.
-    const { data: profilo } = await admin.from('profiles').select('premium').eq('id', user.id).maybeSingle();
+    // 4) CAP giornaliero (server-side). Niente cap per i premium e per gli account
+    // senza_limiti (il fondatore, i collaudi): il flag si cambia solo dal database,
+    // un trigger impedisce allo studente di toccarlo. Contano solo le risposte
+    // salvate: un "Mi sono bloccato" o un messaggio rifiutato non scalano il tetto.
+    const { data: profilo } = await admin.from('profiles').select('premium, senza_limiti').eq('id', user.id).maybeSingle();
     const oggi = dataOggiRoma();
-    if (!profilo?.premium) {
+    if (!profilo?.premium && !profilo?.senza_limiti) {
       const { count } = await admin
         .from('usage_chat')
         .select('*', { count: 'exact', head: true })
@@ -147,11 +152,19 @@ Deno.serve(async (req) => {
     } catch (e) {
       // Credito esaurito, sovraccarico, rete: la chat non si rompe. Si risponde con un
       // normale messaggio di Lode (le build attuali lo mostrano come un messaggio
-      // qualunque). Non si salva niente, non si conta nel tetto, non entra nella
-      // memoria, nessun impegno risulta mantenuto.
+      // qualunque). Non si conta nel tetto, non entra nella memoria, nessun impegno
+      // risulta mantenuto. Il messaggio dello studente pero' si salva (dal 9 ottobre):
+      // senza, il turno dopo il modello non vede cosa aveva mandato (le risposte a un
+      // test, per esempio). Due messaggi di fila dello studente si uniscono (logica.ts).
       const tipo = e instanceof Anthropic.APIConnectionTimeoutError ? 'timeout' : tipoErrore(e);
       logErroreModello('chat', tipo, (e as { status?: number })?.status);
       console.error('Chat AI fallita:', e);
+      await admin
+        .from('chat_messages')
+        .upsert(
+          { id: idMsg, user_id: user.id, ruolo: 'user', contenuto: testo, conversazione_id: conversazione?.id ?? null },
+          { onConflict: 'id', ignoreDuplicates: true }
+        );
       return json({ risposta: MESSAGGIO_BLOCCO, errore_modello: tipo });
     }
     const { risposta, storico, noteTutte } = esito;

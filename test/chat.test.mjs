@@ -20,6 +20,7 @@ import {
   costoUSD,
   impegnoDaMantenere,
   istruzioneImpegno,
+  INIZIO_CRONOLOGIA,
   messaggiModello,
   richiestaChat,
   righeAccoglienza,
@@ -257,7 +258,7 @@ test('attesa in chat: il messaggio che mantiene l\'impegno compare una volta sol
 
 // ---------- la richiesta e il costo ----------
 
-test('chat: la conversazione mandata al modello comincia sempre da un messaggio dello studente', () => {
+test('chat: la conversazione mandata al modello comincia sempre da un messaggio dello studente (senza buttare quelli di Lode)', () => {
   const m = messaggiModello(
     [
       { ruolo: 'assistant', contenuto: 'a' },
@@ -267,8 +268,9 @@ test('chat: la conversazione mandata al modello comincia sempre da un messaggio 
     ],
     'e'
   );
-  assert.deepEqual(m.map((x) => x.content), ['c', 'd', 'e']);
-  assert.deepEqual(messaggiModello([{ ruolo: 'assistant', contenuto: 'a' }], 'e').map((x) => x.role), ['user']);
+  assert.deepEqual(m.map((x) => x.content), [INIZIO_CRONOLOGIA, 'a\n\nb', 'c', 'd', 'e']);
+  assert.deepEqual(messaggiModello([{ ruolo: 'assistant', contenuto: 'a' }], 'e').map((x) => x.role), ['user', 'assistant', 'user']);
+  assert.deepEqual(messaggiModello([], 'e').map((x) => x.role), ['user']);
 });
 
 test('chat: senza istruzione del momento i blocchi di sistema sono due, tutti e due in cache', () => {
