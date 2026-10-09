@@ -18,6 +18,7 @@ import {
   materialeAttivo,
   metadatiMateriale,
   rigaRisultato,
+  testAttivo,
   tipoMateriale,
 } from '../supabase/functions/chat/materiali.ts';
 import { INIZIO_CRONOLOGIA, istruzioniTecniche, messaggiModello, richiestaChat, testoRisposta } from '../supabase/functions/chat/logica.ts';
@@ -131,6 +132,21 @@ test('una correzione che cita le lettere non prende il posto del test attivo', (
   righe.push({ id: 'corr', ruolo: 'assistant', contenuto: correzione, created_at: '2026-10-09T18:20:00Z', metadati: { correzione: { test_id: 'test', risposte: {}, da_confermare: [], completa: true } } });
   assert.equal(tipoMateriale(correzione), 'test', 'a guardare solo il testo sembrerebbe un test');
   assert.equal(materialeAttivo(righe, Date.parse('2026-10-09T18:30:00Z')).id, 'test');
+});
+
+test('dopo un esercizio gemello il test con la chiave resta correggibile dal codice', () => {
+  const righe = conversazioneTolc();
+  righe.push({ id: 'gemello', ruolo: 'assistant', contenuto: 'La 14 si fa così: 5 · 4 · 3 = 60.\nEsercizio gemello: 1) quanti podi con 7 atleti?\nMandami il risultato in una riga.', created_at: '2026-10-09T18:40:00Z', metadati: { materiale: 'esercizi' } });
+  const adesso = Date.parse('2026-10-09T18:45:00Z');
+  assert.equal(materialeAttivo(righe, adesso).id, 'gemello', 'il materiale più recente è l\'esercizio');
+  assert.equal(testAttivo(righe, adesso).id, 'test', 'ma il test con la chiave resta attivo');
+  const chiave = leggiChiave(testAttivo(righe, adesso).metadati);
+  const tutte = Array.from({ length: 20 }, (_, i) => `${i + 1}-${CHIAVE[i]}`).join(' ');
+  const primo = decidiCorrezione(tutte, 'test', chiave, null, true);
+  const dopo = decidiCorrezione('alla domanda numero 12 ho risposto A', 'test', chiave, primo.stato, true);
+  assert.equal(dopo.tipo, 'risultato');
+  assert.equal(dopo.risultato.righe.find((x) => x.n === 12).esito, 'sbagliata');
+  assert.equal(testAttivo(righe, Date.parse('2026-10-30T00:00:00Z')), null, 'dopo due settimane no');
 });
 
 test('un materiale più vecchio di due settimane non è più attivo', () => {

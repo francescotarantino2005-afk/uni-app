@@ -35,3 +35,19 @@ Correzioni pubblicate in `chat` v19 (rilette dal vivo, 13 file identici al repo)
 > reggere tutto da solo. Se ti senti in pericolo adesso, chiama il 112. Puoi
 > anche parlare con Telefono Amico Italia: 02 2327 2327 (tutti i giorni, dalle
 > 10 alle 24) o scrivere in chat su WhatsApp al 324 011 7252. […]
+
+## 10 ottobre 2026, notte — chat v20/v21 (punteggi dal codice, materiali, cronologia)
+
+Stesso banco di prova (`prova-modello`, segreto nuovo, studente inventato, nessun
+utente vero), richieste costruite col codice del repo seguendo lo stesso
+percorso di `rispondi()`. Spesa: **0,28 USD** in 7 chiamate (tetto 0,50).
+
+| Prova | Esito | Costo |
+|---|---|---|
+| Simulazione TOLC-I 20 domande (15 mat. + 5 inglese) | Segno con la chiave presente; le 20 lettere ricontrollate a mano: tutte giuste; Inglese 16-20 senza penalità; niente ^ | 0,058 $ |
+| Poi 8 messaggi lunghi, poi le risposte con "9: non so" e la 19 saltata | Il codice chiede SOLO la 9 e la 19, senza modello | 0 $ |
+| "9: non data", "19-B" | "Risultato: 15,25 su 20 — 16 giuste, 3 sbagliate, 1 non data" (ricontato a mano); il modello spiega solo 5, 8, 9, 12 | 0,051 $ |
+| Test fuori dalla finestra, "spiegami la domanda 14" | Lode vede il test (opzioni esatte) | 0,048 $ |
+| Messaggio da 5.989 caratteri | Accettato (limite 8.000), risposta nel merito | 0,044 $ |
+| "alla 12 ho risposto B" dopo un esercizio gemello | DIFETTO: il gemello era diventato il materiale attivo e la correzione precedente era fuori finestra → nessun ricalcolo (il modello però ha detto onestamente di non vedere le risposte). Corretto in v21: test con chiave sempre attivo, stato della correzione cercato in tutta la cronologia | 0,037 $ |
+| Rifatta dopo la correzione | Ricalcolo del codice, il modello spiega solo la 12 (ripete i totali, uguali a quelli del codice) | 0,041 $ |

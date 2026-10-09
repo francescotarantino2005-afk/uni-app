@@ -181,6 +181,21 @@ export function materialeAttivo<T extends RigaMateriale>(righe: T[], adessoMs: n
   return null;
 }
 
+/**
+ * L'ultimo test con la chiave (non piu' vecchio di due settimane). Resta
+ * correggibile dal codice anche se dopo Lode ha scritto altro materiale (un
+ * esercizio gemello in una spiegazione): "alla 12 ho risposto b" vale ancora.
+ */
+export function testAttivo<T extends RigaMateriale>(righe: T[], adessoMs: number): T | null {
+  for (let i = righe.length - 1; i >= 0; i--) {
+    const r = righe[i];
+    if (r.ruolo !== 'assistant' || !leggiChiave(r.metadati)) continue;
+    const quando = r.created_at ? Date.parse(r.created_at) : adessoMs;
+    return adessoMs - quando > MATERIALE_VALE_GIORNI * 86_400_000 ? null : r;
+  }
+  return null;
+}
+
 /** L'istruzione che rimette nel contesto un materiale uscito dalla finestra della cronologia. */
 export function istruzioneMateriale(m: RigaMateriale, testoLeggibile: string): string {
   const tipo = leggiMateriale(m.metadati) ?? tipoMateriale(m.contenuto) ?? 'materiale';

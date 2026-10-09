@@ -56,6 +56,7 @@ import {
   materialeAttivo,
   metadatiMateriale,
   rigaRisultato,
+  testAttivo,
 } from './materiali.ts';
 
 // La cronologia si legge fino a MAX_STORICO_LETTI messaggi e poi si taglia per
@@ -175,7 +176,11 @@ export async function caricaTurno(
   const materialeQ = dellaConversazione(
     admin.from('chat_messages').select(campi).eq('user_id', userId).eq('ruolo', 'assistant').not('metadati->materiale', 'is', null)
   );
-  const [contesto, storicoR, noteR, materialeR] = await Promise.all([
+  // E l'ultimo test con la chiave, che resta correggibile anche dopo altri materiali.
+  const testQ = dellaConversazione(
+    admin.from('chat_messages').select(campi).eq('user_id', userId).eq('ruolo', 'assistant').not('metadati->test', 'is', null)
+  );
+  const [contesto, storicoR, noteR, materialeR, testR] = await Promise.all([
     costruisciContesto(admin, userId),
     storicoQ.order('created_at', { ascending: false }).limit(MAX_STORICO),
     // clientNote e' il client dell'utente (RLS effettiva); il filtro su user_id
@@ -189,6 +194,7 @@ export async function caricaTurno(
       .order('updated_at', { ascending: false })
       .limit(MAX_NOTE_LETTE),
     materialeQ.order('created_at', { ascending: false }).limit(1),
+    testQ.order('created_at', { ascending: false }).limit(1),
   ]);
   const noteTutte = (noteR.data ?? []) as NotaMemoria[];
   const letti = ((storicoR.data ?? []) as StoricoRiga[]).reverse();
@@ -197,16 +203,23 @@ export async function caricaTurno(
   // Il materiale attivo: il piu' recente tra quello segnato e quello riconosciuto
   // dal testo nei messaggi letti (i messaggi di prima del 9 ottobre non hanno il segno).
   const adesso = Date.now();
-  const candidati = [...((materialeR.data ?? []) as StoricoRiga[]), ...letti].sort((a, b) =>
+  const candidati = [...((materialeR.data ?? []) as StoricoRiga[]), ...((testR.data ?? []) as StoricoRiga[]), ...letti].sort((a, b) =>
     (a.created_at ?? '').localeCompare(b.created_at ?? '')
   );
   const materiale = materialeAttivo(candidati, adesso);
+  const test = testAttivo(candidati, adesso);
   return {
     contesto,
     storico,
     materiale,
     /** true se il materiale attivo non e' nella cronologia mandata al modello */
     materialeFuori: !!materiale && !storico.some((m) => m.id === materiale.id),
+    /** l'ultimo test con la chiave: lo corregge il codice */
+    test,
+    /** true se il test non e' nella cronologia ed e' diverso dal materiale attivo (allora va rimesso anche lui) */
+    testFuori: !!test && test.id !== materiale?.id && !storico.some((m) => m.id === test.id),
+    /** lo stato della correzione di quel test, cercato in tutta la cronologia letta (non solo nella finestra) */
+    correzionePrecedente: test?.id ? correzioneDaStorico(letti, test.id) : null,
     // nel prompt entrano le piu' importanti e recenti; la memoria le vede tutte
     note: noteTutte.slice(0, MAX_NOTE),
     noteTutte,
@@ -360,10 +373,10 @@ export async function rispondi(
       : decidi(stato, testo, ultimoDiLode, dati.esame?.materia ?? null, formato);
     // Il test attivo con la sua chiave: le risposte dello studente le confronta il
     // CODICE (materiali.ts). Il modello spiega gli errori ma non conta.
-    const chiave = turno.materiale ? leggiChiave(turno.materiale.metadati) : null;
+    const chiave = turno.test ? leggiChiave(turno.test.metadati) : null;
     const correzione =
-      chiave && turno.materiale?.id && decisione.fase === 'nessuna' && !malessereSerio(testo)
-        ? decidiCorrezione(testo, turno.materiale.id, chiave, correzioneDaStorico(turno.storico, turno.materiale.id), formato === 'markdown')
+      chiave && turno.test?.id && decisione.fase === 'nessuna' && !malessereSerio(testo)
+        ? decidiCorrezione(testo, turno.test.id, chiave, turno.correzionePrecedente, formato === 'markdown')
         : ({ tipo: 'nessuna' } as const);
     if (correzione.tipo === 'conferma') {
       // Righe dubbie o mancanti: le chiede il codice, senza modello.
@@ -389,6 +402,8 @@ export async function rispondi(
         turno.materialeFuori && turno.materiale
           ? istruzioneMateriale(turno.materiale, formuleLeggibili(estraiChiave(turno.materiale.contenuto).testo))
           : '',
+        // e l'ultimo test, se e' un altro e anche lui e' fuori
+        turno.testFuori && turno.test ? istruzioneMateriale(turno.test, formuleLeggibili(estraiChiave(turno.test.contenuto).testo)) : '',
         correzione.tipo === 'risultato' ? istruzioneCorrezione(correzione.risultato) : '',
       ]
         .filter(Boolean)

@@ -15,7 +15,7 @@
     }
   },
   "chat": {
-    "versione": 20,
+    "versione": 21,
     "verify_jwt": false,
     "verificata_il": "2026-10-09",
     "file": {
@@ -30,9 +30,9 @@
       "chat/index.ts": "fa4b192224de3a5b8dd83d037beb0e5bfc00be501f4affd0a78561eb3479099d",
       "chat/interrogazione.ts": "14aab6f29e04583399588d38bb95a72ec373c2d4f3a5afa3173de143a03e7102",
       "chat/logica.ts": "0f5dea04418705c065d48d1b4827427ad60dc39f8800dd108c1f49f7f1978312",
-      "chat/materiali.ts": "38ca0c2bd3407fd7bac28b3cab735e0c88e5c3450d978af0a4d6ea62cfc10fd1",
+      "chat/materiali.ts": "104281c0bc70f962e7cb6f0c4c640d1366323dffd92a40025ffcbda4e8814423",
       "chat/memoria.ts": "18ce5c23cfbf048748e50e1794e5f635e743910d329372b621c11c6d730116c3",
-      "chat/motore.ts": "959aa68ec8890f3b7e05c32dac7eb181eaa01b16eecf8d40732df03aa0171aa2"
+      "chat/motore.ts": "b40eb1fb1510f8e7d699c0952569c314ff41ad5daa1567cf41502301d89441e5"
     }
   },
   "coda-domande": {
