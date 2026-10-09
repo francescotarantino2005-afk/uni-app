@@ -1,17 +1,39 @@
-# Lavoro in corso — correzioni "manuale + memoria" (3-4 ottobre 2026)
+# Lavoro in corso — aggiornamento 1.0.1 (9 ottobre 2026)
 
-## Schema (eccezione concordata)
-- `chat_messages.metadati jsonb not null default '{}'`: migrazione `20261003172907_chat_messages_metadati.sql`, APPLICATA e REGISTRATA. La Fase 2 NON deve rifarla. Nessun'altra modifica allo schema. Oggi contiene solo `{ "interrogazione": { attiva, argomento, domande_fatte, massimo } }` sull'ultimo messaggio di Lode.
+## Stato
+- **Build iOS 21 (1.0.1)** lanciata su EAS con invio automatico ad App Store Connect (TestFlight).
+  Build: https://expo.dev/accounts/tara7/projects/assistente-studente/builds/9e2a2c43-de81-42a7-abb6-e94d91a302b1
+  Invio: https://expo.dev/accounts/tara7/projects/assistente-studente/submissions/39f55146-e91a-41c5-bc83-11ccb2e0f053
+  NON inviata in revisione: lo fa Francesco dopo la prova sul telefono.
+- `npm test` 165/165. Tutto committato e pubblicato su GitHub (resta fuori solo `eas.json`, con le modifiche fatte da EAS: ambiente "production" nel profilo preview e la chiave ASC per l'invio).
 
-## Stato (4 ottobre)
-- PUBBLICATE e REGISTRATE: `chat` v18, `accoglienza-dialogo` v13 (npm test 149/149). Cache da 5 minuti (ttl 1h e intestazione beta TOLTI).
-- `prova-modello`: SPENTA (410), segreto cancellato. Va cancellata dalla dashboard (nome esatto `prova-modello`; il connettore non ha il comando).
-- Fatto nel codice e testato: malessere nell'accoglienza, recapiti (manuale v1.1), interrogazione guidata dal codice, formato testo/markdown, errori del modello (messaggio normale + `LODE_ERRORE_MODELLO tipo=...`, dialogo fermo al suo turno).
+## Fatto il 9 ottobre
+1. PROVE DAL VIVO (la vecchia lista "DA FARE CON CREDITO"): tutte fatte, 0,32 USD. Dettagli in `docs/prova-dal-vivo-2026-10-09.md`.
+   - cache: OK; cache da 1 ora verificata e attivata (senza intestazione beta).
+   - interrogazione di Diritto: OK (4 domande, nessun voto anticipato, "Voto: 21/30").
+   - malessere: OK (niente esercizi, solo recapiti consentiti, 112 solo col pericolo).
+   - formule: il modello scriveva `x^(3/2)` → corretto (`chat/formule.ts` + istruzione), riprovato OK.
+   - errore del modello: OK ("Mi sono bloccato un attimo…" + `LODE_ERRORE_MODELLO`).
+   - `chat` v19 pubblicata e registrata (13 file identici al repo). `prova-modello` di nuovo spenta (410).
+2. ICONA: rifatta dall'originale ad alta risoluzione (`assets/images/pose/guarda.png`), uguale all'allegato (differenza media ~4/255), sfondo blu notte radiale #241654 → #1E1347, 1024×1024 RGB senza alfa. Anche adaptive icon Android (sfondo uguale, `backgroundColor` #1E1347 in app.json).
+3. ASPETTO DELLA CHAT: EB Garamond 19, formule Source Serif 4 al 92%, colori #6B3FF5 / #CDBDFD / #FCFAFF / #221C36, Markdown leggero (`lib/markdown.ts`), robot accanto all'ultima risposta con le pose (`lib/posaRisposta.ts`, `components/AvatarLode.tsx`). L'app nuova chiede `formato: 'markdown'`; le build vecchie restano su testo. Messaggi lunghi: giorni del piano in grassetto in testa a ogni blocco (provato col modello vero).
+4. SPAZI PER ESAME: tabella `conversazioni` (RLS verificata: ognuno vede/gestisce solo le sue, la "Generale" non si elimina, esame altrui rifiutato), `chat_messages.conversazione_id` facoltativo, 93 messaggi di 13 studenti nella loro "Generale" (migrazione `20261009172726_conversazioni.sql`, nessuna cancellazione). La chat usa la conversazione richiesta o la "Generale" (build vecchie). Memoria condivisa. Barra laterale (`components/BarraConversazioni.tsx`): gruppi per esame, Nuova chat, rinomina, elimina con conferma; icona + scorrimento dal bordo sinistro. Provata sul web con dati finti (la parte con login va provata sul telefono).
+5. ELIMINA ACCOUNT: la cancellazione a cascata arriva anche alle conversazioni (verificato in una transazione annullata sull'account di prova: profilo, conversazioni, messaggi, note, esami a zero; poi tutto rimesso com'era). `elimina-account` invariata.
 
-## DA FARE CON CREDITO
-Bloccato perche' l'API risponde ancora "credit balance is too low" anche dopo la ricarica (verificato il 4 ottobre con la chiave dei secrets Supabase `ANTHROPIC_API_KEY`: forse la ricarica e' su un'altra organizzazione/workspace, o non e' ancora arrivata). Per rifare le prove serve una function-tramite temporanea come `prova-modello` (inoltra la richiesta ad Anthropic, segreto casuale solo come hash nel sorgente, da spegnere a fine prova); la richiesta si costruisce in locale col codice del repo.
-1. Cache da 1 ora dal vivo: 2 messaggi a 6 minuti l'uno dall'altro, con `cache_control: { type: 'ephemeral', ttl: '1h' }` (costante `CACHE_STABILE` in `chat/logica.ts`), CON e SENZA intestazione `anthropic-beta: extended-cache-ttl-2025-04-11`; riportare `cache_creation` e `cache_read` dei due messaggi. Se funziona: attivare `ttl: '1h'` (e l'intestazione in `chiamaChat`, `chat/motore.ts`, solo se serve) e ripubblicare UNA volta. Calcolo (non misurato): 1 ora conviene appena c'e' una pausa tra 5 e 60 minuti a sessione (scrittura 4 $/M contro 2,50 $/M, lettura uguale).
-2. Interrogazione di Diritto dal vivo, 4 domande: numero di domande, voti anticipati, risposte rivelate, voto finale (script gia' pronto in scratchpad: `int.mjs`).
-3. Tutte le prove col modello vero da rifare dal vivo: malessere nell'accoglienza (primo turno, a meta' dialogo, ansia che NON attiva), interrogazione x5, i sei casi del manuale (Diritto orale, Storia, Inglese B2, Analisi I scritto, "ho preso 18 a Fisica", "non ce la faccio piu'"), la memoria (note dopo 3 messaggi), e un messaggio con credito esaurito per vedere il messaggio "Mi sono bloccato un attimo" e la riga `LODE_ERRORE_MODELLO` nei log.
-4. Non verificato dal vivo per mancanza di login: scrittura di `chat_messages.metadati`, salvataggio di `exams.tipo_esame`, scrittura/archiviazione note, `accoglienza_stato` 'completata' dopo un malessere. Va provato dal telefono con un account vero.
-5. Cancellare `prova-modello` dalla dashboard Supabase.
+## Bloccato in attesa di Francesco
+- Cancellare la function `prova-modello` dalla dashboard Supabase (il collegamento non ha il comando, la CLI non ha il token). È spenta (410).
+- Provare "Elimina account" dal telefono con un account creato apposta (io non posso creare account).
+- Le prove con login (vedi la lista "Da provare sul telefono" qui sotto).
+
+## Da provare sul telefono (build 21)
+1. Icona nuova sulla schermata Home.
+2. Chat Generale: lo storico di prima c'è tutto; scrivi un messaggio, la risposta arriva in Garamond col robot accanto (pensa → guarda).
+3. Chiedi "mi fai un piano per l'esame tra 6 giorni": i giorni in grassetto in testa ai blocchi.
+4. Chiedi un esercizio con formule: niente ^ né *.
+5. Barra laterale (icona in alto a sinistra e scorrimento dal bordo): Nuova chat dentro un esame, scrivi, il titolo prende il primo messaggio; rinomina; elimina con conferma.
+6. Interrogazione ("interrogami su …"): 4 domande, poi "Voto: NN/30"; con 28+ il robot esulta.
+7. Tastiera: il campo di testo resta visibile sopra la tastiera.
+8. Elimina account su un account di prova creato apposta.
+
+## Note per il revisore Apple (cambiato rispetto alla 1.0)
+Nuova icona; nuovo aspetto della chat; conversazioni separate per esame nella chat (barra laterale). Nessun nuovo permesso, nessun login nuovo, nessun acquisto. L'eliminazione dell'account resta in Impostazioni e cancella anche le conversazioni.
