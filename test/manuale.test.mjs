@@ -54,7 +54,7 @@ test('manuale: {nome_bot} diventa il nome del bot, e senza nome resta Lode', () 
 test('chat: il manuale è nel blocco in cache, le istruzioni tecniche vengono dopo e hanno la precedenza', () => {
   const r = richiestaChat({ testo: 'Oggi è venerdì.', senzaVoti: false, nomeBot: 'Gigi' }, [], [], 'ciao');
   const blocco = r.system[0];
-  assert.deepEqual(blocco.cache_control, { type: 'ephemeral' });
+  assert.deepEqual(blocco.cache_control, { type: 'ephemeral', ttl: '1h' });
   assert.ok(blocco.text.startsWith(manualeCompleto('Gigi')));
   assert.ok(blocco.text.indexOf('Sei Gigi') < blocco.text.indexOf('ISTRUZIONI TECNICHE DELL\'APP'));
   assert.ok(blocco.text.endsWith(ISTRUZIONI_TECNICHE));

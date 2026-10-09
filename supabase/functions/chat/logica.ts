@@ -6,6 +6,7 @@
 import { TELEFONO_AMICO } from '../_shared/aiuto.ts';
 import { manualeCompleto } from '../_shared/manuale.ts';
 import { type Impegno, oggetto, profiloCompleto } from '../accoglienza-dialogo/profilo.ts';
+import { formuleLeggibili } from './formule.ts';
 
 export const MODELLO_CHAT = 'claude-sonnet-5-5';
 export const MAX_TOKENS_CHAT = 1500;
@@ -24,11 +25,13 @@ export type Formato = 'testo' | 'markdown';
 
 const FORMATO_TESTO = `Formato del testo (la chat dell'app mostra testo semplice, non markdown):
 - Niente markdown: niente **grassetto**, niente #titoli, niente elenchi con - o *, niente formule tra $...$. Separa con frasi e con a capo. Questo vale al posto delle indicazioni di formattazione della sezione 9 del manuale.
-- Potenze, radici e simboli in Unicode anche in testo semplice: x², x³, √, ≤, ≥, ≠, ·, −, ×, π; mai ^ o *. Frazioni con /, prodotti scritti di seguito (3ab). Il codice è testo semplice, una riga per riga.`;
+- Potenze, radici e simboli in Unicode anche in testo semplice: x², x³, √, ≤, ≥, ≠, ·, −, ×, π; mai ^ o *. Esponenti frazionari o composti come radici o apici: x^(1/2) si scrive √x, x^(3/2) si scrive x√x, x^(n−1) si scrive xⁿ⁻¹, x^(−1) si scrive x⁻¹ o 1/x. Frazioni con /, prodotti scritti di seguito (3ab) o con ·. Il codice è testo semplice, una riga per riga.
+- Messaggi lunghi (piani di studio, simulazioni, schemi): niente muro di testo. Ogni blocco su una riga sua che comincia con la sua etichetta ("Lunedì 13:", "Domanda 3:"), una riga vuota tra un blocco e l'altro.`;
 
 const FORMATO_MARKDOWN = `Formato del testo (la chat dell'app mostra Markdown leggero):
 - Grassetto (**…**) solo per i concetti chiave; titoletti (## …) solo nei messaggi lunghi come simulazioni e piani; elenchi con -. Niente tabelle.
-- Formule tra $...$ in notazione Unicode (3², x³, √, −, ·, ≤); mai ^ o *. Il codice va in blocchi di codice.`;
+- Formule tra $...$ in notazione Unicode (3², x³, √, −, ·, ≤); mai ^ o *. Esponenti frazionari o composti come radici o apici: x^(1/2) si scrive √x, x^(3/2) si scrive x√x, x^(n−1) si scrive xⁿ⁻¹. Il codice va in blocchi di codice.
+- Messaggi lunghi (piani di studio, simulazioni, schemi): i punti chiave devono risaltare a colpo d'occhio, niente muro di testo. In un piano ogni giorno è un blocco che COMINCIA con il giorno in grassetto (**Lunedì 13** — poi cosa fare, in una o due righe o in un breve elenco); in una simulazione ogni domanda comincia con **Domanda N**; scadenze, numeri e consegne importanti in grassetto. Una riga vuota tra un blocco e l'altro.`;
 
 /** Le istruzioni tecniche dell'app: hanno la precedenza sul manuale. Il formato dipende dalla versione dell'app. */
 export const istruzioniTecniche = (formato: Formato = 'testo') => `ISTRUZIONI TECNICHE DELL'APP
@@ -390,12 +393,12 @@ export type DatiStudente = {
 };
 
 /**
- * La cache dei due blocchi stabili e' quella da 5 minuti. La versione da UN'ORA
- * (ttl: '1h' + intestazione beta extended-cache-ttl-2025-04-11) conviene con una
- * pausa oltre i 5 minuti a sessione, ma si attiva solo dopo la verifica dal vivo
- * (vedi LAVORO-IN-CORSO.md, DA FARE CON CREDITO).
+ * La cache dei due blocchi stabili dura UN'ORA: uno studente che torna dopo una
+ * pausa tra 5 e 60 minuti rilegge il prompt dalla cache invece di riscriverlo.
+ * Verificata dal vivo il 9 ottobre 2026: funziona senza intestazione beta
+ * (secondo messaggio dopo 6,6 minuti: 9.702 token letti dalla cache).
  */
-export const CACHE_STABILE = { type: 'ephemeral' } as const;
+export const CACHE_STABILE = { type: 'ephemeral', ttl: '1h' } as const;
 
 /**
  * Le istruzioni di sistema in tre blocchi. I primi due sono la parte stabile e
@@ -452,24 +455,26 @@ export function richiestaChat(
   };
 }
 
-/** Il testo della risposta di /v1/messages. "" se non c'e' o se il modello ha rifiutato. */
+/** Il testo della risposta di /v1/messages, con le formule leggibili. "" se non c'e' o se il modello ha rifiutato. */
 export function testoRisposta(risposta: unknown): string {
   const r = oggetto(risposta);
   if (r.stop_reason === 'refusal') return '';
   const blocchi = (Array.isArray(r.content) ? r.content : []) as { type?: string; text?: string }[];
-  return blocchi
+  const testo = blocchi
     .filter((b) => b?.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text)
     .join('')
     .trim();
+  // ^ e * non arrivano mai allo studente (formule.ts).
+  return formuleLeggibili(testo);
 }
 
 // ---------- costo ----------
 
-/** Dollari per milione di token (listino Anthropic, ottobre 2026). */
-export const PREZZI: Record<string, { input: number; output: number; lettura: number; scrittura: number }> = {
-  'claude-haiku-4-5': { input: 1, output: 5, lettura: 0.1, scrittura: 1.25 },
-  'claude-sonnet-5-5': { input: 2, output: 10, lettura: 0.2, scrittura: 2.5 },
+/** Dollari per milione di token (listino Anthropic, ottobre 2026). La scrittura da un'ora costa il doppio dell'input. */
+export const PREZZI: Record<string, { input: number; output: number; lettura: number; scrittura: number; scrittura1h: number }> = {
+  'claude-haiku-4-5': { input: 1, output: 5, lettura: 0.1, scrittura: 1.25, scrittura1h: 2 },
+  'claude-sonnet-5-5': { input: 2, output: 10, lettura: 0.2, scrittura: 2.5, scrittura1h: 4 },
 };
 
 export type Uso = {
@@ -477,17 +482,22 @@ export type Uso = {
   output_tokens?: number;
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
+  /** Il dettaglio delle scritture in cache per durata (c'e' quando la risposta lo riporta). */
+  cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number };
 };
 
 /** Costo in dollari di UNA chiamata, dai token reali restituiti dall'API. */
 export function costoUSD(modello: string, uso: Uso): number {
   const p = PREZZI[modello];
   if (!p) return NaN;
+  const scritti = uso.cache_creation_input_tokens ?? 0;
+  const scritti1h = Math.min(scritti, uso.cache_creation?.ephemeral_1h_input_tokens ?? 0);
   return (
     ((uso.input_tokens ?? 0) * p.input +
       (uso.output_tokens ?? 0) * p.output +
       (uso.cache_read_input_tokens ?? 0) * p.lettura +
-      (uso.cache_creation_input_tokens ?? 0) * p.scrittura) /
+      (scritti - scritti1h) * p.scrittura +
+      scritti1h * p.scrittura1h) /
     1_000_000
   );
 }
