@@ -358,7 +358,6 @@ export function conImpegno(profiloStudio: unknown, impegno: Impegno): Record<str
   return { ...oggetto(profiloStudio), impegno };
 }
 
-/** Lo studente non ha ancora scritto: e' la chat ad aprire, mantenendo la promessa. */
 /** Il titolo di una conversazione appena creata dall'app: al primo messaggio diventa l'inizio del messaggio. */
 export const TITOLO_NUOVA = 'Nuova chat';
 
@@ -371,6 +370,7 @@ export function titoloDa(messaggio: string): string {
   return `${(spazio > 20 ? taglio.slice(0, spazio) : taglio).replace(/[\s,.;:!?]+$/, '')}…`;
 }
 
+/** Lo studente non ha ancora scritto: e' la chat ad aprire, mantenendo la promessa. */
 export const TURNO_APERTURA = '(Lo studente ha appena aperto la chat e non ha ancora scritto niente.)';
 
 /** L'istruzione che obbliga a mantenere la promessa in QUESTO messaggio. */
