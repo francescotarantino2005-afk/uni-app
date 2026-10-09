@@ -28,6 +28,8 @@ import {
   type TipoEsame,
   type Uso,
   MAX_NOTE_PROMPT,
+  TITOLO_NUOVA,
+  titoloDa,
   MODELLO_CHAT,
   TURNO_APERTURA,
   conImpegno,
@@ -77,18 +79,59 @@ export async function costruisciContesto(
  * precedenti, poi dall'esame dichiarato all'accoglienza).
  */
 export function datiPerPrompt(
-  turno: { contesto: Awaited<ReturnType<typeof costruisciContesto>>; storico: MessaggioChat[] },
+  turno: { contesto: Awaited<ReturnType<typeof costruisciContesto>>; storico: MessaggioChat[]; conversazione?: Conversazione | null },
   testiRecenti: string[]
 ): DatiStudente & { esame: EsameRiga | null } {
   const c = turno.contesto;
   const target = profiloCompleto(c.profiloStudio).esame_target;
   const precedenti = [...turno.storico].reverse().map((m) => m.contenuto);
+  // Nello spazio di un esame, l'esame e' quello (salvo che lo studente ne nomini un altro).
+  const delloSpazio = turno.conversazione?.exam_id ? c.esami.find((e) => e.id === turno.conversazione?.exam_id) : null;
   return {
     testo: c.testo,
     senzaVoti: c.senzaVoti,
     nomeBot: c.nomeBot,
-    esame: esameInLavorazione(c.esami, [...testiRecenti, ...precedenti], target.nome ?? target.testo),
+    esame: esameInLavorazione(c.esami, [...testiRecenti, ...precedenti], delloSpazio?.materia ?? target.nome ?? target.testo),
   };
+}
+
+/** Una conversazione della chat (tabella conversazioni). */
+export type Conversazione = { id: string; exam_id: string | null; titolo: string; generale: boolean };
+
+/**
+ * La conversazione di questo turno. Con un id: quella, solo se e' dello
+ * studente (altrimenti null). Senza id (le build fino alla 20): la "Generale",
+ * creata se non c'e' ancora.
+ */
+export async function conversazioneDelTurno(
+  admin: SupabaseClient,
+  userId: string,
+  id?: string | null
+): Promise<Conversazione | null> {
+  const campi = 'id, exam_id, titolo, generale';
+  if (id) {
+    const { data } = await admin.from('conversazioni').select(campi).eq('id', id).eq('user_id', userId).maybeSingle();
+    return (data as Conversazione | null) ?? null;
+  }
+  const { data: esistente } = await admin.from('conversazioni').select(campi).eq('user_id', userId).eq('generale', true).maybeSingle();
+  if (esistente) return esistente as Conversazione;
+  const { data: nuova } = await admin
+    .from('conversazioni')
+    .insert({ user_id: userId, titolo: 'Generale', generale: true })
+    .select(campi)
+    .maybeSingle();
+  if (nuova) return nuova as Conversazione;
+  // creata nel frattempo da un'altra richiesta (indice unico): si rilegge
+  const { data: riletta } = await admin.from('conversazioni').select(campi).eq('user_id', userId).eq('generale', true).maybeSingle();
+  return (riletta as Conversazione | null) ?? null;
+}
+
+/** Dopo un messaggio: la conversazione sale in cima e, se ha ancora il titolo di default, prende il primo messaggio come titolo. */
+export async function toccaConversazione(admin: SupabaseClient, conv: Conversazione, primoMessaggio: string): Promise<void> {
+  const patch: Record<string, string> = { aggiornata_il: new Date().toISOString() };
+  if (!conv.generale && conv.titolo === TITOLO_NUOVA) patch.titolo = titoloDa(primoMessaggio);
+  const { error } = await admin.from('conversazioni').update(patch).eq('id', conv.id);
+  if (error) console.error('Conversazione non aggiornata:', error);
 }
 
 export type NotaMemoria = Nota & { id: string; importanza?: number | null; updated_at?: string | null };
@@ -98,15 +141,24 @@ export type StoricoRiga = MessaggioChat & { created_at?: string; metadati?: unkn
 const MAX_NOTE_LETTE = 40;
 
 /** Tutto cio' che serve per un turno: dati reali, storico breve, note di memoria, impegno. */
-export async function caricaTurno(admin: SupabaseClient, clientNote: SupabaseClient, userId: string) {
+export async function caricaTurno(
+  admin: SupabaseClient,
+  clientNote: SupabaseClient,
+  userId: string,
+  conversazione: Conversazione | null = null
+) {
+  // Lo storico e' quello della conversazione; nella "Generale" contano anche i
+  // messaggi senza conversazione (accoglienza, coda-domande, impegno). La memoria
+  // dello studente (note, profilo) resta una sola per tutte le conversazioni.
+  let storicoQ = admin.from('chat_messages').select('ruolo, contenuto, created_at, metadati').eq('user_id', userId);
+  if (conversazione) {
+    storicoQ = conversazione.generale
+      ? storicoQ.or(`conversazione_id.eq.${conversazione.id},conversazione_id.is.null`)
+      : storicoQ.eq('conversazione_id', conversazione.id);
+  }
   const [contesto, storicoR, noteR] = await Promise.all([
     costruisciContesto(admin, userId),
-    admin
-      .from('chat_messages')
-      .select('ruolo, contenuto, created_at, metadati')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(MAX_STORICO),
+    storicoQ.order('created_at', { ascending: false }).limit(MAX_STORICO),
     // clientNote e' il client dell'utente (RLS effettiva); il filtro su user_id
     // e' comunque esplicito.
     clientNote
@@ -126,6 +178,7 @@ export async function caricaTurno(admin: SupabaseClient, clientNote: SupabaseCli
     note: noteTutte.slice(0, MAX_NOTE),
     noteTutte,
     impegno: leggiImpegno(contesto.profiloStudio),
+    conversazione,
   };
 }
 
@@ -241,7 +294,8 @@ export async function rispondi(
   userId: string,
   testo: string,
   anthropic: Anthropic,
-  formato: Formato = 'testo'
+  formato: Formato = 'testo',
+  conversazione: Conversazione | null = null
 ): Promise<{
   risposta: string;
   storico: StoricoRiga[];
@@ -256,8 +310,9 @@ export async function rispondi(
   rigenerata: boolean;
   segnaMantenuto: (id: string | null) => Promise<void>;
 }> {
-  const turno = await caricaTurno(admin, clientNote, userId);
-  const impegno = impegnoDaMantenere(turno.impegno, Date.now()) ? turno.impegno : null;
+  const turno = await caricaTurno(admin, clientNote, userId, conversazione);
+  // L'impegno dell'accoglienza si mantiene nella "Generale" (dove lo aspetta l'app).
+  const impegno = impegnoDaMantenere(turno.impegno, Date.now()) && (!conversazione || conversazione.generale) ? turno.impegno : null;
   if (impegno) await scriviImpegno(admin, userId, { ...impegno, tentativo_il: new Date().toISOString() });
   try {
     const dati = { ...datiPerPrompt(turno, [testo]), formato };

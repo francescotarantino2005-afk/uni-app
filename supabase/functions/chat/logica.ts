@@ -359,6 +359,18 @@ export function conImpegno(profiloStudio: unknown, impegno: Impegno): Record<str
 }
 
 /** Lo studente non ha ancora scritto: e' la chat ad aprire, mantenendo la promessa. */
+/** Il titolo di una conversazione appena creata dall'app: al primo messaggio diventa l'inizio del messaggio. */
+export const TITOLO_NUOVA = 'Nuova chat';
+
+/** Il titolo da un messaggio: la prima riga, al massimo 40 caratteri, tagliata a parola intera. */
+export function titoloDa(messaggio: string): string {
+  const riga = messaggio.trim().split('\n')[0].replace(/\s+/g, ' ').trim();
+  if (riga.length <= 40) return riga || TITOLO_NUOVA;
+  const taglio = riga.slice(0, 40);
+  const spazio = taglio.lastIndexOf(' ');
+  return `${(spazio > 20 ? taglio.slice(0, spazio) : taglio).replace(/[\s,.;:!?]+$/, '')}…`;
+}
+
 export const TURNO_APERTURA = '(Lo studente ha appena aperto la chat e non ha ancora scritto niente.)';
 
 /** L'istruzione che obbliga a mantenere la promessa in QUESTO messaggio. */

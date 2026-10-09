@@ -23,7 +23,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { dataOggiRoma } from '../_shared/briefing.ts';
 import { MESSAGGIO_BLOCCO, logErroreModello, tipoErrore } from '../_shared/errori.ts';
-import { aggiornaMemoria, mantieniImpegno, rispondi, salvaTipoEsame } from './motore.ts';
+import { aggiornaMemoria, conversazioneDelTurno, mantieniImpegno, rispondi, salvaTipoEsame, toccaConversazione } from './motore.ts';
 import { quandoAggiornare } from './memoria.ts';
 
 const CAP_GIORNALIERO = 10; // messaggi/giorno per gli utenti free
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     if (!user) return json({ errore: 'NON_AUTORIZZATO' }, 401);
 
     // 2) Input
-    const { messaggio, id, azione, formato: formatoRichiesto } = await req.json().catch(() => ({}));
+    const { messaggio, id, azione, formato: formatoRichiesto, conversazione_id: convRichiesta } = await req.json().catch(() => ({}));
     // Le build vecchie non mandano il formato: restano sul testo semplice.
     const formato = formatoRichiesto === 'markdown' ? 'markdown' : 'testo';
 
@@ -110,6 +110,15 @@ Deno.serve(async (req) => {
       // caso raro (utente senza risposta salvata): prosegui e rielabora.
     }
 
+    // 3b) La conversazione (spazi per esame, dalla 1.0.1). Senza conversazione_id
+    // (build fino alla 20) si usa la "Generale". Un id che non e' dello studente
+    // (o una conversazione eliminata) non si usa: 404.
+    if (convRichiesta != null && (typeof convRichiesta !== 'string' || !UUID_RE.test(convRichiesta))) {
+      return json({ errore: 'RICHIESTA_NON_VALIDA' }, 400);
+    }
+    const conversazione = await conversazioneDelTurno(admin, user.id, convRichiesta ?? null);
+    if (convRichiesta && !conversazione) return json({ errore: 'CONVERSAZIONE_NON_TROVATA' }, 404);
+
     // 4) CAP giornaliero (server-side). I premium non hanno cap.
     const { data: profilo } = await admin.from('profiles').select('premium').eq('id', user.id).maybeSingle();
     const oggi = dataOggiRoma();
@@ -134,7 +143,7 @@ Deno.serve(async (req) => {
 
     let esito: Awaited<ReturnType<typeof rispondi>>;
     try {
-      esito = await rispondi(admin, clientUtente, user.id, testo, anthropic, formato);
+      esito = await rispondi(admin, clientUtente, user.id, testo, anthropic, formato, conversazione);
     } catch (e) {
       // Credito esaurito, sovraccarico, rete: la chat non si rompe. Si risponde con un
       // normale messaggio di Lode (le build attuali lo mostrano come un messaggio
@@ -151,13 +160,17 @@ Deno.serve(async (req) => {
     // (chiave di idempotenza): un retry con lo stesso id non crea duplicati.
     await admin
       .from('chat_messages')
-      .upsert({ id: idMsg, user_id: user.id, ruolo: 'user', contenuto: testo }, { onConflict: 'id', ignoreDuplicates: true });
+      .upsert(
+        { id: idMsg, user_id: user.id, ruolo: 'user', contenuto: testo, conversazione_id: conversazione?.id ?? null },
+        { onConflict: 'id', ignoreDuplicates: true }
+      );
     const { data: rigaRisposta, error: erroreRisposta } = await admin
       .from('chat_messages')
-      .insert({ user_id: user.id, ruolo: 'assistant', contenuto: risposta, metadati: esito.metadati })
+      .insert({ user_id: user.id, ruolo: 'assistant', contenuto: risposta, metadati: esito.metadati, conversazione_id: conversazione?.id ?? null })
       .select('id')
       .single();
     await admin.from('usage_chat').insert({ user_id: user.id, data: oggi });
+    if (conversazione) await toccaConversazione(admin, conversazione, testo);
     // 7) Se questa risposta ha mantenuto l'impegno dell'accoglienza, lo si segna
     // solo ora che il messaggio e' davvero scritto.
     if (!erroreRisposta) await esito.segnaMantenuto(rigaRisposta?.id ?? null);
@@ -190,7 +203,7 @@ Deno.serve(async (req) => {
       else lavoro.catch((e) => console.error('memoria:', e));
     }
 
-    return json({ risposta });
+    return json({ risposta, conversazione_id: conversazione?.id ?? null });
   } catch (e) {
     console.error('Errore interno chat:', e);
     return json({ errore: 'ERRORE_INTERNO' }, 500);
