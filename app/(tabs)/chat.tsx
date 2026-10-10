@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -11,8 +12,9 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { caricaMessaggio, caricaStorico, inviaMessaggioChat, mantieniImpegno } from '@/lib/chatDb';
@@ -27,7 +29,14 @@ import {
 import { leggiImpegno } from '@/lib/dialogoLogica';
 import { pose, type Posa } from '@/lib/pose';
 import { posaPerRisposta } from '@/lib/posaRisposta';
-import { type Conversazione, type EsameBarra } from '@/lib/conversazioni';
+import {
+  bozza,
+  eBozza,
+  sottotitoloChat,
+  titoloDaMessaggio,
+  type Conversazione,
+  type EsameBarra,
+} from '@/lib/conversazioni';
 import {
   caricaConversazioni,
   caricaEsamiBarra,
@@ -57,9 +66,38 @@ const suggerimentiEsame = (materia: string) => [
 /** Un messaggio sullo schermo: in più, la risposta che si sta aspettando. */
 type Riga = MessaggioChat & { inAttesa?: boolean };
 
+/** Margine laterale della pagina: le risposte di Lode si leggono come un foglio. */
+const MARGINE = 20;
+/** Spazio verticale tra un messaggio e l'altro. */
+const SPAZIO_MESSAGGI = 16;
+const ENTRATA_MS = 220;
+
+/**
+ * Un messaggio appena arrivato entra con una breve dissolvenza. SOLO i messaggi
+ * nuovi di questa sessione, e una volta sola: la FlatList smonta e rimonta le
+ * righe che escono e rientrano nello schermo, e chi rientra non deve
+ * riapparire sbiadito. L'id si toglie dall'elenco appena l'animazione parte.
+ */
+function Entrata({ id, daAnimare, children }: { id: string; daAnimare: Set<string>; children: React.ReactNode }) {
+  const [anima] = useState(() => daAnimare.has(id));
+  const opacita = useRef(new Animated.Value(anima ? 0 : 1)).current;
+  useEffect(() => {
+    if (!anima) return;
+    daAnimare.delete(id);
+    Animated.timing(opacita, { toValue: 1, duration: ENTRATA_MS, useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (!anima) return <>{children}</>;
+  return <Animated.View style={{ opacity: opacita }}>{children}</Animated.View>;
+}
+
 export default function SchermataChat() {
   const navigation = useNavigation();
+  const { width: larghezzaSchermo } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [messaggi, setMessaggi] = useState<Riga[]>([]);
+  // Gli id dei messaggi nati in questa sessione che devono ancora fare l'entrata.
+  const daAnimare = useRef(new Set<string>()).current;
   const [testo, setTesto] = useState('');
   const [caricamento, setCaricamento] = useState(true);
   const [invio, setInvio] = useState(false);
@@ -78,7 +116,7 @@ export default function SchermataChat() {
   const correnteRef = useRef<Conversazione | null>(null);
   correnteRef.current = corrente;
   // Le cose della "Generale" (domande in coda, impegno di fine accoglienza)
-  // succedono solo lì.
+  // succedono solo lì. Una chat nuova non ancora salvata (bozza) non è la Generale.
   const inGenerale = !corrente || corrente.generale;
   const inGeneraleRef = useRef(inGenerale);
   inGeneraleRef.current = inGenerale;
@@ -105,9 +143,11 @@ export default function SchermataChat() {
     const domanda = await apriCoda();
     propostaInCorso.current = false;
     if (!domanda || !inGeneraleRef.current) return;
-    setMessaggi((prima) => [...prima, { id: nuovoId(), ruolo: 'assistant', contenuto: domanda }]);
+    const idDomanda = nuovoId();
+    daAnimare.add(idDomanda);
+    setMessaggi((prima) => [...prima, { id: idDomanda, ruolo: 'assistant', contenuto: domanda }]);
     useAppStore.getState().caricaProfilo();
-  }, []);
+  }, [daAnimare]);
 
   // All'avvio: le conversazioni, poi la "Generale".
   useEffect(() => {
@@ -135,19 +175,25 @@ export default function SchermataChat() {
   const apri = useCallback(async (c: Conversazione) => {
     setBarraAperta(false);
     if (c.id === correnteRef.current?.id) return;
+    daAnimare.clear();
     setCorrente(c);
     setCaricamento(true);
     setMessaggi(await caricaStorico(c));
     setCaricamento(false);
     if (c.generale) proponiDomanda();
-  }, [proponiDomanda]);
+  }, [proponiDomanda, daAnimare]);
 
-  const nuova = useCallback(async (examId: string | null) => {
-    const c = await nuovaConversazione(examId);
-    if (!c) return;
-    await ricaricaBarra();
-    apri(c);
-  }, [apri, ricaricaBarra]);
+  // "Nuova chat" apre una bozza: si salva solo al primo messaggio (in `esegui`),
+  // così nella barra non restano chat vuote.
+  const nuova = useCallback((examId: string | null) => {
+    setBarraAperta(false);
+    const c = correnteRef.current;
+    if (eBozza(c) && c?.exam_id === examId) return;
+    daAnimare.clear();
+    setCorrente(bozza(examId));
+    setMessaggi([]);
+    setCaricamento(false);
+  }, [daAnimare]);
 
   const rinomina = useCallback(async (c: Conversazione, titolo: string) => {
     const ok = await rinominaConversazione(c.id, titolo);
@@ -171,37 +217,6 @@ export default function SchermataChat() {
     }
     return true;
   }, [ricaricaBarra]);
-
-  // Intestazione: la barra si apre dall'icona; il titolo è quello della conversazione.
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerStyle: { backgroundColor: coloriChat.sfondo },
-      headerTitle: corrente && !corrente.generale ? corrente.titolo : 'Chat',
-      headerTitleStyle: { color: coloriChat.testo, fontWeight: '700' },
-      headerLeft: () => (
-        <Pressable
-          onPress={() => setBarraAperta(true)}
-          hitSlop={10}
-          style={{ paddingHorizontal: spazi.md }}
-          accessibilityRole="button"
-          accessibilityLabel="Le tue chat"
-        >
-          <Ionicons name="menu" size={24} color={coloriChat.testo} />
-        </Pressable>
-      ),
-      headerRight: () => (
-        <Pressable
-          onPress={() => nuova(correnteRef.current?.exam_id ?? null)}
-          hitSlop={10}
-          style={{ paddingHorizontal: spazi.md }}
-          accessibilityRole="button"
-          accessibilityLabel="Nuova chat"
-        >
-          <Ionicons name="create-outline" size={23} color={coloriChat.viola} />
-        </Pressable>
-      ),
-    });
-  }, [navigation, corrente, nuova]);
 
   // Scorrendo dal bordo sinistro si apre la barra.
   const bordo = useRef(
@@ -271,9 +286,11 @@ export default function SchermataChat() {
     if (!idMantenuto || !attesoImpegno.current) return;
     attesoImpegno.current = false;
     caricaMessaggio(idMantenuto).then((m) => {
-      if (m && inGeneraleRef.current) setMessaggi((prima) => conMessaggio(prima, m));
+      if (!m || !inGeneraleRef.current) return;
+      daAnimare.add(m.id);
+      setMessaggi((prima) => conMessaggio(prima, m));
     });
-  }, [idMantenuto]);
+  }, [idMantenuto, daAnimare]);
 
   const inizia = async () => {
     setAvvioFallito(false);
@@ -297,6 +314,50 @@ export default function SchermataChat() {
     return posaPerRisposta(m.contenuto, domanda);
   };
 
+  // La posa dell'intestazione: pensa mentre aspetta (una risposta o l'impegno),
+  // altrimenti quella dell'ultima risposta; a riposo guarda.
+  const ultimaRisposta = messaggiInvertiti.find((m) => m.ruolo === 'assistant') ?? null;
+  const posaIntestazione: Posa =
+    (inGenerale && fase === 'attesa') || ultimaRisposta?.inAttesa
+      ? 'pensa'
+      : ultimaRisposta
+        ? posaDi(ultimaRisposta)
+        : 'guarda';
+
+  // Intestazione: la barra si apre dall'icona; al centro la testa del robot, il
+  // nome del bot e la conversazione aperta; a destra "nuova chat".
+  const sottotitolo = sottotitoloChat(corrente, esameCorrente?.materia ?? null);
+  const posaHeader = posaIntestazione;
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerStyle: { backgroundColor: coloriChat.sfondo },
+      headerTitleAlign: 'left',
+      headerTitle: () => <IntestazioneChat posa={posaHeader} nome={nomeBot} sottotitolo={sottotitolo} />,
+      headerLeft: () => (
+        <Pressable
+          onPress={() => setBarraAperta(true)}
+          hitSlop={10}
+          style={{ paddingHorizontal: spazi.md }}
+          accessibilityRole="button"
+          accessibilityLabel="Le tue chat"
+        >
+          <Ionicons name="menu" size={24} color={coloriChat.testo} />
+        </Pressable>
+      ),
+      headerRight: () => (
+        <Pressable
+          onPress={() => nuova(correnteRef.current?.exam_id ?? null)}
+          hitSlop={10}
+          style={{ paddingHorizontal: spazi.md }}
+          accessibilityRole="button"
+          accessibilityLabel="Nuova chat"
+        >
+          <Ionicons name="create-outline" size={23} color={coloriChat.viola} />
+        </Pressable>
+      ),
+    });
+  }, [navigation, nuova, posaHeader, nomeBot, sottotitolo]);
+
   const aggiorna = (id: string, patch: Partial<Riga>) =>
     setMessaggi((prima) => prima.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const togli = (id: string) => setMessaggi((prima) => prima.filter((m) => m.id !== id));
@@ -306,7 +367,23 @@ export default function SchermataChat() {
     if (invioInCorso.current) return;
     invioInCorso.current = true;
     setInvio(true);
-    const conv = correnteRef.current;
+    let conv = correnteRef.current;
+
+    // Chat nuova: si salva adesso, al primo messaggio, col titolo preso dal messaggio.
+    if (conv && eBozza(conv)) {
+      const salvata = await nuovaConversazione(conv.exam_id, titoloDaMessaggio(contenuto));
+      if (!salvata) {
+        setInvio(false);
+        invioInCorso.current = false;
+        aggiorna(id, { statoInvio: 'errore', erroreRete: 'Non sono riuscito ad aprire la chat. Controlla la connessione e riprova.' });
+        return;
+      }
+      if (correnteRef.current === conv) {
+        correnteRef.current = salvata;
+        setCorrente(salvata);
+      }
+      conv = salvata;
+    }
 
     // Se il bot aveva una domanda in sospeso, questo messaggio può esserne la
     // risposta: in quel caso la salva e conferma lui, senza passare dalla chat.
@@ -318,7 +395,9 @@ export default function SchermataChat() {
         setInvio(false);
         invioInCorso.current = false;
         aggiorna(id, { statoInvio: undefined, erroreRete: undefined });
-        setMessaggi((prima) => [...prima, { id: nuovoId(), ruolo: 'assistant', contenuto: esitoCoda.risposta }]);
+        const idRispostaCoda = nuovoId();
+        daAnimare.add(idRispostaCoda);
+        setMessaggi((prima) => [...prima, { id: idRispostaCoda, ruolo: 'assistant', contenuto: esitoCoda.risposta }]);
         return;
       }
     }
@@ -326,6 +405,7 @@ export default function SchermataChat() {
     // La risposta attesa ha già il suo posto (e il suo id): il robot "pensa" lì
     // e, quando arriva, cambia posa con una dissolvenza.
     const idRisposta = nuovoId();
+    daAnimare.add(idRisposta);
     setMessaggi((prima) => [...prima, { id: idRisposta, ruolo: 'assistant', contenuto: '', inAttesa: true }]);
 
     const esito = await inviaMessaggioChat(contenuto, id, conv?.id ?? null);
@@ -366,6 +446,7 @@ export default function SchermataChat() {
     setTesto('');
     // id generato UNA sola volta, alla composizione.
     const id = nuovoId();
+    daAnimare.add(id);
     setMessaggi((prima) => [...prima, { id, ruolo: 'user', contenuto: msg, statoInvio: 'inviando' }]);
     esegui(id, msg);
   };
@@ -379,11 +460,13 @@ export default function SchermataChat() {
     esegui(id, m.contenuto);
   };
 
+  const larghezzaBolla = Math.round(larghezzaSchermo * 0.85);
+
   const renderMessaggio = (m: Riga) => {
     if (m.ruolo === 'user') {
       return (
         <View style={stili.gruppoMio}>
-          <View style={[stili.bolla, stili.bollaMia]}>
+          <View style={[stili.bollaMia, { maxWidth: larghezzaBolla }]}>
             <Text style={stili.testoMio} selectable>
               {m.contenuto}
             </Text>
@@ -400,20 +483,20 @@ export default function SchermataChat() {
         </View>
       );
     }
+    // Le risposte di Lode non stanno in una bolla: sono testo sulla pagina, a
+    // tutta larghezza. Sopra l'ultima, il robot (48) nella posa del momento.
     const conRobot = m.id === idUltimaRisposta;
     return (
       <View style={stili.gruppoLode}>
-        <View style={stili.colonnaRobot}>{conRobot ? <AvatarLode posa={posaDi(m)} /> : null}</View>
-        <View style={[stili.bolla, stili.bollaLode]}>
-          {m.inAttesa ? (
-            <View style={stili.pensa}>
-              <ActivityIndicator size="small" color={coloriChat.viola} />
-              <Text style={stili.testoPensa}>{nomeBot} sta pensando…</Text>
-            </View>
-          ) : (
-            <TestoMessaggio testo={m.contenuto} />
-          )}
-        </View>
+        {conRobot ? <AvatarLode posa={posaDi(m)} lato={48} /> : null}
+        {m.inAttesa ? (
+          <View style={stili.pensa}>
+            <ActivityIndicator size="small" color={coloriChat.viola} />
+            <Text style={stili.testoPensa}>{nomeBot} sta pensando…</Text>
+          </View>
+        ) : (
+          <TestoMessaggio testo={m.contenuto} />
+        )}
       </View>
     );
   };
@@ -425,7 +508,7 @@ export default function SchermataChat() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={insets.top + (Platform.OS === 'ios' ? 44 : 56)}
       >
         {caricamento ? (
           <ActivityIndicator color={coloriChat.viola} style={{ marginTop: spazi.xl }} />
@@ -455,7 +538,14 @@ export default function SchermataChat() {
             inverted
             keyExtractor={(m) => m.id}
             contentContainerStyle={stili.lista}
-            renderItem={({ item }) => renderMessaggio(item)}
+            ItemSeparatorComponent={Separatore}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <Entrata id={item.id} daAnimare={daAnimare}>
+                {renderMessaggio(item)}
+              </Entrata>
+            )}
           />
         )}
 
@@ -578,39 +668,25 @@ const stili = StyleSheet.create({
     fontSize: 17,
   },
   lista: {
-    paddingHorizontal: spazi.md,
-    paddingVertical: spazi.md,
-    gap: spazi.md,
+    paddingHorizontal: MARGINE,
+    paddingVertical: SPAZIO_MESSAGGI,
+  },
+  separatore: {
+    height: SPAZIO_MESSAGGI,
   },
   gruppoMio: {
     alignItems: 'flex-end',
     gap: spazi.xs,
   },
   gruppoLode: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignSelf: 'stretch',
     gap: spazi.sm,
   },
-  colonnaRobot: {
-    width: 44,
-  },
-  bolla: {
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
   bollaMia: {
-    maxWidth: '85%',
     backgroundColor: coloriChat.bollaStudente,
-    borderBottomRightRadius: 6,
-  },
-  bollaLode: {
-    flexShrink: 1,
-    maxWidth: '88%',
-    backgroundColor: coloriChat.superficie,
-    borderColor: coloriChat.bordo,
-    borderWidth: 1,
-    borderBottomLeftRadius: 6,
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   testoMio: {
     color: coloriChat.testo,
@@ -729,5 +805,49 @@ const stili = StyleSheet.create({
     top: 0,
     bottom: 90,
     width: 18,
+  },
+});
+
+function Separatore() {
+  return <View style={stili.separatore} />;
+}
+
+/** L'intestazione della chat: la testa del robot, il nome del bot, la conversazione aperta. */
+function IntestazioneChat({ posa, nome, sottotitolo }: { posa: Posa; nome: string; sottotitolo: string }) {
+  return (
+    <View style={stiliIntestazione.riga} accessibilityRole="header" accessibilityLabel={`${nome}, ${sottotitolo}`}>
+      <AvatarLode posa={posa} lato={32} />
+      <View style={stiliIntestazione.testi}>
+        <Text style={stiliIntestazione.nome} numberOfLines={1}>
+          {nome}
+        </Text>
+        <Text style={stiliIntestazione.sottotitolo} numberOfLines={1}>
+          {sottotitolo}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const stiliIntestazione = StyleSheet.create({
+  riga: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spazi.sm,
+    flexShrink: 1,
+  },
+  testi: {
+    flexShrink: 1,
+  },
+  nome: {
+    color: coloriChat.testo,
+    fontFamily: fontChat.grassetto,
+    fontSize: 18,
+    lineHeight: 21,
+  },
+  sottotitolo: {
+    color: coloriChat.testoSecondario,
+    fontSize: 12,
+    lineHeight: 15,
   },
 });

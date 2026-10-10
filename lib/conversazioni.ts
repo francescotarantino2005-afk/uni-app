@@ -51,3 +51,65 @@ export function titoloValido(testo: string): string | null {
   const t = testo.replace(/\s+/g, ' ').trim().slice(0, 80);
   return t ? t : null;
 }
+
+// --- Chat nuove: non si salvano finché lo studente non scrive ---
+
+/** Il titolo di default di una chat nuova (lo stesso della function chat). */
+export const TITOLO_NUOVA = 'Nuova chat';
+const MAX_TITOLO = 30;
+
+/**
+ * Una chat nuova ancora da salvare: esiste solo sullo schermo (id vuoto). Al
+ * primo messaggio diventa una riga di `conversazioni`.
+ */
+export function bozza(examId: string | null): Conversazione {
+  return { id: '', exam_id: examId, titolo: TITOLO_NUOVA, generale: false, aggiornata_il: '' };
+}
+
+export const eBozza = (c: Conversazione | null | undefined): boolean => !!c && !c.id;
+
+/**
+ * Il titolo dal primo messaggio: la prima riga, spazi ripuliti, al massimo 30
+ * caratteri; se è più lunga si taglia a parola intera e si chiude con "…".
+ */
+export function titoloDaMessaggio(messaggio: string): string {
+  const riga = (messaggio.split('\n').find((r) => r.trim()) ?? '').replace(/\s+/g, ' ').trim();
+  if (!riga) return TITOLO_NUOVA;
+  if (riga.length <= MAX_TITOLO) return riga;
+  let taglio = riga.slice(0, MAX_TITOLO - 1);
+  const spazio = taglio.lastIndexOf(' ');
+  if (spazio >= 12) taglio = taglio.slice(0, spazio);
+  return `${taglio.replace(/[\s,.;:!?-]+$/, '')}…`;
+}
+
+/** Dopo quanto una chat vuota (senza messaggi) si può eliminare. */
+export const VUOTA_DA_ELIMINARE_MS = 10 * 60 * 1000;
+
+/**
+ * Chat vuote: nella barra non si mostrano mai; si eliminano solo quelle create
+ * da più di dieci minuti (una appena creata può avere il primo messaggio in
+ * viaggio). La "Generale" resta sempre.
+ */
+export function separaVuote(
+  elenco: (Conversazione & { messaggi: number; creata_il: string })[],
+  adesso: number
+): { visibili: Conversazione[]; daEliminare: string[] } {
+  const visibili: Conversazione[] = [];
+  const daEliminare: string[] = [];
+  for (const { messaggi, creata_il, ...c } of elenco) {
+    if (c.generale || messaggi > 0) {
+      visibili.push(c);
+      continue;
+    }
+    const creata = Date.parse(creata_il);
+    if (Number.isFinite(creata) && adesso - creata > VUOTA_DA_ELIMINARE_MS) daEliminare.push(c.id);
+  }
+  return { visibili, daEliminare };
+}
+
+/** Il sottotitolo dell'intestazione: "Generale", l'esame, il titolo della chat. */
+export function sottotitoloChat(c: Conversazione | null, materia: string | null): string {
+  if (!c || c.generale) return 'Generale';
+  if (eBozza(c)) return materia ?? TITOLO_NUOVA;
+  return materia ? `${materia} · ${c.titolo}` : c.titolo;
+}

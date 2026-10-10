@@ -2,26 +2,48 @@
 // ognuno vede e gestisce solo le sue). La logica dei gruppi sta in
 // lib/conversazioni.ts.
 import { supabase } from '@/lib/supabase';
-import type { Conversazione, EsameBarra } from '@/lib/conversazioni';
+import { separaVuote, type Conversazione, type EsameBarra } from '@/lib/conversazioni';
 
 const CAMPI = 'id, exam_id, titolo, generale, aggiornata_il';
+// Per la barra: in più quando è nata e quanti messaggi ha (le vuote non si mostrano).
+const CAMPI_BARRA = `${CAMPI}, creata_il, chat_messages(count)`;
+
+type RigaBarra = Conversazione & { creata_il: string; chat_messages: { count: number }[] | null };
 
 async function utente(): Promise<string | null> {
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
 }
 
-/** Le conversazioni dello studente. Se la "Generale" non c'è ancora la crea. */
+async function leggiBarra(): Promise<Conversazione[] | null> {
+  const { data, error } = await supabase.from('conversazioni').select(CAMPI_BARRA).order('aggiornata_il', { ascending: false });
+  if (error || !data) {
+    // Ripiego: senza il conteggio si mostrano tutte, come prima.
+    const { data: semplici, error: e2 } = await supabase.from('conversazioni').select(CAMPI).order('aggiornata_il', { ascending: false });
+    return e2 || !semplici ? null : (semplici as Conversazione[]);
+  }
+  const { visibili, daEliminare } = separaVuote(
+    (data as unknown as RigaBarra[]).map(({ chat_messages, ...c }) => ({ ...c, messaggi: chat_messages?.[0]?.count ?? 0 })),
+    Date.now()
+  );
+  // Le chat vuote rimaste da prima (fino alla build 21 si salvavano subito): via.
+  if (daEliminare.length) {
+    supabase.from('conversazioni').delete().in('id', daEliminare).eq('generale', false).then(() => undefined);
+  }
+  return visibili;
+}
+
+/** Le conversazioni dello studente (senza quelle vuote). Se la "Generale" non c'è ancora la crea. */
 export async function caricaConversazioni(): Promise<Conversazione[]> {
-  const { data } = await supabase.from('conversazioni').select(CAMPI).order('aggiornata_il', { ascending: false });
-  const elenco = (data as Conversazione[] | null) ?? [];
+  const letto = await leggiBarra();
+  if (!letto) return []; // rete giù: niente da creare alla cieca
+  const elenco = letto;
   if (elenco.some((c) => c.generale)) return elenco;
   const id = await utente();
   if (!id) return elenco;
   await supabase.from('conversazioni').insert({ user_id: id, titolo: 'Generale', generale: true });
   // (se un'altra richiesta l'ha creata nel frattempo, l'indice unico rifiuta questa: si rilegge)
-  const { data: dopo } = await supabase.from('conversazioni').select(CAMPI).order('aggiornata_il', { ascending: false });
-  return (dopo as Conversazione[] | null) ?? elenco;
+  return (await leggiBarra()) ?? elenco;
 }
 
 /** Gli esami del libretto per i gruppi della barra. */
@@ -34,13 +56,16 @@ export async function caricaEsamiBarra(): Promise<EsameBarra[]> {
   }));
 }
 
-/** Una nuova conversazione, dentro un esame o senza. */
-export async function nuovaConversazione(examId: string | null): Promise<Conversazione | null> {
+/**
+ * Salva una conversazione nuova, dentro un esame o senza. Si chiama SOLO al
+ * primo messaggio, con il titolo già ricavato dal messaggio (lib/conversazioni.ts).
+ */
+export async function nuovaConversazione(examId: string | null, titolo: string): Promise<Conversazione | null> {
   const id = await utente();
   if (!id) return null;
   const { data } = await supabase
     .from('conversazioni')
-    .insert({ user_id: id, exam_id: examId, titolo: 'Nuova chat' })
+    .insert({ user_id: id, exam_id: examId, titolo })
     .select(CAMPI)
     .single();
   return (data as Conversazione | null) ?? null;
